@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZEFRAM VIDEO ENGINE Demo</title>
+    <style>
+        body { background: #000; color: #00f3ff; font-family: monospace; margin: 0; overflow: hidden; }
+        #player-wrapper { position: relative; width: 100vw; aspect-ratio: 16/9; background: #111; }
+        #yt-player { width: 100%; height: 100%; transition: transform 0.3s; }
+        
+        /* ZEFRAM 遮断用カーテン（OSD） */
+        #zefram-curtain {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; opacity: 0; transition: opacity 0.5s;
+            pointer-events: none; z-index: 10;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #zefram-curtain.active { opacity: 1; }
+
+        /* 操作パネル */
+        .controls { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        input, button { background: #222; color: #00f3ff; border: 1px solid #00f3ff; padding: 10px; font-size: 14px; }
+        .playlist { height: 150px; overflow-y: auto; border: 1px solid #333; margin-top: 10px; padding: 5px; }
+        .track-item { padding: 5px; cursor: pointer; border-bottom: 1px solid #222; }
+        .track-item:hover { background: #00f3ff33; }
+        .active-track { color: #fff; background: #004444; }
+    </style>
+</head>
+<body>
+
+<div id="player-wrapper">
+    <div id="yt-player"></div>
+    <div id="zefram-curtain"><span>SYSTEM: TRANSITIONING...</span></div>
+</div>
+
+<div class="controls">
+    <input type="text" id="url-input" placeholder="YouTube URLを貼り付け">
+    <button onclick="addTrack()">ADD TO LIST</button>
+    <button onclick="toggleMirror()">MIRROR (反転)</button>
+    <button onclick="setABLoop()">A-B LOOP (ON/OFF)</button>
+</div>
+
+<div id="playlist" class="playlist">
+    </div>
+
+<script>
+    let player;
+    let playlist = [];
+    let currentIndex = 0;
+    let isMirror = false;
+    let isABMode = false;
+    let aPoint = 5; // デモ用：5秒
+    let bPoint = 10; // デモ用：10秒
+    const C_POINT = 1.0; // システム用イン点
+
+    // YouTube API初期化
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('yt-player', {
+            playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1, 'rel': 0 },
+            events: {
+                'onReady': () => console.log("ZEFRAM READY"),
+                'onStateChange': onPlayerStateChange
+            }
+        });
+    }
+
+    function addTrack() {
+        const url = document.getElementById('url-input').value;
+        const videoId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
+        if (videoId) {
+            playlist.push({ id: videoId, title: "Track " + (playlist.length + 1) });
+            updatePlaylistUI();
+            document.getElementById('url-input').value = "";
+            if (playlist.length === 1) playTrack(0);
+        }
+    }
+
+    function updatePlaylistUI() {
+        const container = document.getElementById('playlist');
+        container.innerHTML = playlist.map((t, i) => 
+            `<div class="track-item ${i===currentIndex?'active-track':''}" onclick="playTrack(${i})">${t.title} [${t.id}]</div>`
+        ).join('');
+    }
+
+    function playTrack(index) {
+        currentIndex = index;
+        updatePlaylistUI();
+        isTransitioning = false;
+        player.loadVideoById({ videoId: playlist[index].id, startSeconds: 0 });
+    }
+
+    let isTransitioning = false;
+    function onPlayerStateChange(event) {
+        if (event.data == YT.PlayerState.PLAYING) {
+            const duration = player.getDuration();
+            const dPoint = duration - 1.0; // 終了1秒前
+
+            const monitor = setInterval(() => {
+                if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                    clearInterval(monitor);
+                    return;
+                }
+
+                const now = player.getCurrentTime();
+
+                // A-Bリピート制御（同一タイトル内）
+                if (isABMode && now >= bPoint) {
+                    player.seekTo(aPoint);
+                    return;
+                }
+
+                // D点（1秒前）到達：DJ遷移開始
+                if (now >= dPoint && !isTransitioning) {
+                    clearInterval(monitor);
+                    executeNextTrack();
+                }
+            }, 100);
+        }
+    }
+
+    function executeNextTrack() {
+        if (playlist.length <= currentIndex + 1) return; // 次がない
+        isTransitioning = true;
+        
+        const curtain = document.getElementById('zefram-curtain');
+        curtain.classList.add('active'); // 黒フェードアウト
+
+        setTimeout(() => {
+            currentIndex++;
+            player.mute(); // 音声をミュート（自動再生権限を維持）
+            player.loadVideoById({
+                videoId: playlist[currentIndex].id,
+                startSeconds: 0
+            });
+            updatePlaylistUI();
+
+            // C点(1秒)で音出し ＋ 黒フェードイン
+            setTimeout(() => {
+                player.seekTo(C_POINT);
+                player.unMute(); // 1秒経過後に音を出す（unMuteフェイント）
+                curtain.classList.remove('active');
+                isTransitioning = false;
+            }, 1500);
+        }, 500);
+    }
+
+    function toggleMirror() {
+        isMirror = !isMirror;
+        document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)";
+    }
+
+    function setABLoop() {
+        isABMode = !isABMode;
+        alert(isABMode ? "5秒〜10秒でリピート設定中" : "リピート解除");
+    }
+</script>
+</body>
+</html>
