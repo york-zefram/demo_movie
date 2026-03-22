@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZEFRAM VIDEO ENGINE Experiment</title>
+    <title>ZEFRAM VIDEO ENGINE Experiment - Precision Stop</title>
     <style>
         body { background: #000; color: #00f3ff; font-family: monospace; margin: 0; overflow: hidden; }
         #player-wrapper { position: relative; width: 100vw; aspect-ratio: 16/9; background: #111; }
@@ -105,7 +105,7 @@
     <input type="text" id="url-input" placeholder="YouTube URLを貼り付け">
     <button onclick="addTrack()">選 曲</button>
     <button onclick="toggleMirror()">MIRROR (反転)</button>
-    <button onclick="setABLoop()">EXPERIMENT PAUSE (ON/OFF)</button>
+    <button onclick="setABLoop()">PRECISE PAUSE (ON/OFF)</button>
 </div>
 
 <div id="playlist" class="playlist"></div>
@@ -118,6 +118,7 @@
     let isABMode = false;
     
     let loopEndTime = 0;
+    const STOP_MARGIN = 0.15; // 通り越しを防ぐための先読みブレーキ（秒）
 
     const seekbarContainer = document.getElementById('seekbar-container');
     const seekbarProgress = document.getElementById('seekbar-progress');
@@ -160,8 +161,8 @@
                 const duration = player.getDuration();
 
                 if (isABMode) {
-                    // 実験：B点を超えたら一時停止
-                    if (now >= loopEndTime) {
+                    // 「先読み停止」ロジック：B点の手前で一時停止命令を出す
+                    if (now >= (loopEndTime - STOP_MARGIN)) {
                         player.pauseVideo();
                     }
                 }
@@ -190,6 +191,7 @@
             if (player && player.getDuration) {
                 const time = (percent / 100) * player.getDuration();
                 player.seekTo(time, true);
+                if (isABMode) commitABTimes();
             }
         };
         seekbarContainer.addEventListener('mousedown', (e) => {
