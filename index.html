@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZEFRAM VIDEO ENGINE - Fixed Precision Loop</title>
+    <title>ZEFRAM VIDEO ENGINE - Seamless Loop</title>
     <style>
         body { background: #000; color: #00f3ff; font-family: monospace; margin: 0; overflow: hidden; }
         #player-wrapper { position: relative; width: 100vw; aspect-ratio: 16/9; background: #111; }
@@ -78,7 +78,7 @@
         #point-b { left: 100%; }
 
         .controls { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        input, button { background: #222; color: #00f3ff; border: 1px solid #00f3ff; padding: 10px; font-size: 14px; }
+        input, button { background: #222; color: #00f3ff; border: 1px solid #00f3ff; padding: 10px; font-size: 14px; cursor: pointer; }
         .playlist { height: 150px; overflow-y: auto; border: 1px solid #333; margin-top: 10px; padding: 5px; }
         .track-item { padding: 5px; cursor: pointer; border-bottom: 1px solid #222; }
         .track-item:hover { background: #00f3ff33; }
@@ -105,7 +105,7 @@
     <input type="text" id="url-input" placeholder="YouTube URLを貼り付け">
     <button onclick="addTrack()">選 曲</button>
     <button onclick="toggleMirror()">MIRROR (反転)</button>
-    <button onclick="setABLoop()">A-B LOOP (ON/OFF)</button>
+    <button onclick="toggleABLoop()">A-B LOOP (ON/OFF)</button>
 </div>
 
 <div id="playlist" class="playlist"></div>
@@ -119,7 +119,8 @@
     
     let startTime = 0;
     let endTime = 0;
-    const PREDICTIVE_MARGIN = 0.15; // 停止実験で成功した先読みマージンを採用
+    // 実験で成功した「通り越し防止」のマージン（0.15秒手前でシーク命令を出す）
+    const PREDICTIVE_MARGIN = 0.15; 
 
     const seekbarContainer = document.getElementById('seekbar-container');
     const seekbarProgress = document.getElementById('seekbar-progress');
@@ -148,6 +149,7 @@
         });
     }
 
+    // 座標（％）を厳密な秒数データに変換してロックする
     function lockABTimes() {
         if (!player || !player.getDuration) return;
         const duration = player.getDuration();
@@ -165,7 +167,7 @@
                 const duration = player.getDuration();
 
                 if (isABMode) {
-                    // 先読みブレーキ判定：停止実験で成功したタイミングでA点へシーク
+                    // 実験で成功した「先読み」タイミングで、A点へ強制ジャンプ（自動再生継続）
                     if (now >= (endTime - PREDICTIVE_MARGIN)) {
                         player.seekTo(startTime, true);
                     }
@@ -278,9 +280,15 @@
         document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)";
     }
 
-    function setABLoop() {
+    function toggleABLoop() {
         isABMode = !isABMode;
-        lockABTimes();
+        if (isABMode) {
+            lockABTimes();
+            // A-Bループ開始時にもしB点を超えていたら即座にAへ戻す
+            if (player.getCurrentTime() >= endTime) {
+                player.seekTo(startTime, true);
+            }
+        }
     }
 </script>
 </body>
