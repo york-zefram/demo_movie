@@ -22,36 +22,64 @@
         #seekbar-container {
             position: absolute;
             top: 66.6%;
-            left: 0;
-            width: 100%;
-            height: 20px;
+            left: 5%;
+            width: 90%;
+            height: 40px;
             z-index: 20;
-            cursor: pointer;
             display: flex;
             align-items: center;
         }
         #seekbar-bg {
             width: 100%;
             height: 4px;
-            background: rgba(0, 243, 255, 0.3);
+            background: rgba(0, 243, 255, 0.2);
             position: relative;
         }
         #seekbar-progress {
             height: 100%;
             background: #00f3ff;
             width: 0%;
+            box-shadow: 0 0 10px #00f3ff;
         }
+        
+        /* 再生点（白丸） */
         #seekbar-knob {
             position: absolute;
             top: 50%;
             left: 0%;
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             background: #fff;
             border-radius: 50%;
             transform: translate(-50%, -50%);
             box-shadow: 0 0 10px #fff;
+            pointer-events: none;
+            z-index: 5;
         }
+
+        /* A点・B点ノブ（画像デザイン参照） */
+        .ab-point {
+            position: absolute;
+            top: 50%;
+            width: 32px;
+            height: 32px;
+            border: 2px solid #00f3ff;
+            background: #000;
+            color: #00f3ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.6);
+            z-index: 10;
+            user-select: none;
+        }
+        #point-a { left: 0%; }
+        #point-b { left: 100%; }
 
         /* 操作パネル */
         .controls { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -72,6 +100,8 @@
         <div id="seekbar-bg">
             <div id="seekbar-progress"></div>
             <div id="seekbar-knob"></div>
+            <div id="point-a" class="ab-point">A</div>
+            <div id="point-b" class="ab-point">B</div>
         </div>
     </div>
 </div>
@@ -83,8 +113,7 @@
     <button onclick="setABLoop()">A-B LOOP (ON/OFF)</button>
 </div>
 
-<div id="playlist" class="playlist">
-</div>
+<div id="playlist" class="playlist"></div>
 
 <script>
     let player;
@@ -96,11 +125,14 @@
     let bPoint = 10; 
     const C_POINT = 1.0;
 
-    // 再生バー関連
     const seekbarContainer = document.getElementById('seekbar-container');
     const seekbarProgress = document.getElementById('seekbar-progress');
     const seekbarKnob = document.getElementById('seekbar-knob');
-    let isDragging = false;
+    const pointA = document.getElementById('point-a');
+    const pointB = document.getElementById('point-b');
+    
+    let isDraggingSeek = false;
+    let activeAB = null;
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -111,37 +143,54 @@
             playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1, 'rel': 0 },
             events: {
                 'onReady': () => {
-                    console.log("ZEFRAM READY");
                     initSeekBar();
+                    initABControls();
                 },
                 'onStateChange': onPlayerStateChange
             }
         });
     }
 
+    // 再生バーのドラッグ
     function initSeekBar() {
-        const handleE = (e) => {
+        const handleSeek = (e) => {
             const rect = seekbarContainer.getBoundingClientRect();
             const x = (e.clientX || e.touches[0].clientX) - rect.left;
             let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
-            
-            seekbarProgress.style.width = percent + "%";
-            seekbarKnob.style.left = percent + "%";
-            
             if (player && player.getDuration) {
                 const time = (percent / 100) * player.getDuration();
                 player.seekTo(time, true);
             }
         };
 
-        seekbarContainer.addEventListener('mousedown', (e) => { isDragging = true; handleE(e); });
-        window.addEventListener('mousemove', (e) => { if (isDragging) handleE(e); });
-        window.addEventListener('mouseup', () => { isDragging = false; });
-        
-        // タッチ対応
-        seekbarContainer.addEventListener('touchstart', (e) => { isDragging = true; handleE(e); });
-        window.addEventListener('touchmove', (e) => { if (isDragging) handleE(e); });
-        window.addEventListener('touchend', () => { isDragging = false; });
+        seekbarContainer.addEventListener('mousedown', (e) => {
+            if(e.target.classList.contains('ab-point')) return;
+            isDraggingSeek = true; 
+            handleSeek(e); 
+        });
+        window.addEventListener('mousemove', (e) => { if (isDraggingSeek) handleSeek(e); });
+        window.addEventListener('mouseup', () => { isDraggingSeek = false; });
+    }
+
+    // A点・B点のスライド操作
+    function initABControls() {
+        const handleABMove = (e) => {
+            if (!activeAB) return;
+            const rect = seekbarContainer.getBoundingClientRect();
+            const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+            let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+            activeAB.style.left = percent + "%";
+        };
+
+        [pointA, pointB].forEach(el => {
+            el.addEventListener('mousedown', (e) => { activeAB = el; e.stopPropagation(); });
+            el.addEventListener('touchstart', (e) => { activeAB = el; e.stopPropagation(); });
+        });
+
+        window.addEventListener('mousemove', handleABMove);
+        window.addEventListener('touchmove', handleABMove);
+        window.addEventListener('mouseup', () => { activeAB = null; });
+        window.addEventListener('touchend', () => { activeAB = null; });
     }
 
     function addTrack() {
@@ -183,8 +232,7 @@
 
                 const now = player.getCurrentTime();
 
-                // 再生バー更新（ドラッグ中でない時）
-                if (!isDragging) {
+                if (!isDraggingSeek) {
                     const percent = (now / duration) * 100;
                     seekbarProgress.style.width = percent + "%";
                     seekbarKnob.style.left = percent + "%";
@@ -206,19 +254,13 @@
     function executeNextTrack() {
         if (playlist.length <= currentIndex + 1) return;
         isTransitioning = true;
-        
         const curtain = document.getElementById('zefram-curtain');
         curtain.classList.add('active');
-
         setTimeout(() => {
             currentIndex++;
             player.mute();
-            player.loadVideoById({
-                videoId: playlist[currentIndex].id,
-                startSeconds: 0
-            });
+            player.loadVideoById({ videoId: playlist[currentIndex].id, startSeconds: 0 });
             updatePlaylistUI();
-
             setTimeout(() => {
                 player.seekTo(C_POINT);
                 player.unMute();
@@ -235,7 +277,7 @@
 
     function setABLoop() {
         isABMode = !isABMode;
-        alert(isABMode ? "5秒〜10秒でリピート設定中" : "リピート解除");
+        alert(isABMode ? "ループ有効（ノブの位置は未連動）" : "リピート解除");
     }
 </script>
 </body>
