@@ -2,101 +2,82 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZEFRAM VIDEO ENGINE - Deadzone Safety</title>
+    <title>ZEFRAM VIDEO ENGINE - Transparent Layer Fix</title>
     <style>
         body { background: #000; color: #00f3ff; font-family: monospace; margin: 0; overflow: hidden; }
         
-        /* プレーヤー領域：ここ自体へのクリックはYouTubeに届く */
         #player-wrapper { 
             position: relative; 
             width: 100vw; 
             aspect-ratio: 16/9; 
             background: #111; 
+            z-index: 1; /* プレーヤーを下の階層に */
         }
         #yt-player { width: 100%; height: 100%; }
 
-        /* 操作コンテナ：全体を pointer-events: none にしてクリックを透過させる */
+        /* 重要：コンテナ自体の高さを 0 にし、画面を覆わないようにする */
         #seekbar-container {
             position: absolute;
-            top: 66%; /* 指定のデッドゾーン */
-            left: 0;
-            width: 100%;
-            height: 60px;
-            z-index: 20;
-            display: flex;
-            align-items: center;
-            pointer-events: none; 
+            top: 66%; 
+            left: 5%;
+            width: 90%;
+            height: 0; /* 高さをなくして、壁にならないようにする */
+            z-index: 100;
+            pointer-events: none; /* 基本は全て透過 */
         }
 
         #seekbar-bg {
-            width: 90%;
+            width: 100%;
             height: 4px;
             background: rgba(0, 243, 255, 0.3);
-            margin: 0 auto;
-            position: relative;
-            /* バー自体もクリックを透過（YouTubeのシーク操作を邪魔しないため） */
-            pointer-events: none; 
+            position: absolute;
+            top: -2px; /* 高さを相殺して中央に */
+            pointer-events: none;
         }
 
-        /* 実際にクリックを受け取るパーツだけ pointer-events: auto に設定 */
+        /* 操作パーツだけをクリック可能にする */
         .ab-point {
             position: absolute;
-            top: 50%;
-            width: 36px;
-            height: 36px;
+            top: 0;
+            width: 40px;
+            height: 40px;
             border: 2px solid #00f3ff;
             background: rgba(0, 0, 0, 0.8);
             color: #00f3ff;
             border-radius: 50%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            transform: translate(-50%, -50%); /* 中心合わせ */
+            display: flex; align-items: center; justify-content: center;
             font-weight: bold;
             cursor: pointer;
-            z-index: 30;
-            pointer-events: auto; /* A・Bボタンは操作可能 */
+            pointer-events: auto; /* ここだけクリックを有効化 */
             user-select: none;
         }
 
         #seekbar-knob {
             position: absolute;
-            top: 50%;
-            width: 16px;
-            height: 16px;
+            top: 0;
+            width: 18px;
+            height: 18px;
             background: #fff;
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            pointer-events: auto; /* 再生位置ノブも操作可能 */
-            z-index: 25;
+            pointer-events: auto; /* ここだけクリックを有効化 */
         }
 
-        #seekbar-progress {
-            height: 100%;
-            background: #00f3ff;
-            width: 0%;
-        }
+        #seekbar-progress { height: 100%; background: #00f3ff; width: 0%; }
 
-        /* 下部コントロール：YouTube画面に被らないよう配置 */
-        .controls { 
-            padding: 15px; 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 10px; 
-            background: #000;
-        }
-        input, button { background: #222; color: #00f3ff; border: 1px solid #00f3ff; padding: 12px; font-size: 14px; cursor: pointer; }
-        .playlist { height: 120px; overflow-y: auto; border: 1px solid #333; margin: 10px; padding: 5px; }
+        /* 下部コントロール */
+        .controls { padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #000; }
+        input, button { background: #222; color: #00f3ff; border: 1px solid #00f3ff; padding: 12px; cursor: pointer; }
+        .playlist { height: 100px; overflow-y: auto; border: 1px solid #333; margin: 10px; }
         .track-item { padding: 8px; cursor: pointer; border-bottom: 1px solid #222; }
-        .active-track { background: #004444; color: #fff; }
+        .active-track { background: #004444; }
     </style>
 </head>
 <body>
 
 <div id="player-wrapper">
     <div id="yt-player"></div>
-    
     <div id="seekbar-container">
         <div id="seekbar-bg">
             <div id="seekbar-progress"></div>
@@ -122,10 +103,9 @@
     let currentIndex = 0;
     let isABMode = false;
     let isMirror = false;
-    
     let startTime = 0;
     let endTime = 0;
-    const PREDICTIVE_MARGIN = 0.15; // 実験成功値
+    const PREDICTIVE_MARGIN = 0.15;
 
     const pointA = document.getElementById('point-a');
     const pointB = document.getElementById('point-b');
@@ -141,28 +121,16 @@
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('yt-player', {
-            // controls: 1 にして純正機能を活かしつつ、独自UIで補助する
             playerVars: { 'playsinline': 1, 'controls': 1, 'rel': 0 },
-            events: { 'onReady': onPlayerReady }
+            events: { 'onReady': () => setInterval(monitor, 50) }
         });
     }
 
-    function onPlayerReady() {
-        initDraggable();
-        setInterval(monitorVideo, 50);
-    }
-
-    function monitorVideo() {
+    function monitor() {
         if (!player || player.getPlayerState() !== 1) return;
-        
         const now = player.getCurrentTime();
         const duration = player.getDuration();
-
-        if (isABMode && now >= (endTime - PREDICTIVE_MARGIN)) {
-            player.seekTo(startTime, true);
-        }
-
-        // ノブの位置更新（ドラッグ中でない時）
+        if (isABMode && now >= (endTime - PREDICTIVE_MARGIN)) player.seekTo(startTime, true);
         if (!activeTarget) {
             const pct = (now / duration) * 100;
             knob.style.left = pct + "%";
@@ -170,68 +138,59 @@
         }
     }
 
-    function initDraggable() {
-        const handleMove = (e) => {
-            if (!activeTarget) return;
-            const rect = bg.getBoundingClientRect();
-            const clientX = e.clientX || e.touches?.[0].clientX;
-            let pct = ((clientX - rect.left) / rect.width) * 100;
-            pct = Math.max(0, Math.min(100, pct));
-
-            activeTarget.style.left = pct + "%";
-
-            if (activeTarget === knob) {
-                const time = (pct / 100) * player.getDuration();
-                player.seekTo(time, true);
-                progress.style.width = pct + "%";
-            }
-            updateABTimes();
-        };
-
-        const startDrag = (e, target) => {
-            activeTarget = target;
-            e.preventDefault();
-        };
-
-        [pointA, pointB, knob].forEach(el => {
-            el.addEventListener('mousedown', (e) => startDrag(e, el));
-            el.addEventListener('touchstart', (e) => startDrag(e, el));
-        });
-
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('touchmove', handleMove);
-        window.addEventListener('mouseup', () => activeTarget = null);
-        window.addEventListener('touchend', () => activeTarget = null);
+    function startDrag(e, target) {
+        activeTarget = target;
+        e.preventDefault();
     }
 
-    function updateABTimes() {
-        const duration = player.getDuration();
-        startTime = (parseFloat(pointA.style.left || 0) / 100) * duration;
-        endTime = (parseFloat(pointB.style.left || 100) / 100) * duration;
+    [pointA, pointB, knob].forEach(el => {
+        el.addEventListener('mousedown', (e) => startDrag(e, el));
+        el.addEventListener('touchstart', (e) => startDrag(e, el));
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!activeTarget) return;
+        const rect = bg.getBoundingClientRect();
+        const clientX = e.clientX || e.touches?.[0].clientX;
+        let pct = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+        activeTarget.style.left = pct + "%";
+        if (activeTarget === knob) {
+            player.seekTo((pct / 100) * player.getDuration(), true);
+            progress.style.width = pct + "%";
+        }
+        updateTimes();
+    });
+
+    window.addEventListener('mouseup', () => activeTarget = null);
+    window.addEventListener('touchend', () => activeTarget = null);
+
+    function updateTimes() {
+        const d = player.getDuration();
+        startTime = (parseFloat(pointA.style.left || 0) / 100) * d;
+        endTime = (parseFloat(pointB.style.left || 100) / 100) * d;
     }
 
     function addTrack() {
         const url = document.getElementById('url-input').value;
         const id = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
         if (id) {
-            playlist.push({ id, title: "Track " + (playlist.length + 1) });
-            updatePlaylistUI();
-            if (playlist.length === 1) playTrack(0);
+            playlist.push({ id });
+            updateUI();
+            if (playlist.length === 1) play(0);
         }
     }
 
-    function updatePlaylistUI() {
-        const container = document.getElementById('playlist');
-        container.innerHTML = playlist.map((t, i) => 
-            `<div class="track-item ${i===currentIndex?'active-track':''}" onclick="playTrack(${i})">${t.title}</div>`
+    function updateUI() {
+        document.getElementById('playlist').innerHTML = playlist.map((t, i) => 
+            `<div class="track-item ${i===currentIndex?'active-track':''}" onclick="play(${i})">Track ${i+1} [${t.id}]</div>`
         ).join('');
     }
 
-    function playTrack(index) {
-        currentIndex = index;
-        updatePlaylistUI();
-        player.loadVideoById(playlist[index].id);
-        setTimeout(updateABTimes, 1000);
+    function play(i) {
+        currentIndex = i;
+        updateUI();
+        player.loadVideoById(playlist[i].id);
+        setTimeout(updateTimes, 1000);
     }
 
     function toggleMirror() {
@@ -241,7 +200,7 @@
 
     function toggleABLoop() {
         isABMode = !isABMode;
-        updateABTimes();
+        updateTimes();
     }
 </script>
 </body>
