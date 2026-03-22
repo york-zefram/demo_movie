@@ -2,227 +2,150 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM PLAYER NEO - VIDEO EDITION</title>
+    <title>ZEFRAM PLAYER NEO - STABLE EDITION</title>
     <style>
         :root { --neon-blue: #00f3ff; --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); }
         body { background: #000; color: var(--neon-blue); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; text-transform: uppercase; }
 
         /* 映像エリア */
         #player-wrapper { 
-            position: relative; 
-            width: 100vw; 
-            aspect-ratio: 16/9; 
-            background: #000;
-            box-shadow: inset 0 0 20px rgba(0,0,0,1);
+            position: relative; width: 100vw; aspect-ratio: 16/9; background: #000;
         }
-        #yt-player { width: 100%; height: 100%; pointer-events: auto; transition: transform 0.3s ease; }
+        #yt-player { width: 100%; height: 100%; pointer-events: auto; }
 
-        /* --- HOME UI ユニット --- */
+        /* --- HOME UI UNIT (Container Based) --- */
         #home-overlay {
-            position: absolute;
-            top: 66%; left: 50%;
-            transform: translate(-50%, -30%);
-            width: 90%;
-            background: rgba(20, 20, 20, 0.9);
-            border-radius: 15px;
-            padding: 20px;
-            z-index: 1000;
-            transition: opacity 0.5s ease;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            border: 1px solid #333;
-            pointer-events: auto;
+            position: absolute; top: 66%; left: 50%; transform: translate(-50%, -30%);
+            width: 90%; background: rgba(20, 20, 20, 0.9); border-radius: 15px;
+            padding: 20px; z-index: 1000; transition: opacity 0.5s ease;
+            display: flex; flex-direction: column; gap: 15px; border: 1px solid #333;
         }
 
         #home-label {
-            position: absolute;
-            top: -50px; left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            font-size: 24px;
-            letter-spacing: 5px;
-            color: #fff;
-            transition: opacity 0.5s ease;
+            position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+            font-size: 24px; letter-spacing: 5px; color: #fff; transition: opacity 0.5s ease;
         }
 
-        .home-button-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-        }
-
+        .home-button-row { display: flex; justify-content: space-between; gap: 10px; }
         #home-play-btn {
-            width: 0; height: 0;
-            border-top: 15px solid transparent;
-            border-bottom: 15px solid transparent;
-            border-left: 25px solid var(--neon-blue);
-            cursor: pointer;
-            filter: drop-shadow(var(--neon-glow));
-            margin-right: 10px;
+            width: 0; height: 0; border-top: 15px solid transparent; border-bottom: 15px solid transparent;
+            border-left: 25px solid var(--neon-blue); cursor: pointer; filter: drop-shadow(var(--neon-glow));
         }
 
         .home-nav-btn {
-            flex: 1;
-            padding: 10px 0;
-            background: none;
-            border: 1.5px solid var(--neon-blue);
-            color: #fff;
-            font-size: 14px;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: 0.2s;
-            text-align: center;
+            flex: 1; padding: 10px 0; background: none; border: 1.5px solid var(--neon-blue);
+            color: #fff; font-size: 14px; cursor: pointer; border-radius: 4px; transition: 0.2s;
         }
+        .home-nav-btn.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
 
-        .home-nav-btn.active {
-            background: var(--neon-blue);
-            color: #000;
-            box-shadow: var(--neon-glow);
-        }
-
-        /* 可変エリア：SEEK / URL / SPEED / LOOP */
-        #home-dynamic-area {
-            width: 100%;
-            min-height: 45px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
+        /* --- 各機能専用コンテナ --- */
+        #home-dynamic-area { width: 100%; min-height: 50px; position: relative; }
+        .mode-container { display: none; width: 100%; flex-direction: column; justify-content: center; }
+        .mode-container.active { display: flex; }
 
         /* 共通バーデザイン */
-        .home-bar-container {
-            width: 100%; height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            position: relative; cursor: pointer;
-        }
-        .home-bar-progress { height: 100%; background: var(--neon-blue); box-shadow: var(--neon-glow); width: 0%; pointer-events: none; }
-        .home-bar-knob {
+        .bar-base { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.2); position: relative; cursor: pointer; }
+        .bar-fill { height: 100%; background: var(--neon-blue); box-shadow: var(--neon-glow); width: 0%; pointer-events: none; }
+        .knob-main {
             position: absolute; top: 50%; width: 16px; height: 16px;
             background: #fff; border-radius: 50%; transform: translate(-50%, -50%);
             box-shadow: 0 0 10px #fff; pointer-events: none;
         }
 
-        /* LOOP (AB) モード用 */
-        #home-loop-wrapper { display: none; width: 100%; position: relative; height: 40px; align-items: center; }
-        .ab-point {
+        /* LOOP (AB) 専用 */
+        .ab-knob {
             position: absolute; top: 50%; width: 34px; height: 34px;
-            border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.8);
-            color: var(--neon-blue); border-radius: 50%;
-            transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: bold; cursor: pointer; pointer-events: auto;
-            box-shadow: var(--neon-glow); z-index: 10;
+            border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
+            color: var(--neon-blue); border-radius: 50%; transform: translate(-50%, -50%);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: var(--neon-glow); z-index: 10;
+        }
+        #loop-range-highlight { position: absolute; height: 100%; background: var(--neon-blue); opacity: 0.5; pointer-events: none; }
+
+        /* SPEED 専用 */
+        .speed-ui-row { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 10px; }
+        .speed-sub-btn {
+            width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--neon-blue);
+            background: none; color: var(--neon-blue); cursor: pointer; font-weight: bold;
         }
 
-        /* SPEED モード用 */
-        #home-speed-wrapper { display: none; width: 100%; flex-direction: column; gap: 8px; }
-        .speed-btn-row { display: flex; justify-content: center; gap: 20px; align-items: center; }
-        .home-speed-btn {
-            background: none; border: 1px solid var(--neon-blue); color: var(--neon-blue);
-            width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; font-weight: bold;
-        }
-
-        /* URL モード用 */
-        #home-url-wrapper { display: none; width: 100%; gap: 10px; }
-        #home-url-input { flex: 1; background: #111; border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 8px; border-radius: 4px; outline: none; }
-        #home-url-go { background: var(--neon-blue); border: none; padding: 8px 15px; cursor: pointer; font-weight: bold; border-radius: 4px; }
-
-        .time-display { display: flex; justify-content: space-between; font-size: 10px; color: #888; margin-top: 4px; }
-
-        /* 下部パネル維持 */
-        .neo-panel { padding: 10px 20px; background: linear-gradient(180deg, #050505 0%, #000 100%); border-top: 1px solid #222; display: grid; grid-template-columns: 1fr 2fr 1.5fr; align-items: center; gap: 20px; }
-        .speed-ctrl { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-        input[type=range] { width: 100%; accent-color: var(--neon-blue); cursor: pointer; }
-        .btn-circle { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--neon-blue); background: none; color: var(--neon-blue); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--neon-glow); }
-        .meta-ctrl { display: flex; flex-direction: column; gap: 8px; }
-        .url-box { background: #111; border: 1px solid #333; color: var(--neon-blue); padding: 8px; font-size: 12px; outline: none; }
-        .btn-rect { flex: 1; background: none; border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px; box-shadow: var(--neon-glow); }
+        /* --- 下部パネル (保持) --- */
+        .neo-panel { padding: 10px 20px; background: #000; border-top: 1px solid #222; display: grid; grid-template-columns: 1fr 2fr 1.5fr; align-items: center; gap: 20px; }
+        .btn-rect { width: 100%; background: none; border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px; }
         .btn-rect.active { background: var(--neon-blue); color: #000; }
-        .playlist { height: 80px; overflow-y: auto; font-size: 11px; border-left: 1px solid #222; padding-left: 10px; }
+        input[type=range] { width: 100%; accent-color: var(--neon-blue); }
     </style>
 </head>
 <body onclick="wakeUpUI()">
 
 <div id="player-wrapper">
     <div id="yt-player"></div>
-
     <div id="home-overlay">
         <div id="home-label">HOME</div>
         <div class="home-button-row">
             <div id="home-play-btn" onclick="togglePlay()"></div>
-            <button class="home-nav-btn" id="home-mode-url" onclick="toggleMode('url')">URL</button>
-            <button class="home-nav-btn" id="home-mode-mirror" onclick="handleMirror()">MIRROR</button>
-            <button class="home-nav-btn" id="home-mode-loop" onclick="toggleMode('loop')">LOOP</button>
-            <button class="home-nav-btn" id="home-mode-speed" onclick="toggleMode('speed')">SPEED</button>
-            <button class="home-nav-btn" id="home-mode-list">LIST</button>
+            <button class="home-nav-btn" id="nav-url" onclick="switchMode('url')">URL</button>
+            <button class="home-nav-btn" id="nav-mirror" onclick="handleMirror()">MIRROR</button>
+            <button class="home-nav-btn" id="nav-loop" onclick="switchMode('loop')">LOOP</button>
+            <button class="home-nav-btn" id="nav-speed" onclick="switchMode('speed')">SPEED</button>
+            <button class="home-nav-btn" id="nav-list">LIST</button>
         </div>
 
         <div id="home-dynamic-area">
-            <div id="home-seekbar-wrapper">
-                <div class="home-bar-container" id="home-seekbar-container">
-                    <div class="home-bar-progress" id="home-progress"></div>
-                    <div class="home-bar-knob" id="home-knob" style="left: 0%;"></div>
+            <div id="container-seek" class="mode-container active">
+                <div class="bar-base" id="seek-bar-root">
+                    <div class="bar-fill" id="seek-fill"></div>
+                    <div class="knob-main" id="seek-knob" style="left: 0%;"></div>
                 </div>
-                <div class="time-display">
-                    <span id="home-time-current">00:00</span>
-                    <span id="home-time-total">00:00</span>
-                </div>
-            </div>
-
-            <div id="home-loop-wrapper">
-                <div class="home-bar-container" id="home-loop-container" style="cursor: default;">
-                    <div class="home-bar-progress" id="home-loop-range" style="position: absolute; left: 0%; width: 100%;"></div>
-                    <div id="home-point-a" class="ab-point" style="left: 0%;">A</div>
-                    <div id="home-point-b" class="ab-point" style="left: 100%;">B</div>
+                <div style="display:flex; justify-content:space-between; font-size:10px; margin-top:5px;">
+                    <span id="time-cur">00:00</span><span id="time-total">00:00</span>
                 </div>
             </div>
 
-            <div id="home-speed-wrapper">
-                <div class="home-bar-container" id="home-speed-container">
-                    <div class="home-bar-progress" id="home-speed-progress"></div>
-                    <div class="home-bar-knob" id="home-speed-knob" style="left: 50%;"></div>
+            <div id="container-speed" class="mode-container">
+                <div class="bar-base" id="speed-bar-root">
+                    <div class="bar-fill" id="speed-fill" style="width: 50%;"></div>
+                    <div class="knob-main" id="speed-knob" style="left: 50%;"></div>
                 </div>
-                <div class="speed-btn-row">
-                    <button class="home-speed-btn" onclick="changeSpeed(-0.05)">−</button>
-                    <div id="home-speed-display" style="font-size: 12px; color: #fff; min-width: 50px; text-align: center;">1.00x</div>
-                    <button class="home-speed-btn" onclick="changeSpeed(0, true)">〇</button>
-                    <button class="home-speed-btn" onclick="changeSpeed(0.05)">＋</button>
+                <div class="speed-ui-row">
+                    <button class="speed-sub-btn" onclick="adjSpeed(-0.05)">-</button>
+                    <span id="speed-txt" style="min-width:50px; text-align:center;">1.00x</span>
+                    <button class="speed-sub-btn" onclick="adjSpeed(0,true)">O</button>
+                    <button class="speed-sub-btn" onclick="adjSpeed(0.05)">+</button>
                 </div>
             </div>
 
-            <div id="home-url-wrapper">
-                <input type="text" id="home-url-input" placeholder="PASTE YOUTUBE URL..." onclick="event.stopPropagation()">
-                <button id="home-url-go" onclick="handleHomeUrlGo()">GO</button>
+            <div id="container-loop" class="mode-container">
+                <div class="bar-base" id="loop-bar-root" style="cursor:default;">
+                    <div id="loop-range-highlight" style="left:0%; width:100%;"></div>
+                    <div id="knob-a" class="ab-knob" style="left: 0%;">A</div>
+                    <div id="knob-b" class="ab-knob" style="left: 100%;">B</div>
+                </div>
+            </div>
+
+            <div id="container-url" class="mode-container">
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="url-in" style="flex:1; background:#111; border:1px solid var(--neon-blue); color:#fff; padding:8px;" placeholder="YOUTUBE URL..." onclick="event.stopPropagation()">
+                    <button onclick="loadUrl()" style="background:var(--neon-blue); border:none; padding:0 15px; font-weight:bold;">GO</button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <div class="neo-panel">
-    <div class="speed-ctrl">
-        <input type="range" id="speed-slider" min="0.5" max="1.5" step="0.05" value="1.0">
-        <div style="display:flex; gap:10px;">
-            <button class="btn-circle" id="speed-down">−</button>
-            <button class="btn-circle" id="speed-reset">○</button>
-            <button class="btn-circle" id="speed-up">＋</button>
-        </div>
+    <div><input type="range" id="p-speed" min="0.5" max="1.5" step="0.05" value="1.0" oninput="adjSpeed(this.value, false, true)"></div>
+    <div style="display:flex; gap:5px;">
+        <button class="btn-rect">選 曲</button>
+        <button class="btn-rect" id="p-mirror" onclick="handleMirror()">MIRROR</button>
+        <button class="btn-rect" id="p-loop" onclick="toggleAB()">A-B LOOP</button>
     </div>
-    <div class="meta-ctrl">
-        <input type="text" id="url-input" class="url-box" placeholder="YOUTUBE URL...">
-        <div style="display:flex; gap:5px;">
-            <button class="btn-rect" onclick="addTrack()">選 曲</button>
-            <button class="btn-rect" id="panel-mirror-btn" onclick="toggleMirror()">MIRROR</button>
-            <button class="btn-rect" id="panel-ab-btn" onclick="toggleAB()">A-B LOOP</button>
-        </div>
-    </div>
-    <div id="playlist" class="playlist"></div>
+    <div id="playlist" style="font-size:10px; color:#666;">PLAYLIST READY...</div>
 </div>
 
 <script>
-    let player, playlist = [], currentIndex = 0, isMirror = false, isAB = false, currentMode = 'seek';
-    let startT = 0, endT = 0, uiTimeout, isDragging = false;
+    let player, isMirror=false, isAB=false, curMode='seek', startT=0, endT=0;
+    let uiTimer, activeDrag = null;
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -230,186 +153,130 @@
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('yt-player', {
-            playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
-            events: { 'onReady': onPlayerReady }
+            playerVars: { 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
+            events: { 'onReady': () => { setInterval(update, 50); initEvents(); wakeUpUI(); } }
         });
     }
 
-    function onPlayerReady() {
-        setInterval(update, 50);
-        initBars();
+    function switchMode(m) {
+        curMode = (curMode === m) ? 'seek' : m;
+        document.querySelectorAll('.mode-container').forEach(c => c.classList.remove('active'));
+        document.getElementById(`container-${curMode}`).classList.add('active');
+        document.querySelectorAll('.home-nav-btn').forEach(b => b.classList.remove('active'));
+        if(curMode !== 'seek') document.getElementById(`nav-${curMode}`).classList.add('active');
+        if(isAB) document.getElementById('nav-loop').classList.add('active');
         wakeUpUI();
     }
 
-    function wakeUpUI() {
-        const overlay = document.getElementById('home-overlay'), label = document.getElementById('home-label');
-        overlay.style.opacity = "1"; label.style.opacity = "1";
-        clearTimeout(uiTimeout);
-        if (!isDragging && document.activeElement.tagName !== 'INPUT') {
-            uiTimeout = setTimeout(() => { overlay.style.opacity = "0"; label.style.opacity = "0"; }, 5000);
-        }
-    }
+    function initEvents() {
+        const handleDrag = (e, type) => {
+            const root = document.getElementById(`${type.split('-')[0]}-bar-root`) || document.getElementById('loop-bar-root');
+            const rect = root.getBoundingClientRect();
+            const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+            let p = Math.max(0, Math.min(100, (x / rect.width) * 100));
 
-    function toggleMode(mode) {
-        if (currentMode === mode) currentMode = 'seek'; else currentMode = mode;
-        const modes = ['seek', 'url', 'speed', 'loop'];
-        modes.forEach(m => {
-            const el = document.getElementById(`home-${m}-wrapper`);
-            if(el) el.style.display = (currentMode === m) ? (m==='url'?'flex':(m==='loop'?'flex':'block')) : 'none';
-        });
-        
-        document.querySelectorAll('.home-nav-btn').forEach(btn => {
-            if(btn.id !== 'home-mode-loop' || !isAB) btn.classList.remove('active');
-        });
-        if (currentMode !== 'seek' && currentMode !== 'loop') document.getElementById(`home-mode-${currentMode}`).classList.add('active');
-        if (isAB) document.getElementById('home-mode-loop').classList.add('active');
-        
-        wakeUpUI();
-    }
-
-    function initBars() {
-        const getRelativeX = (e, container) => {
-            const rect = container.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-        };
-
-        const setupBar = (id, knobId, callback) => {
-            const container = document.getElementById(id);
-            const knob = knobId ? document.getElementById(knobId) : null;
-            
-            const onMove = (e) => { if (!isDragging) return; callback(getRelativeX(e, container)); wakeUpUI(); };
-            const onStart = (e) => { isDragging = true; callback(getRelativeX(e, container)); e.stopPropagation(); };
-            
-            (knob || container).addEventListener('mousedown', onStart);
-            (knob || container).addEventListener('touchstart', onStart, {passive: false});
-            window.addEventListener('mousemove', onMove);
-            window.addEventListener('touchmove', onMove, {passive: false});
-            window.addEventListener('mouseup', () => isDragging = false);
-            window.addEventListener('touchend', () => isDragging = false);
-        };
-
-        setupBar('home-seekbar-container', 'home-knob', (p) => {
-            if (player && player.getDuration) {
-                player.seekTo((p / 100) * player.getDuration(), true);
-                document.getElementById('home-knob').style.left = p + "%";
-                document.getElementById('home-progress').style.width = p + "%";
+            if (type === 'seek') {
+                const time = (p/100) * player.getDuration();
+                player.seekTo(time, true);
+            } else if (type === 'speed') {
+                adjSpeed(0.5 + (p/100), false, true);
+            } else if (type === 'knob-a') {
+                let pb = parseFloat(document.getElementById('knob-b').style.left);
+                p = Math.min(p, pb - 2);
+                document.getElementById('knob-a').style.left = p + "%";
+                syncAB();
+            } else if (type === 'knob-b') {
+                let pa = parseFloat(document.getElementById('knob-a').style.left);
+                p = Math.max(p, pa + 2);
+                document.getElementById('knob-b').style.left = p + "%";
+                syncAB();
             }
-        });
+            wakeUpUI();
+        };
 
-        setupBar('home-speed-container', 'home-speed-knob', (p) => {
-            applySpeed(0.5 + (p / 100));
-        });
+        const addListener = (id, type) => {
+            const el = document.getElementById(id);
+            const start = (e) => { activeDrag = type; handleDrag(e, type); e.stopPropagation(); };
+            el.addEventListener('mousedown', start);
+            el.addEventListener('touchstart', start, {passive:false});
+        };
 
-        // AB LOOP DRAG (Point A)
-        setupBar('home-loop-container', 'home-point-a', (p) => {
-            const pB = parseFloat(document.getElementById('home-point-b').style.left);
-            const finalP = Math.min(p, pB - 1);
-            document.getElementById('home-point-a').style.left = finalP + "%";
-            updateABRangeUI();
-        });
+        addListener('seek-bar-root', 'seek');
+        addListener('speed-bar-root', 'speed');
+        addListener('knob-a', 'knob-a');
+        addListener('knob-b', 'knob-b');
 
-        // AB LOOP DRAG (Point B)
-        setupBar('home-loop-container', 'home-point-b', (p) => {
-            const pA = parseFloat(document.getElementById('home-point-a').style.left);
-            const finalP = Math.max(p, pA + 1);
-            document.getElementById('home-point-b').style.left = finalP + "%";
-            updateABRangeUI();
-        });
+        window.addEventListener('mousemove', (e) => { if(activeDrag) handleDrag(e, activeDrag); });
+        window.addEventListener('touchmove', (e) => { if(activeDrag) handleDrag(e, activeDrag); }, {passive:false});
+        window.addEventListener('mouseup', () => activeDrag = null);
+        window.addEventListener('touchend', () => activeDrag = null);
     }
 
-    function updateABRangeUI() {
-        const pA = parseFloat(document.getElementById('home-point-a').style.left);
-        const pB = parseFloat(document.getElementById('home-point-b').style.left);
-        const rangeEl = document.getElementById('home-loop-range');
-        rangeEl.style.left = pA + "%";
-        rangeEl.style.width = (pB - pA) + "%";
-        
-        const dur = player.getDuration() || 0;
-        if (dur > 0) {
-            startT = (pA / 100) * dur;
-            endT = (pB / 100) * dur;
-        }
+    function syncAB() {
+        const pa = parseFloat(document.getElementById('knob-a').style.left);
+        const pb = parseFloat(document.getElementById('knob-b').style.left);
+        const high = document.getElementById('loop-range-highlight');
+        high.style.left = pa + "%"; high.style.width = (pb - pa) + "%";
+        const dur = player.getDuration();
+        startT = (pa/100) * dur; endT = (pb/100) * dur;
     }
 
-    function applySpeed(val) {
-        const speed = Math.max(0.5, Math.min(1.5, parseFloat(val).toFixed(2)));
-        if (player) player.setPlaybackRate(parseFloat(speed));
-        document.getElementById('speed-slider').value = speed;
-        document.getElementById('home-speed-display').innerText = speed + "x";
-        const p = (speed - 0.5) * 100;
-        document.getElementById('home-speed-knob').style.left = p + "%";
-        document.getElementById('home-speed-progress').style.width = p + "%";
+    function adjSpeed(val, reset=false, fromDrag=false) {
+        let s = reset ? 1.0 : (fromDrag ? val : parseFloat(player.getPlaybackRate()) + val);
+        s = Math.max(0.5, Math.min(1.5, s));
+        player.setPlaybackRate(parseFloat(s));
+        const p = (s - 0.5) * 100;
+        document.getElementById('speed-knob').style.left = p + "%";
+        document.getElementById('speed-fill').style.width = p + "%";
+        document.getElementById('speed-txt').innerText = parseFloat(s).toFixed(2) + "x";
+        document.getElementById('p-speed').value = s;
     }
 
-    function changeSpeed(delta, reset = false) {
-        const current = reset ? 1.0 : parseFloat(document.getElementById('speed-slider').value) + delta;
-        applySpeed(current);
-        wakeUpUI();
+    function toggleAB() {
+        isAB = !isAB;
+        document.getElementById('p-loop').classList.toggle('active', isAB);
+        document.getElementById('nav-loop').classList.toggle('active', isAB);
+        if(isAB) syncAB();
     }
 
     function update() {
-        if (!player || !player.getCurrentTime) return;
+        if(!player || !player.getCurrentTime) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
-        
-        if (isAB && dur > 0 && now >= (endT - 0.1)) {
-            player.seekTo(startT, true);
-        }
+        if(isAB && now >= endT - 0.1) player.seekTo(startT, true);
 
-        if (dur > 0 && currentMode === 'seek' && !isDragging) {
-            const p = (now / dur) * 100;
-            document.getElementById('home-knob').style.left = p + "%";
-            document.getElementById('home-progress').style.width = p + "%";
-            document.getElementById('home-time-current').innerText = formatTime(now);
-            document.getElementById('home-time-total').innerText = formatTime(dur);
+        if(dur > 0 && !activeDrag) {
+            const p = (now/dur) * 100;
+            document.getElementById('seek-knob').style.left = p + "%";
+            document.getElementById('seek-fill').style.width = p + "%";
+            document.getElementById('time-cur').innerText = fmt(now);
+            document.getElementById('time-total').innerText = fmt(dur);
         }
     }
 
-    function togglePlay() { 
-        if (player.getPlayerState() === 1) player.pauseVideo(); else player.playVideo(); 
-        wakeUpUI(); 
+    function fmt(s) { 
+        const m = Math.floor(s/60), rs = Math.floor(s%60);
+        return (m<10?'0'+m:m)+":"+(rs<10?'0'+rs:rs);
     }
 
-    function toggleAB() { 
-        isAB = !isAB; 
-        updateABRangeUI(); // 同期
-        document.getElementById('home-mode-loop').classList.toggle('active', isAB);
-        document.getElementById('panel-ab-btn').classList.toggle('active', isAB);
-        wakeUpUI();
+    function wakeUpUI() {
+        const o = document.getElementById('home-overlay'), l = document.getElementById('home-label');
+        o.style.opacity = "1"; l.style.opacity = "1";
+        clearTimeout(uiTimer);
+        if(!activeDrag) uiTimer = setTimeout(() => { o.style.opacity="0"; l.style.opacity="0"; }, 5000);
     }
 
+    function togglePlay() { player.getPlayerState()===1 ? player.pauseVideo() : player.playVideo(); }
     function handleMirror() {
         isMirror = !isMirror;
         document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)";
-        document.getElementById('home-mode-mirror').classList.toggle('active', isMirror);
-        document.getElementById('panel-mirror-btn').classList.toggle('active', isMirror);
-        wakeUpUI();
+        document.getElementById('p-mirror').classList.toggle('active', isMirror);
+        document.getElementById('nav-mirror').classList.toggle('active', isMirror);
     }
-
-    function handleHomeUrlGo() {
-        const val = document.getElementById('home-url-input').value;
+    function loadUrl() {
+        const val = document.getElementById('url-in').value;
         const id = val.split('v=')[1]?.split('&')[0] || val.split('/').pop();
-        if(id) { playlist.push({id}); updateUI(); play(playlist.length-1); toggleMode('seek'); }
+        if(id) { player.loadVideoById(id); switchMode('seek'); }
     }
-
-    function formatTime(sec) {
-        const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
-        return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
-    }
-
-    const slider = document.getElementById('speed-slider');
-    slider.oninput = () => applySpeed(slider.value);
-    document.getElementById('speed-reset').onclick = () => changeSpeed(0, true);
-    document.getElementById('speed-down').onclick = () => changeSpeed(-0.05);
-    document.getElementById('speed-up').onclick = () => changeSpeed(0.05);
-
-    function addTrack() { handleHomeUrlGo(); }
-    function updateUI() {
-        document.getElementById('playlist').innerHTML = playlist.map((t,i)=>
-            `<div class="track ${i===currentIndex?'active-track':''}" onclick="play(${i})">TRACK ${i+1} [${t.id}]</div>`
-        ).join('');
-    }
-    function play(i) { currentIndex = i; updateUI(); player.loadVideoById(playlist[i].id); }
 </script>
 </body>
 </html>
