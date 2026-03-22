@@ -83,11 +83,25 @@
         .mode-panel { display: none; width: 100%; }
         .mode-panel.active { display: flex; flex-direction: column; }
 
-        /* シークバー周り */
+        /* シークバーエリア */
         .bar-track { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 3px; }
-        .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; pointer-events: none; position: absolute; }
-        #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; box-shadow: var(--neon-glow); }
+        .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; pointer-events: none; position: absolute; z-index: 1; }
+        #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 2; box-shadow: var(--neon-glow); }
         
+        .knob-now {
+            position: absolute; top: 50%; width: 14px; height: 14px; background: #fff;
+            border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px #fff;
+            z-index: 10; pointer-events: none;
+        }
+
+        .knob-ab {
+            position: absolute; top: 50%; width: 34px; height: 34px;
+            border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
+            color: var(--neon-blue); border-radius: 50%; transform: translate(-50%, -50%);
+            display: none; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; cursor: pointer; z-index: 5;
+        }
+
         .time-display {
             display: flex; justify-content: space-between; margin-top: 24px; 
             color: var(--neon-blue); font-size: 18px; letter-spacing: 0.1em; filter: drop-shadow(var(--neon-glow));
@@ -102,8 +116,8 @@
             box-shadow: var(--neon-glow);
         }
         .btn-circle.active { background: var(--neon-blue); color: #000; }
-        .btn-ab { width: 45px; height: 45px; font-size: 14px; }
-        .btn-main { width: 65px; height: 65px; font-size: 20px; }
+        .btn-ab-ctrl { width: 45px; height: 45px; font-size: 14px; }
+        .btn-main-ctrl { width: 65px; height: 65px; font-size: 20px; }
 
         .url-box { display: flex; gap: 10px; width: 100%; }
         input[type=text] { 
@@ -134,6 +148,9 @@
                 <div class="bar-track" id="main-track">
                     <div class="bar-fill" id="main-fill"></div>
                     <div id="ab-range"></div>
+                    <div class="knob-now" id="main-knob" style="left: 0%;"></div>
+                    <div class="knob-ab" id="knob-a" style="left: 0%;">A</div>
+                    <div class="knob-ab" id="knob-b" style="left: 100%;">B</div>
                 </div>
                 <div class="time-display">
                     <span id="txt-cur">00:00</span><span id="txt-total">00:00</span>
@@ -155,10 +172,10 @@
         </div>
 
         <div class="transport-container">
-            <button class="btn-circle btn-ab" id="btn-set-a">A</button>
-            <button class="btn-circle btn-main" id="btn-prev">|◀</button>
-            <button class="btn-circle btn-main" id="btn-play">▶||</button>
-            <button class="btn-circle btn-ab" id="btn-set-b">B</button>
+            <button class="btn-circle btn-ab-ctrl" id="btn-set-a">A</button>
+            <button class="btn-circle btn-main-ctrl" id="btn-prev">|◀</button>
+            <button class="btn-circle btn-main-ctrl" id="btn-play">▶||</button>
+            <button class="btn-circle btn-ab-ctrl" id="btn-set-b">B</button>
         </div>
     </div>
 </div>
@@ -183,7 +200,7 @@
         if (!state.player || !state.player.getCurrentTime) return;
         const now = state.player.getCurrentTime(), dur = state.player.getDuration();
         
-        // LOOP ロジック
+        // LOOPロジック
         if (state.isLoop && state.endT > state.startT) {
             if (now >= state.endT || now < state.startT - 0.5) {
                 state.player.seekTo(state.startT, true);
@@ -192,19 +209,34 @@
 
         if (dur > 0) {
             const p = (now / dur) * 100;
+            // 現在地の更新
             document.getElementById('main-fill').style.width = p + "%";
+            document.getElementById('main-knob').style.left = p + "%";
             document.getElementById('txt-cur').innerText = fmt(now);
             document.getElementById('txt-total').innerText = fmt(dur);
 
-            // AB範囲の視覚化
+            // ABノブと範囲の更新
             const range = document.getElementById('ab-range');
-            if (state.endT > 0) {
+            const knobA = document.getElementById('knob-a');
+            const knobB = document.getElementById('knob-b');
+
+            if (state.isLoop || state.endT > 0) {
                 const sP = (state.startT / dur) * 100;
-                const eP = (state.endT / dur) * 100;
-                range.style.left = sP + "%";
-                range.style.width = (eP - sP) + "%";
-                range.style.display = 'block';
+                const eP = (state.endT > 0 ? state.endT / dur : 100) * 100;
+                
+                knobA.style.left = sP + "%";
+                knobA.style.display = 'flex';
+                
+                if (state.endT > 0) {
+                    knobB.style.left = eP + "%";
+                    knobB.style.display = 'flex';
+                    range.style.left = sP + "%";
+                    range.style.width = (eP - sP) + "%";
+                    range.style.display = 'block';
+                }
             } else {
+                knobA.style.display = 'none';
+                knobB.style.display = 'none';
                 range.style.display = 'none';
             }
         }
@@ -220,6 +252,7 @@
     }
 
     function initEvents() {
+        // Transport
         document.getElementById('btn-play').onclick = (e) => {
             e.stopPropagation();
             state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
@@ -229,7 +262,7 @@
         document.getElementById('btn-set-a').onclick = (e) => {
             e.stopPropagation();
             state.startT = state.player.getCurrentTime();
-            state.endT = 0; // 新しいA点を打ったらB点をリセット
+            state.endT = 0;
             document.getElementById('btn-set-a').classList.add('active');
             document.getElementById('btn-set-b').classList.remove('active');
             wakeUI();
@@ -253,6 +286,7 @@
             wakeUI();
         };
 
+        // Navigation
         document.getElementById('nav-loop').onclick = (e) => {
             e.stopPropagation();
             state.isLoop = !state.isLoop;
@@ -278,6 +312,7 @@
             if(id) { state.player.loadVideoById(id); switchMode('seek'); }
         };
 
+        // Seek
         document.getElementById('main-track').onclick = (e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const p = (e.clientX - rect.left) / rect.width;
