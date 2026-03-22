@@ -2,28 +2,30 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO ENGINE - Transparent Layer Fix</title>
+    <title>ZEFRAM VIDEO ENGINE - Click-Through Fix</title>
     <style>
         body { background: #000; color: #00f3ff; font-family: monospace; margin: 0; overflow: hidden; }
         
+        /* プレーヤー：最背面に配置 */
         #player-wrapper { 
             position: relative; 
             width: 100vw; 
             aspect-ratio: 16/9; 
             background: #111; 
-            z-index: 1; /* プレーヤーを下の階層に */
+            z-index: 1;
         }
-        #yt-player { width: 100%; height: 100%; }
+        #yt-player { width: 100%; height: 100%; pointer-events: auto; }
 
-        /* 重要：コンテナ自体の高さを 0 にし、画面を覆わないようにする */
+        /* 操作コンテナ：高さを最小限にし、かつ位置を66%に固定 */
         #seekbar-container {
             position: absolute;
             top: 66%; 
             left: 5%;
             width: 90%;
-            height: 0; /* 高さをなくして、壁にならないようにする */
-            z-index: 100;
-            pointer-events: none; /* 基本は全て透過 */
+            height: 40px; /* 必要最小限の高さ */
+            margin-top: -20px; /* 中心を66%に合わせる */
+            z-index: 10;
+            pointer-events: none; /* コンテナ自体はクリックを透過 */
         }
 
         #seekbar-bg {
@@ -31,42 +33,43 @@
             height: 4px;
             background: rgba(0, 243, 255, 0.3);
             position: absolute;
-            top: -2px; /* 高さを相殺して中央に */
+            top: 18px;
             pointer-events: none;
         }
 
-        /* 操作パーツだけをクリック可能にする */
+        /* 実際にクリックが必要なパーツのみ pointer-events: auto にする */
         .ab-point {
             position: absolute;
-            top: 0;
-            width: 40px;
-            height: 40px;
+            top: 18px;
+            width: 36px;
+            height: 36px;
             border: 2px solid #00f3ff;
             background: rgba(0, 0, 0, 0.8);
             color: #00f3ff;
             border-radius: 50%;
-            transform: translate(-50%, -50%); /* 中心合わせ */
+            transform: translate(-50%, -50%);
             display: flex; align-items: center; justify-content: center;
             font-weight: bold;
             cursor: pointer;
-            pointer-events: auto; /* ここだけクリックを有効化 */
+            pointer-events: auto; 
+            z-index: 20;
             user-select: none;
         }
 
         #seekbar-knob {
             position: absolute;
-            top: 0;
-            width: 18px;
-            height: 18px;
+            top: 18px;
+            width: 14px;
+            height: 14px;
             background: #fff;
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            pointer-events: auto; /* ここだけクリックを有効化 */
+            pointer-events: auto;
+            z-index: 15;
         }
 
         #seekbar-progress { height: 100%; background: #00f3ff; width: 0%; }
 
-        /* 下部コントロール */
         .controls { padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #000; }
         input, button { background: #222; color: #00f3ff; border: 1px solid #00f3ff; padding: 12px; cursor: pointer; }
         .playlist { height: 100px; overflow-y: auto; border: 1px solid #333; margin: 10px; }
@@ -82,8 +85,8 @@
         <div id="seekbar-bg">
             <div id="seekbar-progress"></div>
             <div id="seekbar-knob"></div>
-            <div id="point-a" class="ab-point">A</div>
-            <div id="point-b" class="ab-point">B</div>
+            <div id="point-a" class="ab-point" style="left:0%;">A</div>
+            <div id="point-b" class="ab-point" style="left:100%;">B</div>
         </div>
     </div>
 </div>
@@ -121,16 +124,24 @@
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('yt-player', {
-            playerVars: { 'playsinline': 1, 'controls': 1, 'rel': 0 },
-            events: { 'onReady': () => setInterval(monitor, 50) }
+            playerVars: { 'playsinline': 1, 'controls': 1, 'rel': 0, 'modestbranding': 1 },
+            events: { 'onReady': () => {
+                // 監視間隔を調整し、クリック処理に余裕を持たせる
+                setInterval(loopEngine, 30); 
+            }}
         });
     }
 
-    function monitor() {
+    function loopEngine() {
         if (!player || player.getPlayerState() !== 1) return;
+        
         const now = player.getCurrentTime();
         const duration = player.getDuration();
-        if (isABMode && now >= (endTime - PREDICTIVE_MARGIN)) player.seekTo(startTime, true);
+
+        if (isABMode && now >= (endTime - PREDICTIVE_MARGIN)) {
+            player.seekTo(startTime, true);
+        }
+
         if (!activeTarget) {
             const pct = (now / duration) * 100;
             knob.style.left = pct + "%";
@@ -138,21 +149,20 @@
         }
     }
 
+    // ドラッグ処理の最適化
     function startDrag(e, target) {
         activeTarget = target;
-        e.preventDefault();
     }
 
     [pointA, pointB, knob].forEach(el => {
         el.addEventListener('mousedown', (e) => startDrag(e, el));
-        el.addEventListener('touchstart', (e) => startDrag(e, el));
+        el.addEventListener('touchstart', (e) => startDrag(e, el), {passive: true});
     });
 
     window.addEventListener('mousemove', (e) => {
         if (!activeTarget) return;
         const rect = bg.getBoundingClientRect();
-        const clientX = e.clientX || e.touches?.[0].clientX;
-        let pct = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+        let pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
         activeTarget.style.left = pct + "%";
         if (activeTarget === knob) {
             player.seekTo((pct / 100) * player.getDuration(), true);
@@ -162,12 +172,11 @@
     });
 
     window.addEventListener('mouseup', () => activeTarget = null);
-    window.addEventListener('touchend', () => activeTarget = null);
 
     function updateTimes() {
-        const d = player.getDuration();
-        startTime = (parseFloat(pointA.style.left || 0) / 100) * d;
-        endTime = (parseFloat(pointB.style.left || 100) / 100) * d;
+        const d = player.getDuration() || 0;
+        startTime = (parseFloat(pointA.style.left) / 100) * d;
+        endTime = (parseFloat(pointB.style.left) / 100) * d;
     }
 
     function addTrack() {
@@ -182,7 +191,7 @@
 
     function updateUI() {
         document.getElementById('playlist').innerHTML = playlist.map((t, i) => 
-            `<div class="track-item ${i===currentIndex?'active-track':''}" onclick="play(${i})">Track ${i+1} [${t.id}]</div>`
+            `<div class="track-item ${i===currentIndex?'active-track':''}" onclick="play(${i})">Track ${i+1}</div>`
         ).join('');
     }
 
