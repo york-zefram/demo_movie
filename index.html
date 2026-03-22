@@ -9,7 +9,6 @@
         #player-wrapper { position: relative; width: 100vw; aspect-ratio: 16/9; background: #111; }
         #yt-player { width: 100%; height: 100%; transition: transform 0.3s; }
         
-        /* ZEFRAM 遮断用カーテン（OSD） */
         #zefram-curtain {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; opacity: 0; transition: opacity 0.5s;
@@ -18,7 +17,6 @@
         }
         #zefram-curtain.active { opacity: 1; }
 
-        /* カスタム再生バー（上から2/3の位置） */
         #seekbar-container {
             position: absolute;
             top: 66.6%;
@@ -42,7 +40,6 @@
             box-shadow: 0 0 10px #00f3ff;
         }
         
-        /* 再生点（白丸） */
         #seekbar-knob {
             position: absolute;
             top: 50%;
@@ -57,7 +54,6 @@
             z-index: 5;
         }
 
-        /* A点・B点ノブ */
         .ab-point {
             position: absolute;
             top: 50%;
@@ -81,7 +77,6 @@
         #point-a { left: 0%; }
         #point-b { left: 100%; }
 
-        /* 操作パネル */
         .controls { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         input, button { background: #222; color: #00f3ff; border: 1px solid #00f3ff; padding: 10px; font-size: 14px; }
         .playlist { height: 150px; overflow-y: auto; border: 1px solid #333; margin-top: 10px; padding: 5px; }
@@ -125,6 +120,7 @@
     let aTime = 0;
     let bTime = 0;
     const C_POINT = 1.0;
+    const LOOP_MARGIN = 0.05; // 0.05秒の先読み補正
 
     const seekbarContainer = document.getElementById('seekbar-container');
     const seekbarProgress = document.getElementById('seekbar-progress');
@@ -134,6 +130,7 @@
     
     let isDraggingSeek = false;
     let activeAB = null;
+    let animationId = null;
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -146,18 +143,51 @@
                 'onReady': () => {
                     initSeekBar();
                     initABControls();
+                    startGlobalMonitor(); // 高頻度監視開始
                 },
                 'onStateChange': onPlayerStateChange
             }
         });
     }
 
-    // A点・B点の位置から秒数を再計算する関数
     function syncABTimes() {
         if (!player || !player.getDuration) return;
         const duration = player.getDuration();
         aTime = (parseFloat(pointA.style.left || 0) / 100) * duration;
         bTime = (parseFloat(pointB.style.left || 100) / 100) * duration;
+    }
+
+    // requestAnimationFrameによる超高精度監視
+    function startGlobalMonitor() {
+        const loop = () => {
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                const now = player.getCurrentTime();
+                const duration = player.getDuration();
+
+                // 1. A-Bループ判定（最速タイミングで実行）
+                if (isABMode) {
+                    syncABTimes();
+                    // B点のわずか手前でシーク命令を投げて遅延を相殺
+                    if (now >= (bTime - LOOP_MARGIN)) {
+                        player.seekTo(aTime, true);
+                    }
+                }
+
+                // 2. シークバー更新
+                if (!isDraggingSeek) {
+                    const percent = (now / duration) * 100;
+                    seekbarProgress.style.width = percent + "%";
+                    seekbarKnob.style.left = percent + "%";
+                }
+
+                // 3. 次曲遷移（ループOFF時のみ）
+                if (!isABMode && now >= (duration - 1.0) && !isTransitioning) {
+                    executeNextTrack();
+                }
+            }
+            animationId = requestAnimationFrame(loop);
+        };
+        animationId = requestAnimationFrame(loop);
     }
 
     function initSeekBar() {
@@ -187,14 +217,12 @@
             const x = clientX - rect.left;
             let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
             activeAB.style.left = percent + "%";
-            syncABTimes(); // 移動中にリアルタイムで秒数を更新
+            syncABTimes();
         };
-
         [pointA, pointB].forEach(el => {
             el.addEventListener('mousedown', (e) => { activeAB = el; e.stopPropagation(); });
             el.addEventListener('touchstart', (e) => { activeAB = el; e.stopPropagation(); });
         });
-
         window.addEventListener('mousemove', handleABMove);
         window.addEventListener('touchmove', handleABMove);
         window.addEventListener('mouseup', () => { activeAB = null; });
@@ -228,41 +256,7 @@
 
     let isTransitioning = false;
     function onPlayerStateChange(event) {
-        if (event.data == YT.PlayerState.PLAYING) {
-            const duration = player.getDuration();
-            const dPoint = duration - 1.0;
-
-            const monitor = setInterval(() => {
-                if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                    clearInterval(monitor);
-                    return;
-                }
-
-                const now = player.getCurrentTime();
-
-                // A-Bループ判定（最優先）
-                if (isABMode) {
-                    syncABTimes(); // 判定直前に位置を確定させる
-                    if (now >= bTime) {
-                        player.seekTo(aTime, true);
-                        return; // 戻った直後の処理はスキップ
-                    }
-                }
-
-                // バー更新
-                if (!isDraggingSeek) {
-                    const percent = (now / duration) * 100;
-                    seekbarProgress.style.width = percent + "%";
-                    seekbarKnob.style.left = percent + "%";
-                }
-
-                // 次曲への遷移
-                if (!isABMode && now >= dPoint && !isTransitioning) {
-                    clearInterval(monitor);
-                    executeNextTrack();
-                }
-            }, 50); // チェック頻度を上げ（0.05秒）、精度を向上
-        }
+        // 監視はstartGlobalMonitorで行うため個別インターバルは削除
     }
 
     function executeNextTrack() {
@@ -292,7 +286,6 @@
     function setABLoop() {
         isABMode = !isABMode;
         syncABTimes();
-        console.log("A-B LOOP: " + (isABMode ? "ON" : "OFF"));
     }
 </script>
 </body>
