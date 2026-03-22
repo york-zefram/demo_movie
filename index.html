@@ -117,7 +117,9 @@
     let isMirror = false;
     let isABMode = false;
     
-    const C_POINT = 1.0;
+    // 内部的な判定用の固定秒数
+    let loopStartTime = 0;
+    let loopEndTime = 0;
 
     const seekbarContainer = document.getElementById('seekbar-container');
     const seekbarProgress = document.getElementById('seekbar-progress');
@@ -146,32 +148,36 @@
         });
     }
 
+    // ノブの％位置を「秒数」という固定データに確定させる
+    function commitABTimes() {
+        if (!player || !player.getDuration) return;
+        const duration = player.getDuration();
+        const aPct = parseFloat(pointA.style.left) || 0;
+        const bPct = parseFloat(pointB.style.left) || 100;
+        
+        loopStartTime = (aPct / 100) * duration;
+        loopEndTime = (bPct / 100) * duration;
+    }
+
     function startGlobalMonitor() {
         const loop = () => {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
                 const now = player.getCurrentTime();
                 const duration = player.getDuration();
-                const currentPosPercent = (now / duration) * 100;
 
-                // 1. 位置ベースのA-Bループ判定
                 if (isABMode) {
-                    const bPosPercent = parseFloat(pointB.style.left) || 100;
-                    const aPosPercent = parseFloat(pointA.style.left) || 0;
-
-                    // 白丸の位置がB点を超えたか判定
-                    if (currentPosPercent >= bPosPercent) {
-                        const targetTime = (aPosPercent / 100) * duration;
-                        player.seekTo(targetTime, true);
+                    // 「現在時間」が「確定した終了秒数」を超えたかのみを判定（最速）
+                    if (now >= loopEndTime) {
+                        player.seekTo(loopStartTime, true);
                     }
                 }
 
-                // 2. シークバー更新
                 if (!isDraggingSeek) {
-                    seekbarProgress.style.width = currentPosPercent + "%";
-                    seekbarKnob.style.left = currentPosPercent + "%";
+                    const percent = (now / duration) * 100;
+                    seekbarProgress.style.width = percent + "%";
+                    seekbarKnob.style.left = percent + "%";
                 }
 
-                // 3. 次曲遷移
                 if (!isABMode && now >= (duration - 1.0) && !isTransitioning) {
                     executeNextTrack();
                 }
@@ -208,6 +214,9 @@
             const x = clientX - rect.left;
             let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
             activeAB.style.left = percent + "%";
+            
+            // 移動中も常に「判定用秒数」を更新し続ける
+            commitABTimes();
         };
         [pointA, pointB].forEach(el => {
             el.addEventListener('mousedown', (e) => { activeAB = el; e.stopPropagation(); });
@@ -242,6 +251,8 @@
         updatePlaylistUI();
         isTransitioning = false;
         player.loadVideoById({ videoId: playlist[index].id, startSeconds: 0 });
+        // ロード完了後に時間を再計算
+        setTimeout(commitABTimes, 1000);
     }
 
     let isTransitioning = false;
@@ -260,6 +271,7 @@
                 player.unMute();
                 curtain.classList.remove('active');
                 isTransitioning = false;
+                commitABTimes();
             }, 1500);
         }, 500);
     }
@@ -271,6 +283,7 @@
 
     function setABLoop() {
         isABMode = !isABMode;
+        commitABTimes();
     }
 </script>
 </body>
