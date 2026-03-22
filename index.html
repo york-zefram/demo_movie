@@ -23,7 +23,7 @@
             top: 66%; left: 50%;
             transform: translate(-50%, -30%);
             width: 90%;
-            background: rgba(20, 20, 20, 0.85);
+            background: rgba(20, 20, 20, 0.9);
             border-radius: 15px;
             padding: 20px;
             z-index: 1000;
@@ -53,7 +53,6 @@
             gap: 10px;
         }
 
-        /* 再生ボタン（三角） */
         #home-play-btn {
             width: 0; height: 0;
             border-top: 15px solid transparent;
@@ -77,78 +76,73 @@
             text-align: center;
         }
 
-        /* 点灯状態 */
         .home-nav-btn.active {
             background: var(--neon-blue);
             color: #000;
             box-shadow: var(--neon-glow);
         }
 
-        /* HOME用シークバー */
-        #home-seekbar-container {
+        /* 可変エリア：シークバー or URL入力 */
+        #home-dynamic-area {
             width: 100%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            position: relative;
-            cursor: pointer;
-            pointer-events: auto;
-        }
-        #home-progress {
-            height: 100%;
-            background: var(--neon-blue);
-            box-shadow: var(--neon-glow);
-            width: 0%;
-            pointer-events: none;
-        }
-        #home-knob {
-            position: absolute;
-            top: 50%;
-            width: 16px; height: 16px;
-            background: #fff;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 10px #fff;
-            cursor: pointer;
-            pointer-events: auto;
-        }
-
-        .time-display {
+            min-height: 40px;
             display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            color: #888;
-            margin-top: 5px;
+            align-items: center;
         }
 
-        /* 下部パネル用 */
-        .neo-panel {
-            padding: 10px 20px;
-            background: linear-gradient(180deg, #050505 0%, #000 100%);
-            border-top: 1px solid #222;
-            display: grid;
-            grid-template-columns: 1fr 2fr 1.5fr;
-            align-items: center;
-            gap: 20px;
+        #home-seekbar-wrapper { width: 100%; }
+        
+        #home-seekbar-container {
+            width: 100%; height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            position: relative; cursor: pointer;
         }
+        #home-progress { height: 100%; background: var(--neon-blue); box-shadow: var(--neon-glow); width: 0%; }
+        #home-knob {
+            position: absolute; top: 50%; width: 16px; height: 16px;
+            background: #fff; border-radius: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #fff;
+        }
+
+        /* URL入力ボックスデザイン */
+        #home-url-wrapper {
+            display: none; /* 初期は非表示 */
+            width: 100%;
+            gap: 10px;
+        }
+        #home-url-input {
+            flex: 1;
+            background: #111;
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 8px 12px;
+            font-size: 14px;
+            outline: none;
+            border-radius: 4px;
+        }
+        #home-url-go {
+            background: var(--neon-blue);
+            border: none;
+            color: #000;
+            padding: 8px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 4px;
+            box-shadow: var(--neon-glow);
+        }
+
+        .time-display { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-top: 5px; }
+
+        /* 下部パネル用（維持） */
+        .neo-panel { padding: 10px 20px; background: linear-gradient(180deg, #050505 0%, #000 100%); border-top: 1px solid #222; display: grid; grid-template-columns: 1fr 2fr 1.5fr; align-items: center; gap: 20px; }
         .speed-ctrl { display: flex; flex-direction: column; align-items: center; gap: 5px; }
         .speed-labels { display: flex; justify-content: space-between; width: 100%; font-size: 10px; opacity: 0.8; }
         input[type=range] { width: 100%; accent-color: var(--neon-blue); cursor: pointer; }
-        .speed-buttons { display: flex; gap: 10px; }
-        .btn-circle {
-            width: 32px; height: 32px; border-radius: 50%;
-            border: 1px solid var(--neon-blue); background: none;
-            color: var(--neon-blue); cursor: pointer; font-size: 18px;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: var(--neon-glow); transition: 0.2s;
-        }
+        .btn-circle { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--neon-blue); background: none; color: var(--neon-blue); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; box-shadow: var(--neon-glow); transition: 0.2s; }
         .meta-ctrl { display: flex; flex-direction: column; gap: 8px; }
         .url-box { background: #111; border: 1px solid #333; color: var(--neon-blue); padding: 8px; font-size: 12px; outline: none; }
         .action-btns { display: flex; gap: 5px; }
-        .btn-rect {
-            flex: 1; background: none; border: 1px solid var(--neon-blue);
-            color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px;
-            box-shadow: var(--neon-glow);
-        }
+        .btn-rect { flex: 1; background: none; border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px; box-shadow: var(--neon-glow); }
         .playlist { height: 80px; overflow-y: auto; font-size: 11px; border-left: 1px solid #222; padding-left: 10px; }
         .track { padding: 5px; cursor: pointer; border-bottom: 1px solid #111; }
         .active-track { color: #fff; text-shadow: var(--neon-glow); }
@@ -163,19 +157,29 @@
         <div id="home-label">HOME</div>
         <div class="home-button-row">
             <div id="home-play-btn" onclick="togglePlay()"></div>
-            <button class="home-nav-btn" id="home-mode-url">URL</button>
+            <button class="home-nav-btn" id="home-mode-url" onclick="toggleUrlMode()">URL</button>
             <button class="home-nav-btn" id="home-mode-mirror" onclick="handleMirror()">MIRROR</button>
             <button class="home-nav-btn" id="home-mode-loop">LOOP</button>
             <button class="home-nav-btn" id="home-mode-speed">SPEED</button>
             <button class="home-nav-btn" id="home-mode-list">LIST</button>
         </div>
-        <div id="home-seekbar-container">
-            <div id="home-progress"></div>
-            <div id="home-knob" style="left: 0%;"></div>
-        </div>
-        <div class="time-display">
-            <span id="home-time-current">00:00</span>
-            <span id="home-time-total">00:00</span>
+
+        <div id="home-dynamic-area">
+            <div id="home-seekbar-wrapper">
+                <div id="home-seekbar-container">
+                    <div id="home-progress"></div>
+                    <div id="home-knob" style="left: 0%;"></div>
+                </div>
+                <div class="time-display">
+                    <span id="home-time-current">00:00</span>
+                    <span id="home-time-total">00:00</span>
+                </div>
+            </div>
+
+            <div id="home-url-wrapper">
+                <input type="text" id="home-url-input" placeholder="PASTE YOUTUBE URL..." onclick="event.stopPropagation()">
+                <button id="home-url-go" onclick="handleHomeUrlGo()">GO</button>
+            </div>
         </div>
     </div>
 </div>
@@ -190,7 +194,6 @@
             <button class="btn-circle" id="speed-up">＋</button>
         </div>
     </div>
-
     <div class="meta-ctrl">
         <input type="text" id="url-input" class="url-box" placeholder="YOUTUBE URL...">
         <div class="action-btns">
@@ -199,14 +202,12 @@
             <button class="btn-rect" onclick="toggleAB()">A-B LOOP</button>
         </div>
     </div>
-
     <div id="playlist" class="playlist"></div>
 </div>
 
 <script>
-    let player, playlist = [], currentIndex = 0, isAB = false, isMirror = false;
-    let uiTimeout;
-    let isDragging = false;
+    let player, playlist = [], currentIndex = 0, isAB = false, isMirror = false, isUrlMode = false;
+    let uiTimeout, isDragging = false;
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -233,7 +234,9 @@
         label.style.opacity = "1";
         
         clearTimeout(uiTimeout);
-        if (!isDragging) {
+        // ドラッグ中またはURL入力欄にフォーカスがある時は消さない
+        const isTyping = document.activeElement === document.getElementById('home-url-input');
+        if (!isDragging && !isTyping) {
             uiTimeout = setTimeout(() => {
                 overlay.style.opacity = "0";
                 label.style.opacity = "0";
@@ -241,29 +244,53 @@
         }
     }
 
+    // URLモードの切り替え
+    function toggleUrlMode() {
+        isUrlMode = !isUrlMode;
+        const seekbar = document.getElementById('home-seekbar-wrapper');
+        const urlBox = document.getElementById('home-url-wrapper');
+        const urlBtn = document.getElementById('home-mode-url');
+
+        if (isUrlMode) {
+            seekbar.style.display = "none";
+            urlBox.style.display = "flex";
+            urlBtn.classList.add('active');
+            document.getElementById('home-url-input').focus();
+        } else {
+            seekbar.style.display = "block";
+            urlBox.style.display = "none";
+            urlBtn.classList.remove('active');
+        }
+        wakeUpUI();
+    }
+
+    // HOME画面のGOボタン処理
+    function handleHomeUrlGo() {
+        const val = document.getElementById('home-url-input').value;
+        const id = val.split('v=')[1]?.split('&')[0] || val.split('/').pop();
+        if(id) {
+            playlist.push({id});
+            updateUI();
+            play(playlist.length - 1);
+            toggleUrlMode(); // 再生開始したら通常モードに戻す
+        }
+    }
+
     function initHomeSeekbar() {
         const container = document.getElementById('home-seekbar-container');
         const knob = document.getElementById('home-knob');
-        if (!container || !knob) return;
-
         const handleMove = (e) => {
             if (!isDragging) return;
             const rect = container.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             let p = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-            
             knob.style.left = p + "%";
             document.getElementById('home-progress').style.width = p + "%";
-            
-            if (player && player.getDuration) {
-                player.seekTo((p / 100) * player.getDuration(), true);
-            }
+            if (player && player.getDuration) player.seekTo((p / 100) * player.getDuration(), true);
             wakeUpUI();
         };
-
         const startDragging = (e) => { isDragging = true; handleMove(e); };
         const stopDragging = () => { isDragging = false; wakeUpUI(); };
-
         container.addEventListener('mousedown', startDragging);
         window.addEventListener('mousemove', handleMove);
         window.addEventListener('mouseup', stopDragging);
@@ -279,19 +306,10 @@
         wakeUpUI();
     }
 
-    // HOME画面からのミラー呼び出し用
-    function handleMirror() {
-        toggleMirror();
-        wakeUpUI();
-    }
-
-    // 共通のミラーロジック
+    function handleMirror() { toggleMirror(); wakeUpUI(); }
     function toggleMirror() {
         isMirror = !isMirror;
-        const mirrorVal = isMirror ? "scaleX(-1)" : "scaleX(1)";
-        document.getElementById('yt-player').style.transform = mirrorVal;
-        
-        // HOMEボタンの点灯切り替え
+        document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)";
         const homeMirrorBtn = document.getElementById('home-mode-mirror');
         if (isMirror) homeMirrorBtn.classList.add('active');
         else homeMirrorBtn.classList.remove('active');
@@ -310,11 +328,11 @@
     }
 
     function formatTime(sec) {
-        const m = Math.floor(sec / 60);
-        const s = Math.floor(sec % 60);
+        const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
         return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
     }
 
+    // 下部パネル用ロジック（維持）
     const slider = document.getElementById('speed-slider');
     slider.oninput = () => player && player.setPlaybackRate(parseFloat(slider.value));
     document.getElementById('speed-reset').onclick = () => { slider.value = 1.0; player.setPlaybackRate(1.0); };
