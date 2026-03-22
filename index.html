@@ -120,15 +120,7 @@
             margin-top: 5px;
         }
 
-        /* --- 既存スタイル維持 --- */
-        #seekbar-container {
-            position: absolute;
-            top: 66%; left: 5%; width: 90%; height: 2px;
-            z-index: 100; pointer-events: none;
-            background: rgba(0, 243, 255, 0.2);
-            display: none;
-        }
-        
+        /* 下部パネル用 */
         .neo-panel {
             padding: 10px 20px;
             background: linear-gradient(180deg, #050505 0%, #000 100%);
@@ -138,7 +130,6 @@
             align-items: center;
             gap: 20px;
         }
-
         .speed-ctrl { display: flex; flex-direction: column; align-items: center; gap: 5px; }
         .speed-labels { display: flex; justify-content: space-between; width: 100%; font-size: 10px; opacity: 0.8; }
         input[type=range] { width: 100%; accent-color: var(--neon-blue); cursor: pointer; }
@@ -150,8 +141,6 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: var(--neon-glow); transition: 0.2s;
         }
-        .btn-circle:active { background: var(--neon-blue); color: #000; }
-
         .meta-ctrl { display: flex; flex-direction: column; gap: 8px; }
         .url-box { background: #111; border: 1px solid #333; color: var(--neon-blue); padding: 8px; font-size: 12px; outline: none; }
         .action-btns { display: flex; gap: 5px; }
@@ -160,7 +149,6 @@
             color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px;
             box-shadow: var(--neon-glow);
         }
-
         .playlist { height: 80px; overflow-y: auto; font-size: 11px; border-left: 1px solid #222; padding-left: 10px; }
         .track { padding: 5px; cursor: pointer; border-bottom: 1px solid #111; }
         .active-track { color: #fff; text-shadow: var(--neon-glow); }
@@ -175,19 +163,19 @@
         <div id="home-label">HOME</div>
         <div class="home-button-row">
             <div id="home-play-btn" onclick="togglePlay()"></div>
-            <button class="home-nav-btn" id="mode-url">URL</button>
-            <button class="home-nav-btn" id="mode-mirror" onclick="toggleMirror()">MIRROR</button>
-            <button class="home-nav-btn" id="mode-loop">LOOP</button>
-            <button class="home-nav-btn" id="mode-speed">SPEED</button>
-            <button class="home-nav-btn" id="mode-list">LIST</button>
+            <button class="home-nav-btn" id="home-mode-url">URL</button>
+            <button class="home-nav-btn" id="home-mode-mirror" onclick="handleMirror()">MIRROR</button>
+            <button class="home-nav-btn" id="home-mode-loop">LOOP</button>
+            <button class="home-nav-btn" id="home-mode-speed">SPEED</button>
+            <button class="home-nav-btn" id="home-mode-list">LIST</button>
         </div>
         <div id="home-seekbar-container">
             <div id="home-progress"></div>
             <div id="home-knob" style="left: 0%;"></div>
         </div>
         <div class="time-display">
-            <span id="time-current">00:00</span>
-            <span id="time-total">00:00</span>
+            <span id="home-time-current">00:00</span>
+            <span id="home-time-total">00:00</span>
         </div>
     </div>
 </div>
@@ -207,7 +195,7 @@
         <input type="text" id="url-input" class="url-box" placeholder="YOUTUBE URL...">
         <div class="action-btns">
             <button class="btn-rect" onclick="addTrack()">選 曲</button>
-            <button class="btn-rect" onclick="toggleMirror()">MIRROR</button>
+            <button class="btn-rect" id="panel-mirror-btn" onclick="toggleMirror()">MIRROR</button>
             <button class="btn-rect" onclick="toggleAB()">A-B LOOP</button>
         </div>
     </div>
@@ -240,6 +228,7 @@
     function wakeUpUI() {
         const overlay = document.getElementById('home-overlay');
         const label = document.getElementById('home-label');
+        if (!overlay || !label) return;
         overlay.style.opacity = "1";
         label.style.opacity = "1";
         
@@ -255,6 +244,7 @@
     function initHomeSeekbar() {
         const container = document.getElementById('home-seekbar-container');
         const knob = document.getElementById('home-knob');
+        if (!container || !knob) return;
 
         const handleMove = (e) => {
             if (!isDragging) return;
@@ -271,15 +261,8 @@
             wakeUpUI();
         };
 
-        const startDragging = (e) => {
-            isDragging = true;
-            handleMove(e);
-        };
-
-        const stopDragging = () => {
-            isDragging = false;
-            wakeUpUI();
-        };
+        const startDragging = (e) => { isDragging = true; handleMove(e); };
+        const stopDragging = () => { isDragging = false; wakeUpUI(); };
 
         container.addEventListener('mousedown', startDragging);
         window.addEventListener('mousemove', handleMove);
@@ -290,37 +273,39 @@
     }
 
     function togglePlay() {
+        if (!player) return;
         if (player.getPlayerState() === 1) player.pauseVideo();
         else player.playVideo();
         wakeUpUI();
     }
 
-    // MIRROR機能の紐付けとボタンの点灯処理
+    // HOME画面からのミラー呼び出し用
+    function handleMirror() {
+        toggleMirror();
+        wakeUpUI();
+    }
+
+    // 共通のミラーロジック
     function toggleMirror() {
         isMirror = !isMirror;
         const mirrorVal = isMirror ? "scaleX(-1)" : "scaleX(1)";
         document.getElementById('yt-player').style.transform = mirrorVal;
         
-        // HOME画面のボタンを点灯/消灯
-        const homeMirrorBtn = document.getElementById('mode-mirror');
-        if (isMirror) {
-            homeMirrorBtn.classList.add('active');
-        } else {
-            homeMirrorBtn.classList.remove('active');
-        }
-        wakeUpUI();
+        // HOMEボタンの点灯切り替え
+        const homeMirrorBtn = document.getElementById('home-mode-mirror');
+        if (isMirror) homeMirrorBtn.classList.add('active');
+        else homeMirrorBtn.classList.remove('active');
     }
 
     function update() {
         if (!player || !player.getCurrentTime || isDragging) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
-        
         if (dur > 0) {
             const p = (now / dur) * 100;
             document.getElementById('home-knob').style.left = p + "%";
             document.getElementById('home-progress').style.width = p + "%";
-            document.getElementById('time-current').innerText = formatTime(now);
-            document.getElementById('time-total').innerText = formatTime(dur);
+            document.getElementById('home-time-current').innerText = formatTime(now);
+            document.getElementById('home-time-total').innerText = formatTime(dur);
         }
     }
 
@@ -331,7 +316,7 @@
     }
 
     const slider = document.getElementById('speed-slider');
-    slider.oninput = () => player.setPlaybackRate(parseFloat(slider.value));
+    slider.oninput = () => player && player.setPlaybackRate(parseFloat(slider.value));
     document.getElementById('speed-reset').onclick = () => { slider.value = 1.0; player.setPlaybackRate(1.0); };
     document.getElementById('speed-down').onclick = () => { slider.value = Math.max(0.5, parseFloat(slider.value) - 0.05); player.setPlaybackRate(slider.value); };
     document.getElementById('speed-up').onclick = () => { slider.value = Math.min(1.5, parseFloat(slider.value) + 0.05); player.setPlaybackRate(slider.value); };
@@ -348,7 +333,6 @@
     }
     function play(i) { currentIndex = i; updateUI(); player.loadVideoById(playlist[i].id); }
     function toggleAB() { isAB = !isAB; }
-
 </script>
 </body>
 </html>
