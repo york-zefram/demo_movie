@@ -90,12 +90,14 @@
             background: rgba(255, 255, 255, 0.2);
             position: relative;
             cursor: pointer;
+            pointer-events: auto;
         }
         #home-progress {
             height: 100%;
             background: var(--neon-blue);
             box-shadow: var(--neon-glow);
             width: 0%;
+            pointer-events: none;
         }
         #home-knob {
             position: absolute;
@@ -105,6 +107,8 @@
             border-radius: 50%;
             transform: translate(-50%, -50%);
             box-shadow: 0 0 10px #fff;
+            cursor: pointer;
+            pointer-events: auto;
         }
 
         .time-display {
@@ -162,7 +166,7 @@
             <button class="home-nav-btn" id="mode-speed">SPEED</button>
             <button class="home-nav-btn" id="mode-list">LIST</button>
         </div>
-        <div id="home-seekbar-container">
+        <div id="home-seekbar-container" id="home-seekbar">
             <div id="home-progress"></div>
             <div id="home-knob" style="left: 0%;"></div>
         </div>
@@ -199,6 +203,7 @@
 <script>
     let player, playlist = [], currentIndex = 0, isAB = false, isMirror = false;
     let uiTimeout;
+    let isDragging = false; // ドラッグ状態管理
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -213,6 +218,7 @@
 
     function onPlayerReady() {
         setInterval(update, 50);
+        initHomeSeekbar(); // シークバー操作の初期化
         wakeUpUI();
     }
 
@@ -224,10 +230,52 @@
         label.style.opacity = "1";
         
         clearTimeout(uiTimeout);
-        uiTimeout = setTimeout(() => {
-            overlay.style.opacity = "0";
-            label.style.opacity = "0";
-        }, 5000); // 5秒に設定
+        // ドラッグ中はタイムアウトしない
+        if (!isDragging) {
+            uiTimeout = setTimeout(() => {
+                overlay.style.opacity = "0";
+                label.style.opacity = "0";
+            }, 5000);
+        }
+    }
+
+    // HOME用シークバーのスライド実装
+    function initHomeSeekbar() {
+        const container = document.getElementById('home-seekbar-container');
+        const knob = document.getElementById('home-knob');
+
+        const handleMove = (e) => {
+            if (!isDragging) return;
+            const rect = container.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let p = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+            
+            knob.style.left = p + "%";
+            document.getElementById('home-progress').style.width = p + "%";
+            
+            if (player && player.getDuration) {
+                player.seekTo((p / 100) * player.getDuration(), true);
+            }
+            wakeUpUI(); // 操作中はUIを維持
+        };
+
+        const startDragging = (e) => {
+            isDragging = true;
+            handleMove(e);
+        };
+
+        const stopDragging = () => {
+            isDragging = false;
+            wakeUpUI(); // 離した後にタイマー再開
+        };
+
+        container.addEventListener('mousedown', startDragging);
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', stopDragging);
+
+        container.addEventListener('touchstart', startDragging);
+        window.addEventListener('touchmove', handleMove);
+        window.addEventListener('touchend', stopDragging);
     }
 
     function togglePlay() {
@@ -237,7 +285,7 @@
     }
 
     function update() {
-        if (!player || !player.getCurrentTime) return;
+        if (!player || !player.getCurrentTime || isDragging) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
         
         if (dur > 0) {
