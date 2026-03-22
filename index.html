@@ -7,8 +7,7 @@
     <style>
         :root { 
             --neon-blue: #00f3ff; 
-            --neon-glow: 0 0 15px rgba(0, 243, 255, 0.7); 
-            --header-h: 50px;
+            --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); 
         }
         
         body { 
@@ -27,7 +26,7 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: var(--header-h);
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -51,50 +50,61 @@
         #yt-player {
             width: 100%;
             height: 100%;
+            max-width: 100%;
             pointer-events: none;
         }
 
-        /* 3段構造のメインオーバーレイ */
         #home-overlay {
             position: absolute; 
             top: 66%; 
             left: 50%; 
             transform: translateX(-50%);
-            width: 92%; 
-            background: rgba(5, 5, 5, 0.9); 
-            border-radius: 20px;
-            padding: 30px 20px 60px 20px; 
+            width: 90%; 
+            background: rgba(10, 10, 10, 0.85); 
+            border-radius: 12px;
+            padding: 20px 20px 60px 20px; 
             z-index: 1000; 
+            transition: opacity 0.3s ease;
             display: flex; 
             flex-direction: column; 
-            gap: 45px; 
-            border: 1px solid #222;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            gap: 40px; 
+            border: 1px solid #333;
+            pointer-events: auto;
         }
 
-        /* 1段目：ナビゲーション */
-        .nav-row { display: flex; justify-content: space-between; gap: 8px; }
+        /* 1段目：ナビゲーション（再生ボタンを削除し、GOボタンのスペースを確保） */
+        .nav-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
         .btn-nav {
-            flex: 1; padding: 12px 0; background: none; border: 1px solid var(--neon-blue);
-            color: #fff; font-family: 'Michroma', sans-serif; font-size: 9px; 
-            cursor: pointer; border-radius: 4px; transition: 0.3s;
+            flex: 1; padding: 10px 0; background: none; border: 1px solid var(--neon-blue);
+            color: #fff; font-family: 'Michroma', sans-serif; font-size: 10px; 
+            cursor: pointer; border-radius: 4px; transition: 0.2s; text-align: center;
         }
         .btn-nav.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
 
-        /* 2段目：情報・シークエリア */
-        #dynamic-content { width: 100%; }
-        .bar-track { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; }
-        .bar-fill { height: 100%; background: var(--neon-blue); width: 0%; box-shadow: var(--neon-glow); }
+        /* 2段目：情報表示エリア */
+        #dynamic-content { min-height: 60px; display: flex; align-items: center; }
+        .mode-panel { display: none; width: 100%; }
+        .mode-panel.active { display: flex; flex-direction: column; }
+
+        .bar-track { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 3px; }
+        .bar-fill { height: 100%; background: var(--neon-blue); width: 0%; pointer-events: none; border-radius: 3px; }
+        
         .time-display {
-            display: flex; justify-content: space-between; margin-top: 25px; 
-            font-size: 18px; letter-spacing: 0.1em; filter: drop-shadow(var(--neon-glow));
+            display: flex; 
+            justify-content: space-between; 
+            margin-top: 24px; 
+            color: var(--neon-blue); 
+            font-size: 18px; 
+            letter-spacing: 0.1em;
+            filter: drop-shadow(var(--neon-glow));
         }
 
-        /* 3段目：トランスポート・コンテナ（4連ボタン） */
+        /* 3段目：トランスポート（中央に凝縮） */
         .transport-container {
             display: flex;
-            justify-content: space-around;
+            justify-content: center;
             align-items: center;
+            gap: 20px; /* 中央にまとめるための適度な間隔 */
             width: 100%;
         }
 
@@ -110,22 +120,19 @@
             font-family: 'Michroma', sans-serif;
             transition: 0.2s;
             box-shadow: var(--neon-glow);
+            text-shadow: var(--neon-glow);
         }
+        .btn-circle:active { transform: scale(0.9); opacity: 0.8; }
+        .btn-circle.active { background: var(--neon-blue); color: #000; }
 
-        /* A点・B点ボタン（小） */
-        .btn-ab { width: 50px; height: 50px; font-size: 16px; }
-        .btn-ab.set { background: var(--neon-blue); color: #000; }
+        .btn-ab { width: 45px; height: 45px; font-size: 14px; }
+        .btn-main { width: 65px; height: 65px; font-size: 20px; }
 
-        /* 戻る・再生ボタン（大） */
-        .btn-main-ctrl { width: 75px; height: 75px; font-size: 24px; }
-        
-        .btn-circle:active { transform: scale(0.9); opacity: 0.7; }
-
-        .mode-panel { display: none; width: 100%; }
-        .mode-panel.active { display: flex; flex-direction: column; }
+        /* URL入力欄とGOボタンの調整 */
+        .url-box { display: flex; gap: 10px; width: 100%; }
         input[type=text] { 
-            width: 100%; background:#111; border:1px solid #444; color:#fff; padding:12px; 
-            font-family: 'Michroma', sans-serif; font-size: 12px; outline: none; box-sizing: border-box;
+            flex: 1; background: #111; border: 1px solid #444; color: #fff; padding: 10px; 
+            font-family: 'Michroma', sans-serif; font-size: 10px; outline: none; 
         }
     </style>
 </head>
@@ -156,10 +163,13 @@
                 </div>
             </div>
             <div id="panel-url" class="mode-panel">
-                <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
+                <div class="url-box">
+                    <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
+                    <button class="btn-nav" id="btn-url-go" style="flex:none; width:80px;">GO</button>
+                </div>
             </div>
             <div id="panel-speed" class="mode-panel">
-                <div style="display:flex; justify-content:center; align-items:center; gap:40px;">
+                <div style="display:flex; justify-content:center; align-items:center; gap:30px;">
                     <button class="btn-nav" id="btn-speed-down" style="width:50px;">-</button>
                     <span id="txt-speed" style="font-size:24px; min-width:80px; text-align:center;">1.00x</span>
                     <button class="btn-nav" id="btn-speed-up" style="width:50px;">+</button>
@@ -169,8 +179,8 @@
 
         <div class="transport-container">
             <button class="btn-circle btn-ab" id="btn-set-a">A</button>
-            <button class="btn-circle btn-main-ctrl" id="btn-prev">|◀</button>
-            <button class="btn-circle btn-main-ctrl" id="btn-play">▶||</button>
+            <button class="btn-circle btn-main" id="btn-prev">|◀</button>
+            <button class="btn-circle btn-main" id="btn-play">▶||</button>
             <button class="btn-circle btn-ab" id="btn-set-b">B</button>
         </div>
     </div>
@@ -181,6 +191,7 @@
         player: null,
         isLoop: false,
         isMirror: false,
+        currentMode: 'seek',
         startT: 0,
         endT: 0,
         uiTimer: null
@@ -195,7 +206,7 @@
         if (!state.player || !state.player.getCurrentTime) return;
         const now = state.player.getCurrentTime(), dur = state.player.getDuration();
         
-        if (state.isLoop && state.endT > 0 && now >= state.endT) {
+        if (state.isLoop && state.endT > 0 && now >= (state.endT - 0.1)) {
             state.player.seekTo(state.startT, true);
         }
 
@@ -208,61 +219,101 @@
     }
 
     function switchMode(m) {
+        state.currentMode = m;
         document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
         const p = document.getElementById(`panel-${m}`);
         if(p) p.classList.add('active');
         document.querySelectorAll('.btn-nav[data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+        wakeUI();
     }
 
     function initEvents() {
-        // 再生・一時停止
-        document.getElementById('btn-play').onclick = () => {
-            const s = state.player.getPlayerState();
-            s === 1 ? state.player.pauseVideo() : state.player.playVideo();
+        // Transport Events
+        document.getElementById('btn-play').onclick = (e) => {
+            e.stopPropagation();
+            state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
+            wakeUI();
         };
 
-        // A点指定
-        document.getElementById('btn-set-a').onclick = function() {
+        document.getElementById('btn-set-a').onclick = (e) => {
+            e.stopPropagation();
             state.startT = state.player.getCurrentTime();
-            this.classList.add('set');
+            document.getElementById('btn-set-a').classList.add('active');
+            wakeUI();
         };
 
-        // B点指定 & ループ開始
-        document.getElementById('btn-set-b').onclick = function() {
+        document.getElementById('btn-set-b').onclick = (e) => {
+            e.stopPropagation();
             state.endT = state.player.getCurrentTime();
-            this.classList.add('set');
+            document.getElementById('btn-set-b').classList.add('active');
             state.isLoop = true;
             document.getElementById('nav-loop').classList.add('active');
+            wakeUI();
         };
 
-        // 戻る（A点または先頭へ）
-        document.getElementById('btn-prev').onclick = () => {
+        document.getElementById('btn-prev').onclick = (e) => {
+            e.stopPropagation();
             state.player.seekTo(state.startT, true);
+            wakeUI();
         };
 
-        // ミラー
-        document.getElementById('nav-mirror').onclick = () => {
+        // Nav Events
+        document.getElementById('nav-loop').onclick = (e) => {
+            e.stopPropagation();
+            state.isLoop = !state.isLoop;
+            document.getElementById('nav-loop').classList.toggle('active', state.isLoop);
+            wakeUI();
+        };
+
+        document.getElementById('nav-mirror').onclick = (e) => {
+            e.stopPropagation();
             state.isMirror = !state.isMirror;
             document.getElementById('yt-player').style.transform = state.isMirror ? "scaleX(-1)" : "scaleX(1)";
             document.getElementById('nav-mirror').classList.toggle('active', state.isMirror);
-        };
-
-        // ループ切替
-        document.getElementById('nav-loop').onclick = () => {
-            state.isLoop = !state.isLoop;
-            document.getElementById('nav-loop').classList.toggle('active', state.isLoop);
+            wakeUI();
         };
 
         document.querySelectorAll('.btn-nav[data-mode]').forEach(btn => {
-            btn.onclick = () => switchMode(btn.dataset.mode);
+            btn.onclick = (e) => { e.stopPropagation(); switchMode(btn.dataset.mode); };
         });
 
-        // シーク操作
+        document.getElementById('btn-url-go').onclick = () => {
+            const val = document.getElementById('input-url').value;
+            const id = val.split('v=')[1]?.split('&')[0] || val.split('/').pop();
+            if(id) { state.player.loadVideoById(id); switchMode('seek'); }
+        };
+
+        const setSpeed = (v) => {
+            const s = Math.max(0.5, Math.min(1.5, v));
+            state.player.setPlaybackRate(s);
+            document.getElementById('txt-speed').innerText = s.toFixed(2) + "x";
+        };
+        document.getElementById('btn-speed-up').onclick = () => setSpeed(state.player.getPlaybackRate() + 0.05);
+        document.getElementById('btn-speed-down').onclick = () => setSpeed(state.player.getPlaybackRate() - 0.05);
+
+        // Track Seek
         document.getElementById('main-track').onclick = (e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const p = (e.clientX - rect.left) / rect.width;
             state.player.seekTo(p * state.player.getDuration(), true);
+            wakeUI();
         };
+
+        document.getElementById('main-container').onclick = () => wakeUI();
+    }
+
+    function wakeUI() {
+        const o = document.getElementById('home-overlay');
+        o.style.opacity = "1";
+        o.style.pointerEvents = "auto";
+        clearTimeout(state.uiTimer);
+        const delay = (state.isLoop || state.currentMode !== 'seek') ? 8000 : 4000;
+        state.uiTimer = setTimeout(() => {
+            if (!state.isLoop && state.currentMode === 'seek') {
+                o.style.opacity = "0";
+                o.style.pointerEvents = "none";
+            }
+        }, delay);
     }
 
     const tag = document.createElement('script');
@@ -272,7 +323,7 @@
         state.player = new YT.Player('yt-player', {
             videoId: 'ScXNbe_5Y0o',
             playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
-            events: { 'onReady': () => { initEvents(); setInterval(update, 100); } }
+            events: { 'onReady': () => { initEvents(); setInterval(update, 100); wakeUI(); } }
         });
     };
 </script>
