@@ -2,25 +2,19 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM PLAYER NEO - HOME & STEALTH</title>
+    <title>ZEFRAM PLAYER NEO - STABLE SYNC</title>
     <style>
         :root { --neon-blue: #00f3ff; --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); }
         body { background: #000; color: var(--neon-blue); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; text-transform: uppercase; }
 
-        /* 映像エリア */
         #player-wrapper { position: relative; width: 100vw; aspect-ratio: 16/9; background: #000; }
         #yt-player { width: 100%; height: 100%; pointer-events: auto; }
 
-        /* HOMEオーバーレイ（復活） */
         #home-overlay {
             position: absolute; top: 66%; left: 50%; transform: translate(-50%, -30%);
             width: 90%; background: rgba(20, 20, 20, 0.9); border-radius: 15px;
             padding: 20px; z-index: 1000; transition: opacity 0.5s ease;
             display: flex; flex-direction: column; gap: 15px; border: 1px solid #333;
-        }
-        #home-label {
-            position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
-            font-size: 24px; letter-spacing: 5px; color: #fff; transition: opacity 0.5s ease;
         }
 
         .home-button-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
@@ -32,36 +26,35 @@
         .home-nav-btn {
             flex: 1; padding: 10px 0; background: none; border: 1.5px solid var(--neon-blue);
             color: #fff; font-size: 12px; cursor: pointer; border-radius: 4px; transition: 0.2s;
-            text-align: center; white-space: nowrap;
+            text-align: center;
         }
         .home-nav-btn.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
 
-        /* 動的エリア */
         #home-dynamic-area { width: 100%; min-height: 50px; position: relative; }
         .mode-container { display: none; width: 100%; flex-direction: column; justify-content: center; }
         .mode-container.active { display: flex; }
 
-        /* 共通バー */
         .bar-base { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.2); position: relative; cursor: pointer; }
         .bar-fill { height: 100%; background: var(--neon-blue); box-shadow: var(--neon-glow); width: 0%; pointer-events: none; }
+        
+        /* 再生位置（白い点）：最も手前に配置 */
         .knob-main {
             position: absolute; top: 50%; width: 16px; height: 16px;
             background: #fff; border-radius: 50%; transform: translate(-50%, -50%);
-            box-shadow: 0 0 10px #fff; pointer-events: none; z-index: 105;
+            box-shadow: 0 0 10px #fff; pointer-events: none; z-index: 150;
         }
 
-        /* ABポイント（LOOP時のみ出現） */
+        /* ABポイント：LOOP時のみ出現 */
         .ab-point {
             position: absolute; top: 50%; width: 34px; height: 34px;
             border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
             color: var(--neon-blue); border-radius: 50%; transform: translate(-50%, -50%);
             display: none; align-items: center; justify-content: center;
             font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: var(--neon-glow); 
-            z-index: 110; pointer-events: auto;
+            z-index: 140;
         }
         .ab-point.active { display: flex; }
 
-        /* 下部パネル */
         .neo-panel { padding: 10px 20px; background: #000; border-top: 1px solid #222; display: grid; grid-template-columns: 1fr 2fr 1.5fr; align-items: center; gap: 20px; }
         .btn-rect { width: 100%; background: none; border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px; text-align: center; }
         .btn-rect.active { background: var(--neon-blue); color: #000; }
@@ -72,9 +65,7 @@
 
 <div id="player-wrapper">
     <div id="yt-player"></div>
-
     <div id="home-overlay">
-        <div id="home-label">HOME</div>
         <div class="home-button-row">
             <div id="home-play-btn" onclick="toggleGlobalPlay()"></div>
             <button class="home-nav-btn active" id="nav-home" onclick="switchMode('seek')">HOME</button>
@@ -97,22 +88,7 @@
                     <span id="time-cur">00:00</span><span id="time-total">00:00</span>
                 </div>
             </div>
-
-            <div id="container-speed" class="mode-container">
-                <div style="display:flex; justify-content:center; align-items:center; gap:20px;">
-                    <button onclick="adjSpeed(-0.05)" class="home-nav-btn" style="flex:none; width:40px;">-</button>
-                    <span id="speed-txt" style="min-width:60px; text-align:center; font-size:18px;">1.00x</span>
-                    <button onclick="adjSpeed(0.05)" class="home-nav-btn" style="flex:none; width:40px;">+</button>
-                </div>
             </div>
-
-            <div id="container-url" class="mode-container">
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="url-in" style="flex:1; background:#111; border:1px solid var(--neon-blue); color:#fff; padding:8px;" placeholder="YOUTUBE URL..." onclick="event.stopPropagation()">
-                    <button onclick="loadUrl()" class="home-nav-btn" style="flex:none; width:60px;">GO</button>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -123,7 +99,6 @@
         <button class="btn-rect" id="p-mirror" onclick="handleMirror()">MIRROR</button>
         <button class="btn-rect" id="p-loop" onclick="toggleLoopMode()">A-B LOOP</button>
     </div>
-    <div id="status-bar" style="font-size:10px; color:#666;">HOME SYSTEM READY...</div>
 </div>
 
 <script>
@@ -138,47 +113,31 @@
         player = new YT.Player('yt-player', {
             videoId: 'ScXNbe_5Y0o',
             playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
-            events: { 
-                'onReady': (e) => {
-                    setInterval(update, 50);
-                    initDragEvents();
-                    wakeUpUI();
-                }
-            }
+            events: { 'onReady': () => { setInterval(update, 50); initDragEvents(); wakeUpUI(); } }
         });
-    }
-
-    function switchMode(m) {
-        curMode = m;
-        document.querySelectorAll('.mode-container').forEach(c => c.classList.remove('active'));
-        document.getElementById(`container-${m === 'loop' ? 'seek' : m}`).classList.add('active');
-        document.querySelectorAll('.home-nav-btn').forEach(b => b.classList.remove('active'));
-        const btn = document.getElementById(m === 'seek' ? 'nav-home' : `nav-${m}`);
-        if(btn) btn.classList.add('active');
-        wakeUpUI();
     }
 
     function toggleLoopMode() {
         isLoopActive = !isLoopActive;
-        if(endT === 0) endT = player.getDuration();
+        const dur = player.getDuration();
+        if(endT === 0 || endT > dur) endT = dur;
         
         document.getElementById('p-loop').classList.toggle('active', isLoopActive);
         document.getElementById('nav-loop').classList.toggle('active', isLoopActive);
         document.getElementById('point-a').classList.toggle('active', isLoopActive);
         document.getElementById('point-b').classList.toggle('active', isLoopActive);
 
-        if(isLoopActive) {
-            switchMode('seek');
-            player.seekTo(startT, true);
-        }
+        if(isLoopActive) player.seekTo(startT, true);
     }
 
     function update() {
         if (!player || !player.getCurrentTime || activeDrag) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
         
+        // LOOP判定
         if (isLoopActive && now >= (endT - 0.2)) player.seekTo(startT, true);
 
+        // 再生バー（白い点）の更新：常に全体比率
         if (dur > 0) {
             const p = (now / dur) * 100;
             document.getElementById('seek-knob').style.left = p + "%";
@@ -190,79 +149,47 @@
 
     function initDragEvents() {
         const root = document.getElementById('seek-bar-root');
-        const els = { 'knob': document.getElementById('seek-knob'), 'a': document.getElementById('point-a'), 'b': document.getElementById('point-b') };
+        const els = { 'a': document.getElementById('point-a'), 'b': document.getElementById('point-b') };
 
-        const start = (type) => (e) => {
-            if ((type === 'a' || type === 'b') && !isLoopActive) return;
+        // バーそのものをクリックでシーク
+        root.addEventListener('mousedown', (e) => {
+            if(e.target.classList.contains('ab-point')) return;
+            activeDrag = 'knob'; handleMove(e);
+        });
+
+        const startDrag = (type) => (e) => {
+            if (!isLoopActive) return;
             activeDrag = type; e.preventDefault(); e.stopPropagation();
         };
 
-        Object.keys(els).forEach(key => {
-            els[key].addEventListener('mousedown', start(key));
-            els[key].addEventListener('touchstart', start(key));
-        });
+        els.a.addEventListener('mousedown', startDrag('a'));
+        els.b.addEventListener('mousedown', startDrag('b'));
 
-        const move = (e) => {
-            if (!activeDrag) return;
-            const rect = root.getBoundingClientRect();
-            const x = e.touches ? e.touches[0].clientX : e.clientX;
-            let p = Math.max(0, Math.min(100, ((x - rect.left) / rect.width) * 100));
-            
-            if(activeDrag === 'a') p = Math.min(p, parseFloat(els.b.style.left) - 1);
-            if(activeDrag === 'b') p = Math.max(p, parseFloat(els.a.style.left) + 1);
-
-            els[activeDrag].style.left = p + "%";
-            const d = player.getDuration() || 0;
-            if (activeDrag === 'knob') player.seekTo((p/100) * d, true);
-            else {
-                startT = (parseFloat(els.a.style.left)/100)*d;
-                endT = (parseFloat(els.b.style.left)/100)*d;
-            }
-        };
-
-        window.addEventListener('mousemove', move);
-        window.addEventListener('touchmove', move, {passive: false});
+        window.addEventListener('mousemove', handleMove);
         window.addEventListener('mouseup', () => activeDrag = null);
-        window.addEventListener('touchend', () => activeDrag = null);
     }
 
-    function adjSpeed(val, isDirect=false) {
-        let s = isDirect ? parseFloat(val) : parseFloat(player.getPlaybackRate()) + val;
-        s = Math.max(0.5, Math.min(1.5, s));
-        player.setPlaybackRate(s);
-        document.getElementById('speed-txt').innerText = s.toFixed(2) + "x";
-        document.getElementById('p-speed').value = s;
+    function handleMove(e) {
+        if (!activeDrag) return;
+        const rect = document.getElementById('seek-bar-root').getBoundingClientRect();
+        let p = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+        const d = player.getDuration() || 0;
+
+        if (activeDrag === 'knob') {
+            player.seekTo((p/100) * d, true);
+        } else {
+            document.getElementById('point-' + activeDrag).style.left = p + "%";
+            startT = (parseFloat(document.getElementById('point-a').style.left)/100)*d;
+            endT = (parseFloat(document.getElementById('point-b').style.left)/100)*d;
+        }
     }
 
-    function toggleGlobalPlay() {
-        const s = player.getPlayerState();
-        s === 1 ? player.pauseVideo() : player.playVideo();
-    }
-
-    function handleMirror() {
-        isMirror = !isMirror;
-        document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)";
-        document.getElementById('p-mirror').classList.toggle('active', isMirror);
-        document.getElementById('nav-mirror').classList.toggle('active', isMirror);
-    }
-
-    function loadUrl() {
-        const val = document.getElementById('url-in').value;
-        const id = val.split('v=')[1]?.split('&')[0] || val.split('/').pop();
-        if(id) { player.loadVideoById(id); switchMode('seek'); }
-    }
-
-    function wakeUpUI() {
-        const o = document.getElementById('home-overlay');
-        o.style.opacity = "1";
-        clearTimeout(uiTimer);
-        if(!activeDrag) uiTimer = setTimeout(() => { if(curMode === 'seek' && !isLoopActive) o.style.opacity = "0"; }, 5000);
-    }
-
-    function fmt(s) { 
-        const m = Math.floor(s/60), rs = Math.floor(s%60);
-        return (m<10?'0'+m:m)+":"+(rs<10?'0'+rs:rs);
-    }
+    function toggleGlobalPlay() { player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); }
+    function handleMirror() { isMirror = !isMirror; document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)"; }
+    function switchMode(m) { curMode = m; wakeUpUI(); }
+    function adjSpeed(v, d=false) { let s = d ? parseFloat(v) : player.getPlaybackRate()+v; player.setPlaybackRate(Math.max(0.5, Math.min(1.5, s))); }
+    function fmt(s) { const m=Math.floor(s/60), rs=Math.floor(s%60); return (m<10?'0'+m:m)+":"+(rs<10?'0'+rs:rs); }
+    function wakeUpUI() { document.getElementById('home-overlay').style.opacity = "1"; clearTimeout(uiTimer); uiTimer = setTimeout(()=> { if(!isLoopActive) document.getElementById('home-overlay').style.opacity="0"; }, 5000); }
 </script>
 </body>
 </html>
