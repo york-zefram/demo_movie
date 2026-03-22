@@ -2,98 +2,133 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM PLAYER NEO - STABLE STEALTH</title>
+    <title>ZEFRAM PLAYER NEO - HOME & STEALTH</title>
     <style>
         :root { --neon-blue: #00f3ff; --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); }
         body { background: #000; color: var(--neon-blue); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; text-transform: uppercase; }
 
+        /* 映像エリア */
         #player-wrapper { position: relative; width: 100vw; aspect-ratio: 16/9; background: #000; }
         #yt-player { width: 100%; height: 100%; pointer-events: auto; }
 
-        #seekbar-container {
-            position: absolute; top: 66%; left: 5%; width: 90%; height: 2px;
-            z-index: 100; background: rgba(255, 255, 255, 0.2);
+        /* HOMEオーバーレイ（復活） */
+        #home-overlay {
+            position: absolute; top: 66%; left: 50%; transform: translate(-50%, -30%);
+            width: 90%; background: rgba(20, 20, 20, 0.9); border-radius: 15px;
+            padding: 20px; z-index: 1000; transition: opacity 0.5s ease;
+            display: flex; flex-direction: column; gap: 15px; border: 1px solid #333;
         }
-        #seekbar-progress { height: 100%; background: var(--neon-blue); box-shadow: var(--neon-glow); width: 0%; pointer-events: none; }
-        
+        #home-label {
+            position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+            font-size: 24px; letter-spacing: 5px; color: #fff; transition: opacity 0.5s ease;
+        }
+
+        .home-button-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+        #home-play-btn {
+            width: 0; height: 0; border-top: 15px solid transparent; border-bottom: 15px solid transparent;
+            border-left: 25px solid var(--neon-blue); cursor: pointer; filter: drop-shadow(var(--neon-glow));
+        }
+
+        .home-nav-btn {
+            flex: 1; padding: 10px 0; background: none; border: 1.5px solid var(--neon-blue);
+            color: #fff; font-size: 12px; cursor: pointer; border-radius: 4px; transition: 0.2s;
+            text-align: center; white-space: nowrap;
+        }
+        .home-nav-btn.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
+
+        /* 動的エリア */
+        #home-dynamic-area { width: 100%; min-height: 50px; position: relative; }
+        .mode-container { display: none; width: 100%; flex-direction: column; justify-content: center; }
+        .mode-container.active { display: flex; }
+
+        /* 共通バー */
+        .bar-base { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.2); position: relative; cursor: pointer; }
+        .bar-fill { height: 100%; background: var(--neon-blue); box-shadow: var(--neon-glow); width: 0%; pointer-events: none; }
+        .knob-main {
+            position: absolute; top: 50%; width: 16px; height: 16px;
+            background: #fff; border-radius: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #fff; pointer-events: none; z-index: 105;
+        }
+
+        /* ABポイント（LOOP時のみ出現） */
         .ab-point {
             position: absolute; top: 50%; width: 34px; height: 34px;
             border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
-            color: var(--neon-blue); border-radius: 50%;
-            transform: translate(-50%, -50%); display: none; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: var(--neon-glow); z-index: 120;
+            color: var(--neon-blue); border-radius: 50%; transform: translate(-50%, -50%);
+            display: none; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: var(--neon-glow); 
+            z-index: 110; pointer-events: auto;
         }
         .ab-point.active { display: flex; }
 
-        #seekbar-knob {
-            position: absolute; top: 50%; width: 14px; height: 14px;
-            background: #fff; border-radius: 50%; transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px #fff; cursor: pointer; z-index: 110;
-        }
-
-        .neo-panel {
-            padding: 10px 20px; background: #000; border-top: 1px solid #222;
-            display: grid; grid-template-columns: 1fr 2fr 1.5fr; align-items: center; gap: 20px;
-        }
-
-        .speed-ctrl { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-        .btn-circle {
-            width: 32px; height: 32px; border-radius: 50%;
-            border: 1px solid var(--neon-blue); background: none;
-            color: var(--neon-blue); cursor: pointer; font-size: 18px;
-            box-shadow: var(--neon-glow);
-        }
-
-        .meta-ctrl { display: flex; flex-direction: column; gap: 8px; }
-        .url-box { background: #111; border: 1px solid #333; color: var(--neon-blue); padding: 8px; font-size: 12px; }
-        .action-btns { display: flex; gap: 5px; }
-        .btn-rect {
-            flex: 1; background: none; border: 1px solid var(--neon-blue);
-            color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px;
-            box-shadow: var(--neon-glow); text-align: center;
-        }
+        /* 下部パネル */
+        .neo-panel { padding: 10px 20px; background: #000; border-top: 1px solid #222; display: grid; grid-template-columns: 1fr 2fr 1.5fr; align-items: center; gap: 20px; }
+        .btn-rect { width: 100%; background: none; border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px; text-align: center; }
         .btn-rect.active { background: var(--neon-blue); color: #000; }
-
-        .playlist { height: 80px; overflow-y: auto; font-size: 11px; border-left: 1px solid #222; padding-left: 10px; color: #666; }
+        input[type=range] { width: 100%; accent-color: var(--neon-blue); }
     </style>
 </head>
-<body>
+<body onclick="wakeUpUI()">
 
 <div id="player-wrapper">
     <div id="yt-player"></div>
-    <div id="seekbar-container">
-        <div id="seekbar-progress"></div>
-        <div id="seekbar-knob" style="left: 0%;"></div>
-        <div id="point-a" class="ab-point" style="left: 0%;">A</div>
-        <div id="point-b" class="ab-point" style="left: 100%;">B</div>
+
+    <div id="home-overlay">
+        <div id="home-label">HOME</div>
+        <div class="home-button-row">
+            <div id="home-play-btn" onclick="toggleGlobalPlay()"></div>
+            <button class="home-nav-btn active" id="nav-home" onclick="switchMode('seek')">HOME</button>
+            <button class="home-nav-btn" id="nav-url" onclick="switchMode('url')">URL</button>
+            <button class="home-nav-btn" id="nav-mirror" onclick="handleMirror()">MIRROR</button>
+            <button class="home-nav-btn" id="nav-loop" onclick="toggleLoopMode()">LOOP</button>
+            <button class="home-nav-btn" id="nav-speed" onclick="switchMode('speed')">SPEED</button>
+            <button class="home-nav-btn" id="nav-list">LIST</button>
+        </div>
+
+        <div id="home-dynamic-area">
+            <div id="container-seek" class="mode-container active">
+                <div class="bar-base" id="seek-bar-root">
+                    <div class="bar-fill" id="seek-fill"></div>
+                    <div class="knob-main" id="seek-knob" style="left: 0%;"></div>
+                    <div id="point-a" class="ab-point" style="left: 0%;">A</div>
+                    <div id="point-b" class="ab-point" style="left: 100%;">B</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:10px; margin-top:10px;">
+                    <span id="time-cur">00:00</span><span id="time-total">00:00</span>
+                </div>
+            </div>
+
+            <div id="container-speed" class="mode-container">
+                <div style="display:flex; justify-content:center; align-items:center; gap:20px;">
+                    <button onclick="adjSpeed(-0.05)" class="home-nav-btn" style="flex:none; width:40px;">-</button>
+                    <span id="speed-txt" style="min-width:60px; text-align:center; font-size:18px;">1.00x</span>
+                    <button onclick="adjSpeed(0.05)" class="home-nav-btn" style="flex:none; width:40px;">+</button>
+                </div>
+            </div>
+
+            <div id="container-url" class="mode-container">
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="url-in" style="flex:1; background:#111; border:1px solid var(--neon-blue); color:#fff; padding:8px;" placeholder="YOUTUBE URL..." onclick="event.stopPropagation()">
+                    <button onclick="loadUrl()" class="home-nav-btn" style="flex:none; width:60px;">GO</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <div class="neo-panel">
-    <div class="speed-ctrl">
-        <input type="range" id="speed-slider" min="0.5" max="1.5" step="0.05" value="1.0">
-        <div class="speed-buttons">
-            <button class="btn-circle" id="speed-down">−</button>
-            <button class="btn-circle" id="speed-reset">○</button>
-            <button class="btn-circle" id="speed-up">＋</button>
-        </div>
+    <div><input type="range" id="p-speed" min="0.5" max="1.5" step="0.05" value="1.0" oninput="adjSpeed(this.value, true)"></div>
+    <div style="display:flex; gap:5px;">
+        <button class="btn-rect">SELECT TRACK</button>
+        <button class="btn-rect" id="p-mirror" onclick="handleMirror()">MIRROR</button>
+        <button class="btn-rect" id="p-loop" onclick="toggleLoopMode()">A-B LOOP</button>
     </div>
-
-    <div class="meta-ctrl">
-        <input type="text" id="url-input" class="url-box" placeholder="YOUTUBE URL...">
-        <div class="action-btns">
-            <button class="btn-rect" onclick="addTrack()">SELECT TRACK</button>
-            <button class="btn-rect" id="mirror-btn" onclick="toggleMirror()">MIRROR</button>
-            <button class="btn-rect" id="loop-btn" onclick="toggleLoopMode()">A-B LOOP</button>
-        </div>
-    </div>
-
-    <div id="playlist" class="playlist">READY.</div>
+    <div id="status-bar" style="font-size:10px; color:#666;">HOME SYSTEM READY...</div>
 </div>
 
 <script>
-    let player, isLoopActive = false, isMirror = false;
-    let startT = 0, endT = 0, activeDrag = null;
+    let player, isLoopActive = false, isMirror = false, curMode = 'seek';
+    let startT = 0, endT = 0, activeDrag = null, uiTimer;
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -107,74 +142,81 @@
                 'onReady': (e) => {
                     setInterval(update, 50);
                     initDragEvents();
-                },
-                'onStateChange': (e) => {
-                    if (e.data === YT.PlayerState.PLAYING && endT === 0) {
-                        endT = player.getDuration(); // 初期化時に動画の長さをセット
-                    }
+                    wakeUpUI();
                 }
             }
         });
     }
 
+    function switchMode(m) {
+        curMode = m;
+        document.querySelectorAll('.mode-container').forEach(c => c.classList.remove('active'));
+        document.getElementById(`container-${m === 'loop' ? 'seek' : m}`).classList.add('active');
+        document.querySelectorAll('.home-nav-btn').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById(m === 'seek' ? 'nav-home' : `nav-${m}`);
+        if(btn) btn.classList.add('active');
+        wakeUpUI();
+    }
+
     function toggleLoopMode() {
         isLoopActive = !isLoopActive;
-        document.getElementById('loop-btn').classList.toggle('active', isLoopActive);
+        if(endT === 0) endT = player.getDuration();
+        
+        document.getElementById('p-loop').classList.toggle('active', isLoopActive);
+        document.getElementById('nav-loop').classList.toggle('active', isLoopActive);
         document.getElementById('point-a').classList.toggle('active', isLoopActive);
         document.getElementById('point-b').classList.toggle('active', isLoopActive);
-        if (isLoopActive) player.seekTo(startT, true);
+
+        if(isLoopActive) {
+            switchMode('seek');
+            player.seekTo(startT, true);
+        }
     }
 
     function update() {
         if (!player || !player.getCurrentTime || activeDrag) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
         
-        if (isLoopActive && now >= (endT - 0.2)) {
-            player.seekTo(startT, true);
-        }
+        if (isLoopActive && now >= (endT - 0.2)) player.seekTo(startT, true);
 
         if (dur > 0) {
             const p = (now / dur) * 100;
-            document.getElementById('seekbar-knob').style.left = p + "%";
-            document.getElementById('seekbar-progress').style.width = p + "%";
+            document.getElementById('seek-knob').style.left = p + "%";
+            document.getElementById('seek-fill').style.width = p + "%";
+            document.getElementById('time-cur').innerText = fmt(now);
+            document.getElementById('time-total').innerText = fmt(dur);
         }
     }
 
     function initDragEvents() {
-        const container = document.getElementById('seekbar-container');
-        const elements = {
-            'knob': document.getElementById('seekbar-knob'),
-            'a': document.getElementById('point-a'),
-            'b': document.getElementById('point-b')
-        };
+        const root = document.getElementById('seek-bar-root');
+        const els = { 'knob': document.getElementById('seek-knob'), 'a': document.getElementById('point-a'), 'b': document.getElementById('point-b') };
 
         const start = (type) => (e) => {
             if ((type === 'a' || type === 'b') && !isLoopActive) return;
-            activeDrag = type;
-            e.preventDefault();
+            activeDrag = type; e.preventDefault(); e.stopPropagation();
         };
 
-        elements.knob.addEventListener('mousedown', start('knob'));
-        elements.knob.addEventListener('touchstart', start('knob'));
-        elements.a.addEventListener('mousedown', start('a'));
-        elements.a.addEventListener('touchstart', start('a'));
-        elements.b.addEventListener('mousedown', start('b'));
-        elements.b.addEventListener('touchstart', start('b'));
+        Object.keys(els).forEach(key => {
+            els[key].addEventListener('mousedown', start(key));
+            els[key].addEventListener('touchstart', start(key));
+        });
 
         const move = (e) => {
             if (!activeDrag) return;
-            const rect = container.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let p = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+            const rect = root.getBoundingClientRect();
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            let p = Math.max(0, Math.min(100, ((x - rect.left) / rect.width) * 100));
             
-            elements[activeDrag].style.left = p + "%";
-            const d = player.getDuration() || 0;
+            if(activeDrag === 'a') p = Math.min(p, parseFloat(els.b.style.left) - 1);
+            if(activeDrag === 'b') p = Math.max(p, parseFloat(els.a.style.left) + 1);
 
-            if (activeDrag === 'knob') {
-                player.seekTo((p/100) * d, true);
-            } else {
-                startT = (parseFloat(elements.a.style.left)/100)*d;
-                endT = (parseFloat(elements.b.style.left)/100)*d;
+            els[activeDrag].style.left = p + "%";
+            const d = player.getDuration() || 0;
+            if (activeDrag === 'knob') player.seekTo((p/100) * d, true);
+            else {
+                startT = (parseFloat(els.a.style.left)/100)*d;
+                endT = (parseFloat(els.b.style.left)/100)*d;
             }
         };
 
@@ -184,23 +226,42 @@
         window.addEventListener('touchend', () => activeDrag = null);
     }
 
-    // 速度調整
-    const slider = document.getElementById('speed-slider');
-    slider.oninput = () => player.setPlaybackRate(parseFloat(slider.value));
-    document.getElementById('speed-reset').onclick = () => { slider.value = 1.0; player.setPlaybackRate(1.0); };
-    document.getElementById('speed-down').onclick = () => { slider.value = Math.max(0.5, parseFloat(slider.value) - 0.05); player.setPlaybackRate(slider.value); };
-    document.getElementById('speed-up').onclick = () => { slider.value = Math.min(1.5, parseFloat(slider.value) + 0.05); player.setPlaybackRate(slider.value); };
-
-    function toggleMirror() { 
-        isMirror = !isMirror; 
-        document.getElementById('yt-player').style.transform = isMirror?"scaleX(-1)":"scaleX(1)"; 
-        document.getElementById('mirror-btn').classList.toggle('active', isMirror);
+    function adjSpeed(val, isDirect=false) {
+        let s = isDirect ? parseFloat(val) : parseFloat(player.getPlaybackRate()) + val;
+        s = Math.max(0.5, Math.min(1.5, s));
+        player.setPlaybackRate(s);
+        document.getElementById('speed-txt').innerText = s.toFixed(2) + "x";
+        document.getElementById('p-speed').value = s;
     }
 
-    function addTrack() {
-        const val = document.getElementById('url-input').value;
+    function toggleGlobalPlay() {
+        const s = player.getPlayerState();
+        s === 1 ? player.pauseVideo() : player.playVideo();
+    }
+
+    function handleMirror() {
+        isMirror = !isMirror;
+        document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)";
+        document.getElementById('p-mirror').classList.toggle('active', isMirror);
+        document.getElementById('nav-mirror').classList.toggle('active', isMirror);
+    }
+
+    function loadUrl() {
+        const val = document.getElementById('url-in').value;
         const id = val.split('v=')[1]?.split('&')[0] || val.split('/').pop();
-        if(id) player.loadVideoById(id);
+        if(id) { player.loadVideoById(id); switchMode('seek'); }
+    }
+
+    function wakeUpUI() {
+        const o = document.getElementById('home-overlay');
+        o.style.opacity = "1";
+        clearTimeout(uiTimer);
+        if(!activeDrag) uiTimer = setTimeout(() => { if(curMode === 'seek' && !isLoopActive) o.style.opacity = "0"; }, 5000);
+    }
+
+    function fmt(s) { 
+        const m = Math.floor(s/60), rs = Math.floor(s%60);
+        return (m<10?'0'+m:m)+":"+(rs<10?'0'+rs:rs);
     }
 </script>
 </body>
