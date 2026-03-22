@@ -8,6 +8,7 @@
         :root { 
             --neon-blue: #00f3ff; 
             --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); 
+            --disabled-color: #444;
         }
         
         body { 
@@ -23,107 +24,63 @@
 
         header {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            top: 0; left: 0; width: 100%; height: 50px;
+            display: flex; align-items: center; justify-content: center;
             background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
-            letter-spacing: 0.15em;
-            font-size: 14px;
-            z-index: 2000;
-            pointer-events: none;
+            letter-spacing: 0.15em; font-size: 14px; z-index: 2000; pointer-events: none;
         }
 
         #main-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #000;
+            position: relative; width: 100vw; height: 100vh;
+            display: flex; align-items: center; justify-content: center; background: #000;
         }
 
-        #yt-player {
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
+        #yt-player { width: 100%; height: 100%; pointer-events: none; }
 
         #home-overlay {
-            position: absolute; 
-            top: 66%; 
-            left: 50%; 
-            transform: translateX(-50%);
-            width: 90%; 
-            background: rgba(10, 10, 10, 0.85); 
-            border-radius: 12px;
-            padding: 20px 20px 60px 20px; 
-            z-index: 1000; 
-            transition: opacity 0.3s ease;
-            display: flex; 
-            flex-direction: column; 
-            gap: 40px; 
-            border: 1px solid #333;
-            pointer-events: auto;
+            position: absolute; top: 66%; left: 50%; transform: translateX(-50%);
+            width: 90%; background: rgba(10, 10, 10, 0.85); border-radius: 12px;
+            padding: 20px 20px 60px 20px; z-index: 1000; 
+            display: flex; flex-direction: column; gap: 40px; border: 1px solid #333;
         }
 
-        .nav-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+        .nav-row { display: flex; justify-content: space-between; gap: 8px; }
         .btn-nav {
             flex: 1; padding: 10px 0; background: none; border: 1px solid var(--neon-blue);
             color: #fff; font-family: 'Michroma', sans-serif; font-size: 10px; 
-            cursor: pointer; border-radius: 4px; transition: 0.2s; text-align: center;
+            cursor: pointer; border-radius: 4px; transition: 0.2s;
         }
         .btn-nav.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
 
-        #dynamic-content { min-height: 60px; display: flex; align-items: center; }
-        .mode-panel { display: none; width: 100%; }
-        .mode-panel.active { display: flex; flex-direction: column; }
-
-        /* シークバーエリア */
+        /* シークバー */
         .bar-track { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 3px; }
-        .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; pointer-events: none; position: absolute; z-index: 1; }
-        #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 2; box-shadow: var(--neon-glow); }
+        .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; z-index: 1; pointer-events: none; }
+        #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 2; box-shadow: var(--neon-glow); pointer-events: none; }
         
-        .knob-now {
-            position: absolute; top: 50%; width: 14px; height: 14px; background: #fff;
-            border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px #fff;
-            z-index: 10; pointer-events: none;
-        }
-
+        .knob { position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; }
+        #main-knob { width: 14px; height: 14px; background: #fff; box-shadow: 0 0 10px #fff; z-index: 10; }
         .knob-ab {
-            position: absolute; top: 50%; width: 34px; height: 34px;
-            border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
-            color: var(--neon-blue); border-radius: 50%; transform: translate(-50%, -50%);
-            display: none; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: bold; cursor: pointer; z-index: 5;
+            width: 34px; height: 34px; border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
+            color: var(--neon-blue); display: none; align-items: center; justify-content: center;
+            font-size: 12px; z-index: 15; box-shadow: var(--neon-glow);
         }
 
-        .time-display {
-            display: flex; justify-content: space-between; margin-top: 24px; 
-            color: var(--neon-blue); font-size: 18px; letter-spacing: 0.1em; filter: drop-shadow(var(--neon-glow));
-        }
+        .time-display { display: flex; justify-content: space-between; margin-top: 24px; font-size: 18px; filter: drop-shadow(var(--neon-glow)); }
 
         /* トランスポートエリア */
         .transport-container { display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; }
         .btn-circle {
             background: none; border: 2px solid var(--neon-blue); color: var(--neon-blue);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; font-family: 'Michroma', sans-serif; transition: 0.2s;
-            box-shadow: var(--neon-glow);
+            cursor: pointer; font-family: 'Michroma', sans-serif; transition: 0.2s; box-shadow: var(--neon-glow);
         }
+        .btn-circle:disabled { border-color: var(--disabled-color); color: var(--disabled-color); box-shadow: none; cursor: default; }
         .btn-circle.active { background: var(--neon-blue); color: #000; }
         .btn-ab-ctrl { width: 45px; height: 45px; font-size: 14px; }
         .btn-main-ctrl { width: 65px; height: 65px; font-size: 20px; }
 
         .url-box { display: flex; gap: 10px; width: 100%; }
-        input[type=text] { 
-            flex: 1; background: #111; border: 1px solid #444; color: #fff; padding: 10px; 
-            font-family: 'Michroma', sans-serif; font-size: 10px; outline: none; 
-        }
+        input[type=text] { flex: 1; background: #111; border: 1px solid #444; color: #fff; padding: 10px; font-family: 'Michroma', sans-serif; font-size: 10px; outline: none; }
     </style>
 </head>
 <body>
@@ -132,7 +89,6 @@
 
 <div id="main-container">
     <div id="yt-player"></div>
-
     <div id="home-overlay">
         <div class="nav-row">
             <button class="btn-nav active" data-mode="seek">HOME</button>
@@ -148,9 +104,9 @@
                 <div class="bar-track" id="main-track">
                     <div class="bar-fill" id="main-fill"></div>
                     <div id="ab-range"></div>
-                    <div class="knob-now" id="main-knob" style="left: 0%;"></div>
-                    <div class="knob-ab" id="knob-a" style="left: 0%;">A</div>
-                    <div class="knob-ab" id="knob-b" style="left: 100%;">B</div>
+                    <div class="knob" id="main-knob" style="left: 0%;"></div>
+                    <div class="knob knob-ab" id="knob-a" style="left: 0%;">A</div>
+                    <div class="knob knob-ab" id="knob-b" style="left: 100%;">B</div>
                 </div>
                 <div class="time-display">
                     <span id="txt-cur">00:00</span><span id="txt-total">00:00</span>
@@ -162,33 +118,21 @@
                     <button class="btn-nav" id="btn-url-go" style="flex:none; width:80px;">GO</button>
                 </div>
             </div>
-            <div id="panel-speed" class="mode-panel">
-                <div style="display:flex; justify-content:center; align-items:center; gap:30px;">
-                    <button class="btn-nav" id="btn-speed-down" style="width:50px;">-</button>
-                    <span id="txt-speed" style="font-size:24px; min-width:80px; text-align:center;">1.00x</span>
-                    <button class="btn-nav" id="btn-speed-up" style="width:50px;">+</button>
-                </div>
-            </div>
         </div>
 
         <div class="transport-container">
-            <button class="btn-circle btn-ab-ctrl" id="btn-set-a">A</button>
+            <button class="btn-circle btn-ab-ctrl" id="btn-set-a" disabled>A</button>
             <button class="btn-circle btn-main-ctrl" id="btn-prev">|◀</button>
             <button class="btn-circle btn-main-ctrl" id="btn-play">▶||</button>
-            <button class="btn-circle btn-ab-ctrl" id="btn-set-b">B</button>
+            <button class="btn-circle btn-ab-ctrl" id="btn-set-b" disabled>B</button>
         </div>
     </div>
 </div>
 
 <script>
     const state = {
-        player: null,
-        isLoop: false,
-        isMirror: false,
-        currentMode: 'seek',
-        startT: 0,
-        endT: 0,
-        uiTimer: null
+        player: null, isLoop: false, isMirror: false, currentMode: 'seek',
+        startT: 0, endT: 0, activeDrag: null
     };
 
     const fmt = (s) => {
@@ -200,159 +144,87 @@
         if (!state.player || !state.player.getCurrentTime) return;
         const now = state.player.getCurrentTime(), dur = state.player.getDuration();
         
-        // LOOPロジック
         if (state.isLoop && state.endT > state.startT) {
-            if (now >= state.endT || now < state.startT - 0.5) {
-                state.player.seekTo(state.startT, true);
-            }
+            if (now >= state.endT || now < state.startT - 0.5) state.player.seekTo(state.startT, true);
         }
 
         if (dur > 0) {
             const p = (now / dur) * 100;
-            // 現在地の更新
             document.getElementById('main-fill').style.width = p + "%";
             document.getElementById('main-knob').style.left = p + "%";
             document.getElementById('txt-cur').innerText = fmt(now);
             document.getElementById('txt-total').innerText = fmt(dur);
 
-            // ABノブと範囲の更新
-            const range = document.getElementById('ab-range');
-            const knobA = document.getElementById('knob-a');
-            const knobB = document.getElementById('knob-b');
+            const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
+            const btnA = document.getElementById('btn-set-a'), btnB = document.getElementById('btn-set-b');
 
-            if (state.isLoop || state.endT > 0) {
-                const sP = (state.startT / dur) * 100;
-                const eP = (state.endT > 0 ? state.endT / dur : 100) * 100;
-                
-                knobA.style.left = sP + "%";
-                knobA.style.display = 'flex';
-                
-                if (state.endT > 0) {
-                    knobB.style.left = eP + "%";
-                    knobB.style.display = 'flex';
-                    range.style.left = sP + "%";
-                    range.style.width = (eP - sP) + "%";
-                    range.style.display = 'block';
-                }
+            if (state.isLoop) {
+                ka.style.display = kb.style.display = range.style.display = 'flex';
+                btnA.disabled = btnB.disabled = false;
+                const sP = (state.startT / dur) * 100, eP = (state.endT || dur) / dur * 100;
+                ka.style.left = sP + "%";
+                kb.style.left = eP + "%";
+                range.style.left = sP + "%";
+                range.style.width = (eP - sP) + "%";
+                range.style.display = 'block';
             } else {
-                knobA.style.display = 'none';
-                knobB.style.display = 'none';
-                range.style.display = 'none';
+                ka.style.display = kb.style.display = range.style.display = 'none';
+                btnA.disabled = btnB.disabled = true;
             }
         }
     }
 
-    function switchMode(m) {
-        state.currentMode = m;
-        document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
-        const p = document.getElementById(`panel-${m}`);
-        if(p) p.classList.add('active');
-        document.querySelectorAll('.btn-nav[data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
-        wakeUI();
-    }
-
     function initEvents() {
-        // Transport
-        document.getElementById('btn-play').onclick = (e) => {
-            e.stopPropagation();
+        document.getElementById('btn-play').onclick = () => {
             state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
-            wakeUI();
         };
 
-        document.getElementById('btn-set-a').onclick = (e) => {
-            e.stopPropagation();
-            state.startT = state.player.getCurrentTime();
-            state.endT = 0;
-            document.getElementById('btn-set-a').classList.add('active');
-            document.getElementById('btn-set-b').classList.remove('active');
-            wakeUI();
-        };
-
-        document.getElementById('btn-set-b').onclick = (e) => {
-            e.stopPropagation();
-            const now = state.player.getCurrentTime();
-            if (now > state.startT) {
-                state.endT = now;
-                document.getElementById('btn-set-b').classList.add('active');
-                state.isLoop = true;
-                document.getElementById('nav-loop').classList.add('active');
-            }
-            wakeUI();
-        };
-
-        document.getElementById('btn-prev').onclick = (e) => {
-            e.stopPropagation();
-            state.player.seekTo(state.startT, true);
-            wakeUI();
-        };
-
-        // Navigation
-        document.getElementById('nav-loop').onclick = (e) => {
-            e.stopPropagation();
+        document.getElementById('nav-loop').onclick = () => {
             state.isLoop = !state.isLoop;
             document.getElementById('nav-loop').classList.toggle('active', state.isLoop);
-            wakeUI();
+            if(state.isLoop && state.endT === 0) state.endT = state.player.getDuration();
         };
 
-        document.getElementById('nav-mirror').onclick = (e) => {
-            e.stopPropagation();
-            state.isMirror = !state.isMirror;
-            document.getElementById('yt-player').style.transform = state.isMirror ? "scaleX(-1)" : "scaleX(1)";
-            document.getElementById('nav-mirror').classList.toggle('active', state.isMirror);
-            wakeUI();
+        document.getElementById('btn-set-a').onclick = () => { if(state.isLoop) state.startT = state.player.getCurrentTime(); };
+        document.getElementById('btn-set-b').onclick = () => { if(state.isLoop) state.endT = state.player.getCurrentTime(); };
+        document.getElementById('btn-prev').onclick = () => state.player.seekTo(state.startT, true);
+
+        const handleDrag = (e) => {
+            if (!state.activeDrag) return;
+            const rect = document.getElementById('main-track').getBoundingClientRect();
+            const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const time = p * state.player.getDuration();
+            if (state.activeDrag === 'now') state.player.seekTo(time, true);
+            else if (state.activeDrag === 'a') state.startT = Math.min(time, state.endT - 0.1);
+            else if (state.activeDrag === 'b') state.endT = Math.max(time, state.startT + 0.1);
         };
 
-        document.querySelectorAll('.btn-nav[data-mode]').forEach(btn => {
-            btn.onclick = (e) => { e.stopPropagation(); switchMode(btn.dataset.mode); };
+        document.getElementById('main-knob').onmousedown = () => state.activeDrag = 'now';
+        document.getElementById('knob-a').onmousedown = () => { if(state.isLoop) state.activeDrag = 'a'; };
+        document.getElementById('knob-b').onmousedown = () => { if(state.isLoop) state.activeDrag = 'b'; };
+        window.onmousemove = handleDrag;
+        window.onmouseup = () => state.activeDrag = null;
+
+        document.querySelectorAll('.btn-nav[data-mode]').forEach(b => b.onclick = () => {
+            document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(`panel-${b.dataset.mode}`).classList.add('active');
+            document.querySelectorAll('.btn-nav[data-mode]').forEach(btn => btn.classList.toggle('active', btn === b));
         });
-
+        
         document.getElementById('btn-url-go').onclick = () => {
-            const val = document.getElementById('input-url').value;
-            const id = val.split('v=')[1]?.split('&')[0] || val.split('/').pop();
-            if(id) { state.player.loadVideoById(id); switchMode('seek'); }
+            const v = document.getElementById('input-url').value;
+            const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
+            if(id) state.player.loadVideoById(id);
         };
-
-        // Seek
-        document.getElementById('main-track').onclick = (e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const p = (e.clientX - rect.left) / rect.width;
-            state.player.seekTo(p * state.player.getDuration(), true);
-            wakeUI();
-        };
-
-        const setSpeed = (v) => {
-            const s = Math.max(0.5, Math.min(1.5, v));
-            state.player.setPlaybackRate(s);
-            document.getElementById('txt-speed').innerText = s.toFixed(2) + "x";
-        };
-        document.getElementById('btn-speed-up').onclick = () => setSpeed(state.player.getPlaybackRate() + 0.05);
-        document.getElementById('btn-speed-down').onclick = () => setSpeed(state.player.getPlaybackRate() - 0.05);
-
-        document.getElementById('main-container').onclick = () => wakeUI();
     }
 
-    function wakeUI() {
-        const o = document.getElementById('home-overlay');
-        o.style.opacity = "1";
-        o.style.pointerEvents = "auto";
-        clearTimeout(state.uiTimer);
-        const delay = (state.isLoop || state.currentMode !== 'seek') ? 8000 : 4000;
-        state.uiTimer = setTimeout(() => {
-            if (!state.isLoop && state.currentMode === 'seek') {
-                o.style.opacity = "0";
-                o.style.pointerEvents = "none";
-            }
-        }, delay);
-    }
-
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
+    const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
     window.onYouTubeIframeAPIReady = () => {
         state.player = new YT.Player('yt-player', {
             videoId: 'ScXNbe_5Y0o',
             playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
-            events: { 'onReady': () => { initEvents(); setInterval(update, 100); wakeUI(); } }
+            events: { 'onReady': () => { initEvents(); setInterval(update, 100); } }
         });
     };
 </script>
