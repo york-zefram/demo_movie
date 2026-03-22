@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZEFRAM VIDEO ENGINE - Ultimate Precision</title>
+    <title>ZEFRAM VIDEO ENGINE - Fixed Precision Loop</title>
     <style>
         body { background: #000; color: #00f3ff; font-family: monospace; margin: 0; overflow: hidden; }
         #player-wrapper { position: relative; width: 100vw; aspect-ratio: 16/9; background: #111; }
@@ -117,10 +117,9 @@
     let isMirror = false;
     let isABMode = false;
     
-    // 画像から得たヒント：小数点第2位まで管理する「絶対的な秒数」
     let startTime = 0;
     let endTime = 0;
-    const PREDICTIVE_MARGIN = 0.12; // 120ミリ秒の先読みブレーキ（ラグ相殺分）
+    const PREDICTIVE_MARGIN = 0.15; // 停止実験で成功した先読みマージンを採用
 
     const seekbarContainer = document.getElementById('seekbar-container');
     const seekbarProgress = document.getElementById('seekbar-progress');
@@ -138,7 +137,7 @@
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('yt-player', {
-            playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1, 'rel': 0, 'modestbranding': 1 },
+            playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1, 'rel': 0 },
             events: {
                 'onReady': () => {
                     initSeekBar();
@@ -149,14 +148,12 @@
         });
     }
 
-    // スライダーの位置から「不動の数値（秒数）」を確定させる
     function lockABTimes() {
         if (!player || !player.getDuration) return;
         const duration = player.getDuration();
         const aPct = parseFloat(pointA.style.left) || 0;
         const bPct = parseFloat(pointB.style.left) || 100;
         
-        // 数値を固定化して「衝突判定」の曖昧さを排除
         startTime = Number(((aPct / 100) * duration).toFixed(2));
         endTime = Number(((bPct / 100) * duration).toFixed(2));
     }
@@ -168,8 +165,7 @@
                 const duration = player.getDuration();
 
                 if (isABMode) {
-                    // 先読みブレーキ：B点に届くわずか前にシーク命令を投げる
-                    // allowSeekAhead (true) によりバッファを強制破棄してジャンプ
+                    // 先読みブレーキ判定：停止実験で成功したタイミングでA点へシーク
                     if (now >= (endTime - PREDICTIVE_MARGIN)) {
                         player.seekTo(startTime, true);
                     }
@@ -181,7 +177,7 @@
                     seekbarKnob.style.left = percent + "%";
                 }
 
-                if (!isABMode && now >= (duration - 0.8) && !isTransitioning) {
+                if (!isABMode && now >= (duration - 1.0) && !isTransitioning) {
                     executeNextTrack();
                 }
             }
@@ -218,7 +214,7 @@
             const x = clientX - rect.left;
             let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
             activeAB.style.left = percent + "%";
-            lockABTimes(); // 移動中も常に数値を確定し続ける
+            lockABTimes();
         };
         [pointA, pointB].forEach(el => {
             el.addEventListener('mousedown', (e) => { activeAB = el; e.stopPropagation(); });
