@@ -17,7 +17,7 @@
         }
         #yt-player { width: 100%; height: 100%; pointer-events: auto; }
 
-        /* --- 新設：HOME UI ユニット --- */
+        /* --- HOME UI ユニット --- */
         #home-overlay {
             position: absolute;
             top: 66%; left: 50%;
@@ -36,11 +36,14 @@
         }
 
         #home-label {
+            position: absolute;
+            top: -50px; left: 50%;
+            transform: translateX(-50%);
             text-align: center;
             font-size: 24px;
             letter-spacing: 5px;
             color: #fff;
-            margin-bottom: 5px;
+            transition: opacity 0.5s ease;
         }
 
         .home-button-row {
@@ -74,7 +77,6 @@
             text-align: center;
         }
 
-        /* 点灯状態（アクティブ時） */
         .home-nav-btn.active {
             background: var(--neon-blue);
             color: #000;
@@ -113,30 +115,15 @@
             margin-top: 5px;
         }
 
-        /* --- 以下、既存スタイルを維持 --- */
+        /* --- 既存スタイル維持 --- */
         #seekbar-container {
             position: absolute;
             top: 66%; left: 5%; width: 90%; height: 2px;
             z-index: 100; pointer-events: none;
             background: rgba(0, 243, 255, 0.2);
-            display: none; /* HOME UIと重なるため一時非表示 */
+            display: none;
         }
-        #seekbar-progress { height: 100%; background: var(--neon-blue); box-shadow: var(--neon-glow); width: 0%; }
         
-        .ab-point {
-            position: absolute; top: 50%; width: 34px; height: 34px;
-            border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.8);
-            color: var(--neon-blue); border-radius: 50%;
-            transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: bold; cursor: pointer; pointer-events: auto;
-            box-shadow: var(--neon-glow);
-        }
-        #seekbar-knob {
-            position: absolute; top: 50%; width: 12px; height: 12px;
-            background: #fff; border-radius: 50%; transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px #fff; pointer-events: auto;
-        }
-
         .neo-panel {
             padding: 10px 20px;
             background: linear-gradient(180deg, #050505 0%, #000 100%);
@@ -158,20 +145,6 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: var(--neon-glow); transition: 0.2s;
         }
-        .btn-circle:active { background: var(--neon-blue); color: #000; }
-
-        .meta-ctrl { display: flex; flex-direction: column; gap: 8px; }
-        .url-box { background: #111; border: 1px solid #333; color: var(--neon-blue); padding: 8px; font-size: 12px; outline: none; }
-        .action-btns { display: flex; gap: 5px; }
-        .btn-rect {
-            flex: 1; background: none; border: 1px solid var(--neon-blue);
-            color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px;
-            box-shadow: var(--neon-glow);
-        }
-
-        .playlist { height: 80px; overflow-y: auto; font-size: 11px; border-left: 1px solid #222; padding-left: 10px; }
-        .track { padding: 5px; cursor: pointer; border-bottom: 1px solid #111; }
-        .active-track { color: #fff; text-shadow: var(--neon-glow); }
     </style>
 </head>
 <body onclick="wakeUpUI()">
@@ -179,8 +152,8 @@
 <div id="player-wrapper">
     <div id="yt-player"></div>
 
-    <div id="home-label">HOME</div>
     <div id="home-overlay">
+        <div id="home-label">HOME</div>
         <div class="home-button-row">
             <div id="home-play-btn" onclick="togglePlay()"></div>
             <button class="home-nav-btn" id="mode-url">URL</button>
@@ -197,13 +170,6 @@
             <span id="time-current">00:00</span>
             <span id="time-total">00:00</span>
         </div>
-    </div>
-
-    <div id="seekbar-container">
-        <div id="seekbar-progress"></div>
-        <div id="seekbar-knob" style="left: 0%;"></div>
-        <div id="point-a" class="ab-point" style="left: 0%;">A</div>
-        <div id="point-b" class="ab-point" style="left: 100%;">B</div>
     </div>
 </div>
 
@@ -232,8 +198,6 @@
 
 <script>
     let player, playlist = [], currentIndex = 0, isAB = false, isMirror = false;
-    let startT = 0, endT = 0;
-    let lastMode = 'default'; // ラストメモリー用
     let uiTimeout;
 
     const tag = document.createElement('script');
@@ -252,7 +216,7 @@
         wakeUpUI();
     }
 
-    // ステルス機能：2秒でタイムアウト
+    // ステルス機能：5秒でタイムアウト
     function wakeUpUI() {
         const overlay = document.getElementById('home-overlay');
         const label = document.getElementById('home-label');
@@ -263,7 +227,7 @@
         uiTimeout = setTimeout(() => {
             overlay.style.opacity = "0";
             label.style.opacity = "0";
-        }, 2000);
+        }, 5000); // 5秒に設定
     }
 
     function togglePlay() {
@@ -276,7 +240,6 @@
         if (!player || !player.getCurrentTime) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
         
-        // 通常のシークバー更新（HOME用）
         if (dur > 0) {
             const p = (now / dur) * 100;
             document.getElementById('home-knob').style.left = p + "%";
@@ -292,7 +255,7 @@
         return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
     }
 
-    // 既存のコントロールロジックを継承
+    // 既存ロジック維持
     const slider = document.getElementById('speed-slider');
     slider.oninput = () => player.setPlaybackRate(parseFloat(slider.value));
     document.getElementById('speed-reset').onclick = () => { slider.value = 1.0; player.setPlaybackRate(1.0); };
