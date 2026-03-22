@@ -21,7 +21,6 @@
             text-transform: uppercase;
         }
 
-        /* ヘッダーを映像の上に浮かせる */
         header {
             position: absolute;
             top: 0;
@@ -35,10 +34,9 @@
             letter-spacing: 0.15em;
             font-size: 14px;
             z-index: 2000;
-            pointer-events: none; /* 下の映像操作を邪魔しない */
+            pointer-events: none;
         }
 
-        /* 映像エリアを画面いっぱいに広げる */
         #main-container {
             position: relative;
             width: 100vw;
@@ -57,21 +55,22 @@
             pointer-events: none;
         }
 
-        /* 66%ラインのHOMEメニュー */
+        /* 66%ラインを起点に、下へ重心を置いたパネル */
         #home-overlay {
             position: absolute; 
             top: 66%; 
             left: 50%; 
-            transform: translate(-50%, -30%);
+            transform: translateX(-50%); /* 上下の中央寄せを解除し、下へ伸ばす */
             width: 90%; 
             background: rgba(10, 10, 10, 0.85); 
             border-radius: 12px;
-            padding: 20px; 
+            /* 下パディングを広げて重厚感を出す */
+            padding: 20px 20px 60px 20px; 
             z-index: 1000; 
             transition: opacity 0.3s ease;
             display: flex; 
             flex-direction: column; 
-            gap: 15px; 
+            gap: 20px; 
             border: 1px solid #333;
             pointer-events: auto;
         }
