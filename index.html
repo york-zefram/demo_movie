@@ -9,6 +9,7 @@
             --neon-blue: #00f3ff; 
             --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); 
             --disabled-color: #444;
+            --panel-bg: rgba(10, 10, 10, 0.85);
         }
         
         body { 
@@ -39,14 +40,24 @@
         #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         #local-video { display: none; background: #000; object-fit: contain; }
 
+        /* --- home-overlay 修正: 背景を透明にし、要素を浮かせる --- */
         #home-overlay {
-            position: absolute; top: 66%; left: 50%; transform: translateX(-50%);
-            width: 95%; background: rgba(10, 10, 10, 0.85); border-radius: 12px;
-            padding: 20px 10px 60px 10px; z-index: 1000; 
-            display: flex; flex-direction: column; gap: 40px; border: 1px solid #333;
+            position: absolute; 
+            bottom: 5%; left: 50%; transform: translateX(-50%);
+            width: 95%; 
+            z-index: 1000; 
+            display: flex; flex-direction: column; gap: 30px; 
+            pointer-events: none; /* 親パネル自体はクリックを透過させる */
         }
 
-        .nav-row { display: flex; justify-content: space-between; gap: 5px; z-index: 1100; }
+        /* 各子要素はクリックを有効にする */
+        .nav-row, #dynamic-content, .transport-container { pointer-events: auto; }
+
+        .nav-row { 
+            display: flex; justify-content: space-between; gap: 5px; 
+            background: var(--panel-bg); padding: 8px; border-radius: 8px; border: 1px solid #333;
+        }
+        
         .btn-nav {
             flex: 1; padding: 10px 0; background: none; border: 1px solid var(--neon-blue);
             color: #fff; font-family: 'Michroma', sans-serif; font-size: 9px; 
@@ -55,12 +66,15 @@
         }
         .btn-nav.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
 
-        #dynamic-content { min-height: 100px; display: flex; align-items: center; padding: 0 10px; }
+        #dynamic-content { 
+            min-height: 100px; display: flex; align-items: center; padding: 20px;
+            background: var(--panel-bg); border-radius: 12px; border: 1px solid #333;
+        }
         .mode-panel { display: none; width: 100%; flex-direction: column; }
         .mode-panel.active { display: flex; }
 
         /* スライダー共通 */
-        .bar-track { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 3px; z-index: 1050; }
+        .bar-track { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 3px; }
         .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; z-index: 1; pointer-events: none; }
         .knob { position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; }
         .knob-white { width: 16px; height: 16px; background: #fff; box-shadow: 0 0 10px #fff; z-index: 10; }
@@ -78,7 +92,10 @@
         .time-display { display: flex; justify-content: space-between; margin-top: 24px; font-size: 18px; filter: drop-shadow(var(--neon-glow)); }
 
         /* トランスポート */
-        .transport-container { display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; z-index: 1100; }
+        .transport-container { 
+            display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; 
+            background: var(--panel-bg); padding: 15px 0; border-radius: 12px; border: 1px solid #333;
+        }
         .btn-circle {
             background: none; border: 2px solid var(--neon-blue); color: var(--neon-blue);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
