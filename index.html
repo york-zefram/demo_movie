@@ -7,7 +7,7 @@
         :root { --neon-blue: #00f3ff; --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); }
         body { background: #000; color: var(--neon-blue); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; text-transform: uppercase; }
 
-        /* 映像エリア：16:9を維持しつつ最大化 */
+        /* 映像エリア */
         #player-wrapper { 
             position: relative; 
             width: 100vw; 
@@ -17,12 +17,109 @@
         }
         #yt-player { width: 100%; height: 100%; pointer-events: auto; }
 
-        /* 66%ラインのABバー：音楽プレーヤーと同期したデザイン */
+        /* --- 新設：HOME UI ユニット --- */
+        #home-overlay {
+            position: absolute;
+            top: 66%; left: 50%;
+            transform: translate(-50%, -30%);
+            width: 90%;
+            background: rgba(20, 20, 20, 0.85);
+            border-radius: 15px;
+            padding: 20px;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border: 1px solid #333;
+            pointer-events: auto;
+        }
+
+        #home-label {
+            text-align: center;
+            font-size: 24px;
+            letter-spacing: 5px;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .home-button-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 再生ボタン（三角） */
+        #home-play-btn {
+            width: 0; height: 0;
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-left: 25px solid var(--neon-blue);
+            cursor: pointer;
+            filter: drop-shadow(var(--neon-glow));
+            margin-right: 10px;
+        }
+
+        .home-nav-btn {
+            flex: 1;
+            padding: 10px 0;
+            background: none;
+            border: 1.5px solid var(--neon-blue);
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: 0.2s;
+            text-align: center;
+        }
+
+        /* 点灯状態（アクティブ時） */
+        .home-nav-btn.active {
+            background: var(--neon-blue);
+            color: #000;
+            box-shadow: var(--neon-glow);
+        }
+
+        /* HOME用シークバー */
+        #home-seekbar-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            position: relative;
+            cursor: pointer;
+        }
+        #home-progress {
+            height: 100%;
+            background: var(--neon-blue);
+            box-shadow: var(--neon-glow);
+            width: 0%;
+        }
+        #home-knob {
+            position: absolute;
+            top: 50%;
+            width: 16px; height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #fff;
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        /* --- 以下、既存スタイルを維持 --- */
         #seekbar-container {
             position: absolute;
             top: 66%; left: 5%; width: 90%; height: 2px;
             z-index: 100; pointer-events: none;
             background: rgba(0, 243, 255, 0.2);
+            display: none; /* HOME UIと重なるため一時非表示 */
         }
         #seekbar-progress { height: 100%; background: var(--neon-blue); box-shadow: var(--neon-glow); width: 0%; }
         
@@ -40,7 +137,6 @@
             box-shadow: 0 0 15px #fff; pointer-events: auto;
         }
 
-        /* 下部操作パネル：音楽プレーヤーのデザインを移植しつつスリム化 */
         .neo-panel {
             padding: 10px 20px;
             background: linear-gradient(180deg, #050505 0%, #000 100%);
@@ -51,7 +147,6 @@
             gap: 20px;
         }
 
-        /* 速度調整セクション */
         .speed-ctrl { display: flex; flex-direction: column; align-items: center; gap: 5px; }
         .speed-labels { display: flex; justify-content: space-between; width: 100%; font-size: 10px; opacity: 0.8; }
         input[type=range] { width: 100%; accent-color: var(--neon-blue); cursor: pointer; }
@@ -65,7 +160,6 @@
         }
         .btn-circle:active { background: var(--neon-blue); color: #000; }
 
-        /* 選曲・設定セクション */
         .meta-ctrl { display: flex; flex-direction: column; gap: 8px; }
         .url-box { background: #111; border: 1px solid #333; color: var(--neon-blue); padding: 8px; font-size: 12px; outline: none; }
         .action-btns { display: flex; gap: 5px; }
@@ -75,16 +169,36 @@
             box-shadow: var(--neon-glow);
         }
 
-        /* プレイリスト */
         .playlist { height: 80px; overflow-y: auto; font-size: 11px; border-left: 1px solid #222; padding-left: 10px; }
         .track { padding: 5px; cursor: pointer; border-bottom: 1px solid #111; }
         .active-track { color: #fff; text-shadow: var(--neon-glow); }
     </style>
 </head>
-<body>
+<body onclick="wakeUpUI()">
 
 <div id="player-wrapper">
     <div id="yt-player"></div>
+
+    <div id="home-label">HOME</div>
+    <div id="home-overlay">
+        <div class="home-button-row">
+            <div id="home-play-btn" onclick="togglePlay()"></div>
+            <button class="home-nav-btn" id="mode-url">URL</button>
+            <button class="home-nav-btn" id="mode-mirror">MIRROR</button>
+            <button class="home-nav-btn" id="mode-loop">LOOP</button>
+            <button class="home-nav-btn" id="mode-speed">SPEED</button>
+            <button class="home-nav-btn" id="mode-list">LIST</button>
+        </div>
+        <div id="home-seekbar-container">
+            <div id="home-progress"></div>
+            <div id="home-knob" style="left: 0%;"></div>
+        </div>
+        <div class="time-display">
+            <span id="time-current">00:00</span>
+            <span id="time-total">00:00</span>
+        </div>
+    </div>
+
     <div id="seekbar-container">
         <div id="seekbar-progress"></div>
         <div id="seekbar-knob" style="left: 0%;"></div>
@@ -119,9 +233,8 @@
 <script>
     let player, playlist = [], currentIndex = 0, isAB = false, isMirror = false;
     let startT = 0, endT = 0;
-    const pointA = document.getElementById('point-a'), pointB = document.getElementById('point-b');
-    const knob = document.getElementById('seekbar-knob'), progress = document.getElementById('seekbar-progress');
-    const slider = document.getElementById('speed-slider');
+    let lastMode = 'default'; // ラストメモリー用
+    let uiTimeout;
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -130,43 +243,61 @@
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('yt-player', {
             playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
-            events: { 'onReady': () => setInterval(update, 50) }
+            events: { 'onReady': onPlayerReady }
         });
+    }
+
+    function onPlayerReady() {
+        setInterval(update, 50);
+        wakeUpUI();
+    }
+
+    // ステルス機能：2秒でタイムアウト
+    function wakeUpUI() {
+        const overlay = document.getElementById('home-overlay');
+        const label = document.getElementById('home-label');
+        overlay.style.opacity = "1";
+        label.style.opacity = "1";
+        
+        clearTimeout(uiTimeout);
+        uiTimeout = setTimeout(() => {
+            overlay.style.opacity = "0";
+            label.style.opacity = "0";
+        }, 2000);
+    }
+
+    function togglePlay() {
+        if (player.getPlayerState() === 1) player.pauseVideo();
+        else player.playVideo();
+        wakeUpUI();
     }
 
     function update() {
         if (!player || !player.getCurrentTime) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
-        if (isAB && now >= (endT - 0.15)) player.seekTo(startT, true);
+        
+        // 通常のシークバー更新（HOME用）
         if (dur > 0) {
             const p = (now / dur) * 100;
-            knob.style.left = p + "%";
-            progress.style.width = p + "%";
+            document.getElementById('home-knob').style.left = p + "%";
+            document.getElementById('home-progress').style.width = p + "%";
+            document.getElementById('time-current').innerText = formatTime(now);
+            document.getElementById('time-total').innerText = formatTime(dur);
         }
     }
 
-    // 速度調整ロジック（同期）
+    function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+    }
+
+    // 既存のコントロールロジックを継承
+    const slider = document.getElementById('speed-slider');
     slider.oninput = () => player.setPlaybackRate(parseFloat(slider.value));
     document.getElementById('speed-reset').onclick = () => { slider.value = 1.0; player.setPlaybackRate(1.0); };
     document.getElementById('speed-down').onclick = () => { slider.value = Math.max(0.5, parseFloat(slider.value) - 0.05); player.setPlaybackRate(slider.value); };
     document.getElementById('speed-up').onclick = () => { slider.value = Math.min(1.5, parseFloat(slider.value) + 0.05); player.setPlaybackRate(slider.value); };
-
-    // ドラッグ操作、選曲、ミラー等は前回同様のロジックを継承
-    let active = null;
-    [pointA, pointB, knob].forEach(el => {
-        el.onmousedown = (e) => { active = el; e.preventDefault(); };
-    });
-    window.onmousemove = (e) => {
-        if (!active) return;
-        const rect = document.getElementById('seekbar-container').getBoundingClientRect();
-        let p = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        active.style.left = p + "%";
-        if (active === knob) player.seekTo((p/100) * player.getDuration(), true);
-        const d = player.getDuration() || 0;
-        startT = (parseFloat(pointA.style.left)/100)*d;
-        endT = (parseFloat(pointB.style.left)/100)*d;
-    };
-    window.onmouseup = () => active = null;
 
     function addTrack() {
         const val = document.getElementById('url-input').value;
@@ -181,6 +312,7 @@
     function play(i) { currentIndex = i; updateUI(); player.loadVideoById(playlist[i].id); }
     function toggleMirror() { isMirror = !isMirror; document.getElementById('yt-player').style.transform = isMirror?"scaleX(-1)":"scaleX(1)"; }
     function toggleAB() { isAB = !isAB; }
+
 </script>
 </body>
 </html>
