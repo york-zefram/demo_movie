@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM PLAYER NEO - RECOVERY</title>
+    <title>ZEFRAM PLAYER NEO - SINGLE ENGINE</title>
     <style>
         :root { --neon-blue: #00f3ff; --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); }
         body { background: #000; color: var(--neon-blue); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; text-transform: uppercase; }
@@ -134,7 +134,6 @@
     function switchMode(m) {
         curMode = m;
         document.querySelectorAll('.mode-container').forEach(c => c.classList.remove('active'));
-        // LOOP以外の時は指定のコンテナ、LOOPの時はSEEKコンテナを表示
         const target = (m === 'loop') ? 'seek' : m;
         const container = document.getElementById(`container-${target}`);
         if(container) container.classList.add('active');
@@ -149,10 +148,7 @@
     function loadUrl() {
         const val = document.getElementById('url-input-field').value;
         const id = val.split('v=')[1]?.split('&')[0] || val.split('/').pop();
-        if(id) {
-            player.loadVideoById(id);
-            switchMode('seek');
-        }
+        if(id) { player.loadVideoById(id); switchMode('seek'); }
     }
 
     function toggleLoopMode() {
@@ -165,18 +161,13 @@
         document.getElementById('point-a').classList.toggle('active', isLoopActive);
         document.getElementById('point-b').classList.toggle('active', isLoopActive);
 
-        if(isLoopActive) {
-            switchMode('seek');
-            player.seekTo(startT, true);
-        }
+        if(isLoopActive) { switchMode('seek'); player.seekTo(startT, true); }
     }
 
     function update() {
         if (!player || !player.getCurrentTime || activeDrag) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
-        
         if (isLoopActive && now >= (endT - 0.2)) player.seekTo(startT, true);
-
         if (dur > 0) {
             const p = (now / dur) * 100;
             document.getElementById('seek-knob').style.left = p + "%";
@@ -188,38 +179,31 @@
 
     function initDragEvents() {
         const root = document.getElementById('seek-bar-root');
-        const els = { 'a': document.getElementById('point-a'), 'b': document.getElementById('point-b') };
+        const move = (e) => {
+            if (!activeDrag) return;
+            const rect = root.getBoundingClientRect();
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            let p = Math.max(0, Math.min(100, ((x - rect.left) / rect.width) * 100));
+            const d = player.getDuration() || 0;
+            if (activeDrag === 'knob') player.seekTo((p/100) * d, true);
+            else {
+                document.getElementById('point-' + activeDrag).style.left = p + "%";
+                startT = (parseFloat(document.getElementById('point-a').style.left)/100)*d;
+                endT = (parseFloat(document.getElementById('point-b').style.left)/100)*d;
+            }
+        };
 
         root.addEventListener('mousedown', (e) => {
             if(e.target.classList.contains('ab-point')) return;
-            activeDrag = 'knob'; handleMove(e);
+            activeDrag = 'knob'; move(e);
         });
 
-        const startDrag = (type) => (e) => {
-            if (!isLoopActive) return;
-            activeDrag = type; e.preventDefault(); e.stopPropagation();
-        };
+        const startDrag = (type) => (e) => { if (isLoopActive) { activeDrag = type; e.preventDefault(); e.stopPropagation(); } };
+        document.getElementById('point-a').addEventListener('mousedown', startDrag('a'));
+        document.getElementById('point-b').addEventListener('mousedown', startDrag('b'));
 
-        els.a.addEventListener('mousedown', startDrag('a'));
-        els.b.addEventListener('mousedown', startDrag('b'));
-
-        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mousemove', move);
         window.addEventListener('mouseup', () => activeDrag = null);
-    }
-
-    function handleMove(e) {
-        if (!activeDrag) return;
-        const rect = document.getElementById('seek-bar-root').getBoundingClientRect();
-        let p = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        const d = player.getDuration() || 0;
-
-        if (activeDrag === 'knob') {
-            player.seekTo((p/100) * d, true);
-        } else {
-            document.getElementById('point-' + activeDrag).style.left = p + "%";
-            startT = (parseFloat(document.getElementById('point-a').style.left)/100)*d;
-            endT = (parseFloat(document.getElementById('point-b').style.left)/100)*d;
-        }
     }
 
     function adjSpeed(v, d=false) {
@@ -231,7 +215,12 @@
     }
 
     function toggleGlobalPlay() { player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); }
-    function handleMirror() { isMirror = !isMirror; document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)"; }
+    function handleMirror() { 
+        isMirror = !isMirror; 
+        document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)"; 
+        document.getElementById('p-mirror').classList.toggle('active', isMirror);
+        document.getElementById('nav-mirror').classList.toggle('active', isMirror);
+    }
     function fmt(s) { const m=Math.floor(s/60), rs=Math.floor(s%60); return (m<10?'0'+m:m)+":"+(rs<10?'0'+rs:rs); }
     function wakeUpUI() { document.getElementById('home-overlay').style.opacity = "1"; clearTimeout(uiTimer); uiTimer = setTimeout(()=> { if(!isLoopActive && curMode === 'seek') document.getElementById('home-overlay').style.opacity="0"; }, 5000); }
 </script>
