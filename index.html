@@ -8,7 +8,6 @@
         :root { 
             --neon-blue: #00f3ff; 
             --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); 
-            --header-h: 50px;
         }
         
         body { 
@@ -17,38 +16,44 @@
             font-family: 'Michroma', sans-serif; 
             margin: 0; 
             overflow: hidden; 
-            display: flex;
-            flex-direction: column;
             height: 100vh;
+            width: 100vw;
             text-transform: uppercase;
         }
 
-        /* ヘッダーエリア */
+        /* ヘッダーを映像の上に浮かせる */
         header {
-            height: var(--header-h);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+            letter-spacing: 0.15em;
+            font-size: 14px;
+            z-index: 2000;
+            pointer-events: none; /* 下の映像操作を邪魔しない */
+        }
+
+        /* 映像エリアを画面いっぱいに広げる */
+        #main-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             background: #000;
-            border-bottom: 1px solid #222;
-            letter-spacing: 0.15em;
-            font-size: 14px;
-            z-index: 2000;
-        }
-
-        /* メインコンテンツ（映像＋左右余白） */
-        #main-container {
-            flex: 1;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             cursor: pointer;
         }
 
         #yt-player {
-            width: 100vw;
-            aspect-ratio: 16/9;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
             pointer-events: none;
         }
 
@@ -88,7 +93,6 @@
         .mode-panel { display: none; width: 100%; }
         .mode-panel.active { display: flex; flex-direction: column; }
 
-        /* シークバー */
         .bar-track { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 3px; }
         .bar-fill { height: 100%; background: var(--neon-blue); width: 0%; pointer-events: none; border-radius: 3px; }
         .knob-now {
