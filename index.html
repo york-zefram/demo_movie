@@ -22,6 +22,7 @@
             display: flex; align-items: center; justify-content: center;
             background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
             letter-spacing: 0.15em; font-size: 14px; z-index: 2000; pointer-events: none;
+            transition: opacity 0.5s ease;
         }
 
         #main-container {
@@ -35,7 +36,8 @@
 
         #home-overlay {
             position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%);
-            width: 95%; z-index: 1000; display: flex; flex-direction: column; gap: 30px; pointer-events: none;
+            width: 95%; z-index: 1000; display: flex; flex-direction: column; gap: 30px; 
+            pointer-events: none; transition: opacity 0.5s ease;
         }
 
         .nav-row, #dynamic-content, .transport-container { pointer-events: auto; }
@@ -92,11 +94,14 @@
         .input-box { display: flex; gap: 10px; width: 100%; }
         input[type=text] { flex: 1; background: #111; border: 1px solid #444; color: #fff; padding: 10px; font-family: 'Michroma', sans-serif; font-size: 10px; outline: none; }
         #file-input { display: none; }
+
+        /* フェードアウト用クラス */
+        .hidden { opacity: 0; pointer-events: none !important; }
     </style>
 </head>
 <body>
 
-<header>ZEFRAM VIDEO PLAYER</header>
+<header id="ui-header">ZEFRAM VIDEO PLAYER</header>
 
 <div id="main-container">
     <div id="video-viewport">
@@ -155,7 +160,7 @@
         <div class="transport-container">
             <button class="btn-circle btn-ab-ctrl" id="btn-set-a" disabled>A</button>
             <button class="btn-circle btn-main-ctrl" id="btn-prev">|◀</button>
-            <button class="btn-circle btn-main-ctrl" id="btn-play">▶||</button>
+            <button class="btn-circle btn-main-ctrl" id="btn-play">▶</button>
             <button class="btn-circle btn-ab-ctrl" id="btn-set-b" disabled>B</button>
         </div>
     </div>
@@ -165,7 +170,7 @@
     const state = {
         player: null, localVid: null, isYoutube: true,
         isLoop: false, isMirror: false, currentMode: 'seek',
-        startT: 0, endT: 0, activeDrag: null
+        startT: 0, endT: 0, activeDrag: null, uiTimeout: null
     };
 
     const getT = () => state.isYoutube ? state.player.getCurrentTime() : state.localVid.currentTime;
@@ -178,14 +183,29 @@
         return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`;
     };
 
-    // ヌルヌル描画ループ (requestAnimationFrame)
+    // UIフェードアウト管理
+    function resetUITimeout() {
+        const overlay = document.getElementById('home-overlay');
+        const header = document.getElementById('ui-header');
+        overlay.classList.remove('hidden');
+        header.classList.remove('hidden');
+        clearTimeout(state.uiTimeout);
+        state.uiTimeout = setTimeout(() => {
+            overlay.classList.add('hidden');
+            header.classList.add('hidden');
+        }, 5000); // 5秒
+    }
+
+    // 再生ボタンのトグル更新
+    function updatePlayButton() {
+        const btn = document.getElementById('btn-play');
+        const isPlaying = state.isYoutube ? (state.player.getPlayerState() === 1) : !state.localVid.paused;
+        btn.innerText = isPlaying ? "Ⅱ" : "▶";
+    }
+
     function renderLoop() {
         const now = getT(), dur = getD();
-        
-        // ループ処理
-        if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) {
-            setT(state.startT);
-        }
+        if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) setT(state.startT);
         
         if (dur > 0) {
             const p = (now / dur) * 100;
@@ -210,11 +230,18 @@
                 btnA.disabled = btnB.disabled = true;
             }
         }
+        updatePlayButton();
         requestAnimationFrame(renderLoop);
     }
 
     function initEvents() {
         state.localVid = document.getElementById('local-video');
+
+        // 無操作監視イベント
+        window.addEventListener('mousemove', resetUITimeout);
+        window.addEventListener('mousedown', resetUITimeout);
+        window.addEventListener('touchstart', resetUITimeout);
+        resetUITimeout();
 
         document.getElementById('nav-mirror').onclick = (e) => {
             e.stopPropagation();
@@ -254,34 +281,22 @@
                 setT(time);
                 document.getElementById('main-fill').style.width = (p * 100) + "%";
                 document.getElementById('main-knob').style.left = (p * 100) + "%";
-            } else if (type === 'a') {
-                state.startT = p * getD();
-            } else if (type === 'b') {
-                state.endT = p * getD();
-            } else if (type === 'speed') {
+            } else if (type === 'a') state.startT = p * getD();
+            else if (type === 'b') state.endT = p * getD();
+            else if (type === 'speed') {
                 const r = 0.5 + p; setR(r);
                 document.getElementById('speed-knob').style.left = (p * 100) + "%";
                 document.getElementById('txt-speed').innerText = r.toFixed(2) + "x";
             }
         };
 
-        // トラッククリックで即座にシーク
-        document.getElementById('main-track').onmousedown = (e) => {
-            state.activeDrag = 'now';
-            handleInput(e, 'now');
-        };
-        document.getElementById('speed-track').onmousedown = (e) => {
-            state.activeDrag = 'speed';
-            handleInput(e, 'speed');
-        };
-
+        document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+        document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
         document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); if(state.isLoop) state.activeDrag = 'a'; };
         document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); if(state.isLoop) state.activeDrag = 'b'; };
         
         window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
         window.onmouseup = () => state.activeDrag = null;
-
-        // タッチ対応
         document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
         window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
         window.ontouchend = () => state.activeDrag = null;
