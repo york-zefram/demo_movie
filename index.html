@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -35,29 +35,31 @@
             display: flex; align-items: center; justify-content: center; background: #000;
         }
 
-        #yt-wrapper { width: 100%; height: 100%; transition: transform 0.3s ease; }
-        #yt-player { width: 100%; height: 100%; pointer-events: none; }
+        #video-viewport { width: 100%; height: 100%; transition: transform 0.3s ease; display: flex; align-items: center; justify-content: center; }
+        #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        #local-video { display: none; background: #000; object-fit: contain; }
 
         #home-overlay {
             position: absolute; top: 66%; left: 50%; transform: translateX(-50%);
-            width: 90%; background: rgba(10, 10, 10, 0.85); border-radius: 12px;
-            padding: 20px 20px 60px 20px; z-index: 1000; 
+            width: 95%; background: rgba(10, 10, 10, 0.85); border-radius: 12px;
+            padding: 20px 10px 60px 10px; z-index: 1000; 
             display: flex; flex-direction: column; gap: 40px; border: 1px solid #333;
         }
 
-        .nav-row { display: flex; justify-content: space-between; gap: 8px; z-index: 1100; }
+        .nav-row { display: flex; justify-content: space-between; gap: 5px; z-index: 1100; }
         .btn-nav {
             flex: 1; padding: 10px 0; background: none; border: 1px solid var(--neon-blue);
-            color: #fff; font-family: 'Michroma', sans-serif; font-size: 10px; 
+            color: #fff; font-family: 'Michroma', sans-serif; font-size: 9px; 
             cursor: pointer; border-radius: 4px; transition: 0.2s; text-align: center;
+            white-space: nowrap;
         }
         .btn-nav.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
 
-        #dynamic-content { min-height: 100px; display: flex; align-items: center; }
+        #dynamic-content { min-height: 100px; display: flex; align-items: center; padding: 0 10px; }
         .mode-panel { display: none; width: 100%; flex-direction: column; }
         .mode-panel.active { display: flex; }
 
-        /* スライダー共通設定 */
+        /* スライダー共通 */
         .bar-track { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 3px; z-index: 1050; }
         .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; z-index: 1; pointer-events: none; }
         .knob { position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; }
@@ -71,13 +73,11 @@
             font-size: 12px; z-index: 15; box-shadow: var(--neon-glow);
         }
 
-        /* スピードパネル専用 */
-        .speed-labels { display: flex; justify-content: space-between; width: 100%; margin-bottom: 20px; color: var(--neon-blue); font-size: 10px; opacity: 0.8; pointer-events: none; }
-        .speed-value-display { text-align: center; margin-top: 15px; font-size: 18px; letter-spacing: 0.1em; pointer-events: none; }
+        .speed-labels { display: flex; justify-content: space-between; width: 100%; margin-bottom: 20px; color: var(--neon-blue); font-size: 10px; opacity: 0.8; }
+        .speed-value-display { text-align: center; margin-top: 15px; font-size: 18px; letter-spacing: 0.1em; }
+        .time-display { display: flex; justify-content: space-between; margin-top: 24px; font-size: 18px; filter: drop-shadow(var(--neon-glow)); }
 
-        .time-display { display: flex; justify-content: space-between; margin-top: 24px; font-size: 18px; filter: drop-shadow(var(--neon-glow)); pointer-events: none; }
-
-        /* トランスポートエリア */
+        /* トランスポート */
         .transport-container { display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; z-index: 1100; }
         .btn-circle {
             background: none; border: 2px solid var(--neon-blue); color: var(--neon-blue);
@@ -89,8 +89,9 @@
         .btn-ab-ctrl { width: 45px; height: 45px; font-size: 14px; }
         .btn-main-ctrl { width: 65px; height: 65px; font-size: 20px; }
 
-        .url-box { display: flex; gap: 10px; width: 100%; }
+        .input-box { display: flex; gap: 10px; width: 100%; }
         input[type=text] { flex: 1; background: #111; border: 1px solid #444; color: #fff; padding: 10px; font-family: 'Michroma', sans-serif; font-size: 10px; outline: none; }
+        #file-input { display: none; }
     </style>
 </head>
 <body>
@@ -98,17 +99,19 @@
 <header>ZEFRAM VIDEO PLAYER</header>
 
 <div id="main-container">
-    <div id="yt-wrapper">
+    <div id="video-viewport">
         <div id="yt-player"></div>
+        <video id="local-video" playsinline></video>
     </div>
     
     <div id="home-overlay">
         <div class="nav-row">
             <button class="btn-nav active" data-mode="seek">HOME</button>
-            <button class="btn-nav" data-mode="url">URL</button>
             <button class="btn-nav" id="nav-mirror">MIRROR</button>
             <button class="btn-nav" id="nav-loop">LOOP</button>
             <button class="btn-nav" data-mode="speed">SPEED</button>
+            <button class="btn-nav" data-mode="url">URL</button>
+            <button class="btn-nav" data-mode="file">FILE</button>
             <button class="btn-nav" data-mode="list">LIST</button>
         </div>
 
@@ -127,21 +130,26 @@
             </div>
 
             <div id="panel-speed" class="mode-panel">
-                <div class="speed-labels">
-                    <span>-50%</span><span>0%</span><span>+50%</span>
-                </div>
-                <div class="bar-track" id="speed-track">
-                    <div class="knob knob-white" id="speed-knob" style="left: 50%;"></div>
-                </div>
+                <div class="speed-labels"><span>-50%</span><span>0%</span><span>+50%</span></div>
+                <div class="bar-track" id="speed-track"><div class="knob knob-white" id="speed-knob" style="left: 50%;"></div></div>
                 <div class="speed-value-display" id="txt-speed">1.00x</div>
             </div>
 
             <div id="panel-url" class="mode-panel">
-                <div class="url-box">
+                <div class="input-box">
                     <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
-                    <button class="btn-nav" id="btn-url-go" style="flex:none; width:80px;">GO</button>
+                    <button class="btn-nav" id="btn-url-go" style="flex:none; width:60px;">GO</button>
                 </div>
             </div>
+
+            <div id="panel-file" class="mode-panel">
+                <div class="input-box">
+                    <button class="btn-nav" onclick="document.getElementById('file-input').click()">CHOOSE VIDEO FILE</button>
+                    <input type="file" id="file-input" accept="video/*">
+                </div>
+            </div>
+            
+            <div id="panel-list" class="mode-panel"><div style="text-align:center;font-size:10px;">LIST MODE (COMING SOON)</div></div>
         </div>
 
         <div class="transport-container">
@@ -155,23 +163,25 @@
 
 <script>
     const state = {
-        player: null, isLoop: false, isMirror: false, currentMode: 'seek',
+        player: null, localVid: null, isYoutube: true,
+        isLoop: false, isMirror: false, currentMode: 'seek',
         startT: 0, endT: 0, activeDrag: null
     };
 
+    const getT = () => state.isYoutube ? state.player.getCurrentTime() : state.localVid.currentTime;
+    const getD = () => state.isYoutube ? state.player.getDuration() : state.localVid.duration;
+    const setT = (t) => state.isYoutube ? state.player.seekTo(t, true) : (state.localVid.currentTime = t);
+    const setR = (r) => state.isYoutube ? state.player.setPlaybackRate(r) : (state.localVid.playbackRate = r);
     const fmt = (s) => {
+        if(!s || isNaN(s)) return "00:00";
         const m = Math.floor(s/60), rs = Math.floor(s%60);
         return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`;
     };
 
     function update() {
-        if (!state.player || !state.player.getCurrentTime) return;
-        const now = state.player.getCurrentTime(), dur = state.player.getDuration();
+        const now = getT(), dur = getD();
+        if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.5)) setT(state.startT);
         
-        if (state.isLoop && state.endT > state.startT) {
-            if (now >= state.endT || now < state.startT - 0.5) state.player.seekTo(state.startT, true);
-        }
-
         if (dur > 0) {
             const p = (now / dur) * 100;
             document.getElementById('main-fill').style.width = p + "%";
@@ -183,8 +193,7 @@
             const btnA = document.getElementById('btn-set-a'), btnB = document.getElementById('btn-set-b');
 
             if (state.isLoop) {
-                ka.style.display = kb.style.display = 'flex';
-                range.style.display = 'block';
+                ka.style.display = kb.style.display = range.style.display = 'flex';
                 btnA.disabled = btnB.disabled = false;
                 const sP = (state.startT / dur) * 100, eP = (state.endT || dur) / dur * 100;
                 ka.style.left = sP + "%"; kb.style.left = eP + "%";
@@ -192,17 +201,17 @@
             } else {
                 ka.style.display = kb.style.display = range.style.display = 'none';
                 btnA.disabled = btnB.disabled = true;
-                btnA.classList.remove('active');
-                btnB.classList.remove('active');
             }
         }
     }
 
     function initEvents() {
+        state.localVid = document.getElementById('local-video');
+
         document.getElementById('nav-mirror').onclick = (e) => {
             e.stopPropagation();
             state.isMirror = !state.isMirror;
-            document.getElementById('yt-wrapper').style.transform = state.isMirror ? "scaleX(-1)" : "scaleX(1)";
+            document.getElementById('video-viewport').style.transform = state.isMirror ? "scaleX(-1)" : "scaleX(1)";
             document.getElementById('nav-mirror').classList.toggle('active', state.isMirror);
         };
 
@@ -210,51 +219,36 @@
             e.stopPropagation();
             state.isLoop = !state.isLoop;
             document.getElementById('nav-loop').classList.toggle('active', state.isLoop);
-            if(state.isLoop && state.endT === 0) state.endT = state.player.getDuration();
+            if(state.isLoop) state.endT = getD();
         };
 
         document.getElementById('btn-play').onclick = (e) => {
             e.stopPropagation();
-            state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
+            if(state.isYoutube) {
+                state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
+            } else {
+                state.localVid.paused ? state.localVid.play() : state.localVid.pause();
+            }
         };
 
-        document.getElementById('btn-set-a').onclick = (e) => { 
-            e.stopPropagation();
-            if(state.isLoop) {
-                state.startT = state.player.getCurrentTime();
-                document.getElementById('btn-set-a').classList.add('active');
-            }
-        };
-        document.getElementById('btn-set-b').onclick = (e) => { 
-            e.stopPropagation();
-            if(state.isLoop) {
-                state.endT = state.player.getCurrentTime();
-                document.getElementById('btn-set-b').classList.add('active');
-            }
-        };
-        document.getElementById('btn-prev').onclick = (e) => {
-            e.stopPropagation();
-            state.player.seekTo(state.startT, true);
-        };
+        document.getElementById('btn-set-a').onclick = () => { if(state.isLoop) { state.startT = getT(); document.getElementById('btn-set-a').classList.add('active'); } };
+        document.getElementById('btn-set-b').onclick = () => { if(state.isLoop) { state.endT = getT(); document.getElementById('btn-set-b').classList.add('active'); } };
+        document.getElementById('btn-prev').onclick = () => setT(state.startT);
 
         const handleDrag = (e) => {
             if (!state.activeDrag) return;
-            const trackId = (state.activeDrag === 'speed') ? 'speed-track' : 'main-track';
+            const trackId = state.activeDrag === 'speed' ? 'speed-track' : 'main-track';
             const rect = document.getElementById(trackId).getBoundingClientRect();
             const x = e.touches ? e.touches[0].clientX : e.clientX;
             const p = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
 
-            if (state.activeDrag === 'now') {
-                state.player.seekTo(p * state.player.getDuration(), true);
-            } else if (state.activeDrag === 'a') {
-                state.startT = Math.min(p * state.player.getDuration(), state.endT - 0.1);
-            } else if (state.activeDrag === 'b') {
-                state.endT = Math.max(p * state.player.getDuration(), state.startT + 0.1);
-            } else if (state.activeDrag === 'speed') {
-                const speed = 0.5 + p; // 0.5x 〜 1.5x
-                state.player.setPlaybackRate(speed);
+            if (state.activeDrag === 'now') setT(p * getD());
+            else if (state.activeDrag === 'a') state.startT = p * getD();
+            else if (state.activeDrag === 'b') state.endT = p * getD();
+            else if (state.activeDrag === 'speed') {
+                const r = 0.5 + p; setR(r);
                 document.getElementById('speed-knob').style.left = (p * 100) + "%";
-                document.getElementById('txt-speed').innerText = speed.toFixed(2) + "x";
+                document.getElementById('txt-speed').innerText = r.toFixed(2) + "x";
             }
         };
 
@@ -262,23 +256,32 @@
         document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); if(state.isLoop) state.activeDrag = 'a'; };
         document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); if(state.isLoop) state.activeDrag = 'b'; };
         document.getElementById('speed-track').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'speed'; handleDrag(e); };
-        
-        window.onmousemove = handleDrag;
-        window.onmouseup = () => state.activeDrag = null;
+        window.onmousemove = handleDrag; window.onmouseup = () => state.activeDrag = null;
 
-        document.querySelectorAll('.btn-nav[data-mode]').forEach(b => b.onclick = (e) => {
-            e.stopPropagation();
+        document.querySelectorAll('.btn-nav[data-mode]').forEach(b => b.onclick = () => {
             const m = b.dataset.mode;
             document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
             document.getElementById(`panel-${m}`).classList.add('active');
             document.querySelectorAll('.btn-nav[data-mode]').forEach(btn => btn.classList.toggle('active', btn === b));
         });
 
-        document.getElementById('btn-url-go').onclick = (e) => {
-            e.stopPropagation();
+        document.getElementById('btn-url-go').onclick = () => {
             const v = document.getElementById('input-url').value;
             const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
-            if(id) state.player.loadVideoById(id);
+            if(id) {
+                state.isYoutube = true; state.localVid.style.display = 'none'; document.getElementById('yt-player').style.display = 'block';
+                state.player.loadVideoById(id);
+            }
+        };
+
+        document.getElementById('file-input').onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                state.isYoutube = false; document.getElementById('yt-player').style.display = 'none'; state.localVid.style.display = 'block';
+                state.player.pauseVideo();
+                state.localVid.src = URL.createObjectURL(file);
+                state.localVid.play();
+            }
         };
     }
 
