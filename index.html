@@ -2,35 +2,72 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM PLAYER NEO - FULLSCREEN EDITION</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
-        :root { --neon-blue: #00f3ff; --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); }
-        body { background: #000; color: var(--neon-blue); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; text-transform: uppercase; }
-
-        /* 映像層：画面中央に常に最大サイズで配置 */
-        #player-wrapper { 
-            position: relative; 
-            width: 100vw; 
-            height: 100vh; 
-            background: #000; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center;
-            cursor: pointer; /* どこでもクリックできる合図 */
+        :root { 
+            --neon-blue: #00f3ff; 
+            --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); 
+            --header-h: 50px;
         }
-        #yt-player { 
-            width: 100%; 
-            height: 100%; 
-            max-width: 100%;
-            pointer-events: none; /* クリックイベントを背後のwrapperに透過させる */
+        
+        body { 
+            background: #000; 
+            color: var(--neon-blue); 
+            font-family: 'Michroma', sans-serif; 
+            margin: 0; 
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            text-transform: uppercase;
+        }
+
+        /* ヘッダーエリア */
+        header {
+            height: var(--header-h);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            border-bottom: 1px solid #222;
+            letter-spacing: 0.15em;
+            font-size: 14px;
+            z-index: 2000;
+        }
+
+        /* メインコンテンツ（映像＋左右余白） */
+        #main-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        #yt-player {
+            width: 100vw;
+            aspect-ratio: 16/9;
+            pointer-events: none;
         }
 
         /* 66%ラインのHOMEメニュー */
         #home-overlay {
-            position: absolute; top: 66%; left: 50%; transform: translate(-50%, -30%);
-            width: 90%; background: rgba(10, 10, 10, 0.85); border-radius: 12px;
-            padding: 20px; z-index: 1000; transition: opacity 0.3s ease, transform 0.3s ease;
-            display: flex; flex-direction: column; gap: 15px; border: 1px solid #333;
+            position: absolute; 
+            top: 66%; 
+            left: 50%; 
+            transform: translate(-50%, -30%);
+            width: 90%; 
+            background: rgba(10, 10, 10, 0.85); 
+            border-radius: 12px;
+            padding: 20px; 
+            z-index: 1000; 
+            transition: opacity 0.3s ease;
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            border: 1px solid #333;
             pointer-events: auto;
         }
 
@@ -42,8 +79,8 @@
 
         .btn-nav {
             flex: 1; padding: 10px 0; background: none; border: 1px solid var(--neon-blue);
-            color: #fff; font-size: 11px; cursor: pointer; border-radius: 4px; transition: 0.2s;
-            text-align: center;
+            color: #fff; font-family: 'Michroma', sans-serif; font-size: 10px; 
+            cursor: pointer; border-radius: 4px; transition: 0.2s; text-align: center;
         }
         .btn-nav.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
 
@@ -67,11 +104,20 @@
             font-size: 14px; font-weight: bold; cursor: pointer; z-index: 140;
         }
         .knob-ab.active { display: flex; }
+
+        input[type=text] { 
+            flex:1; background:#111; border:1px solid #444; color:#fff; padding:8px; 
+            font-family: 'Michroma', sans-serif; font-size: 10px; outline: none; 
+        }
     </style>
 </head>
 <body>
 
-<div id="player-wrapper">
+<header>
+    ZEFRAM VIDEO PLAYER
+</header>
+
+<div id="main-container">
     <div id="yt-player"></div>
 
     <div id="home-overlay">
@@ -99,7 +145,7 @@
             </div>
             <div id="panel-url" class="mode-panel">
                 <div style="display:flex; gap:10px; width:100%;">
-                    <input type="text" id="input-url" style="flex:1; background:#111; border:1px solid #444; color:#fff; padding:8px;" placeholder="YOUTUBE URL OR ID...">
+                    <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
                     <button class="btn-nav" id="btn-url-go" style="flex:none; width:60px;">GO</button>
                 </div>
             </div>
@@ -171,26 +217,19 @@
     }
 
     function initEvents() {
-        // 画面のどこをクリックしてもUIを表示
-        document.getElementById('player-wrapper').onclick = (e) => {
-            if (e.target.id === 'player-wrapper' || e.target.id === 'yt-player') {
-                wakeUI();
-            }
+        document.getElementById('main-container').onclick = (e) => {
+            if (e.target.id === 'main-container' || e.target.id === 'yt-player') wakeUI();
         };
-
         document.getElementById('play-btn').onclick = (e) => {
             e.stopPropagation();
             state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
             wakeUI();
         };
-
         document.querySelectorAll('.btn-nav[data-mode]').forEach(btn => {
             btn.onclick = (e) => { e.stopPropagation(); switchMode(btn.dataset.mode); };
         });
-
         document.getElementById('nav-loop').onclick = (e) => { e.stopPropagation(); toggleLoop(); };
         document.getElementById('nav-mirror').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
-
         document.getElementById('btn-url-go').onclick = () => {
             const val = document.getElementById('input-url').value;
             const id = val.split('v=')[1]?.split('&')[0] || val.split('/').pop();
@@ -232,7 +271,6 @@
         o.style.opacity = "1";
         o.style.pointerEvents = "auto";
         clearTimeout(state.uiTimer);
-        // ループ中、またはHOME以外のモードの時は、消えにくくする設定
         const delay = (state.isLoop || state.currentMode !== 'seek') ? 8000 : 4000;
         state.uiTimer = setTimeout(() => {
             if (!state.activeDrag && !state.isLoop && state.currentMode === 'seek') {
