@@ -122,7 +122,6 @@
     let isMirror = false;
     let isABMode = false;
     
-    // A-Bループ用の実時間（秒）
     let aTime = 0;
     let bTime = 0;
     const C_POINT = 1.0;
@@ -153,10 +152,19 @@
         });
     }
 
+    // A点・B点の位置から秒数を再計算する関数
+    function syncABTimes() {
+        if (!player || !player.getDuration) return;
+        const duration = player.getDuration();
+        aTime = (parseFloat(pointA.style.left || 0) / 100) * duration;
+        bTime = (parseFloat(pointB.style.left || 100) / 100) * duration;
+    }
+
     function initSeekBar() {
         const handleSeek = (e) => {
             const rect = seekbarContainer.getBoundingClientRect();
-            const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const x = clientX - rect.left;
             let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
             if (player && player.getDuration) {
                 const time = (percent / 100) * player.getDuration();
@@ -172,20 +180,6 @@
     }
 
     function initABControls() {
-        const updateABTimes = () => {
-            if (!player || !player.getDuration) return;
-            const duration = player.getDuration();
-            const rect = seekbarContainer.getBoundingClientRect();
-            
-            // A点の位置から秒数を算出
-            const aPos = parseFloat(pointA.style.left) || 0;
-            aTime = (aPos / 100) * duration;
-            
-            // B点の位置から秒数を算出
-            const bPos = parseFloat(pointB.style.left) || 100;
-            bTime = (bPos / 100) * duration;
-        };
-
         const handleABMove = (e) => {
             if (!activeAB) return;
             const rect = seekbarContainer.getBoundingClientRect();
@@ -193,7 +187,7 @@
             const x = clientX - rect.left;
             let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
             activeAB.style.left = percent + "%";
-            updateABTimes();
+            syncABTimes(); // 移動中にリアルタイムで秒数を更新
         };
 
         [pointA, pointB].forEach(el => {
@@ -246,6 +240,15 @@
 
                 const now = player.getCurrentTime();
 
+                // A-Bループ判定（最優先）
+                if (isABMode) {
+                    syncABTimes(); // 判定直前に位置を確定させる
+                    if (now >= bTime) {
+                        player.seekTo(aTime, true);
+                        return; // 戻った直後の処理はスキップ
+                    }
+                }
+
                 // バー更新
                 if (!isDraggingSeek) {
                     const percent = (now / duration) * 100;
@@ -253,21 +256,12 @@
                     seekbarKnob.style.left = percent + "%";
                 }
 
-                // A-Bループ実行
-                if (isABMode) {
-                    // もしB点の時間が設定されていない（初期状態）なら動画末尾をBとする
-                    const actualB = bTime || duration;
-                    if (now >= actualB) {
-                        player.seekTo(aTime);
-                    }
-                }
-
-                // 次曲への遷移（ループOFF時のみ有効にするか、ループ内でも有効にするかは設計次第）
+                // 次曲への遷移
                 if (!isABMode && now >= dPoint && !isTransitioning) {
                     clearInterval(monitor);
                     executeNextTrack();
                 }
-            }, 100);
+            }, 50); // チェック頻度を上げ（0.05秒）、精度を向上
         }
     }
 
@@ -297,13 +291,8 @@
 
     function setABLoop() {
         isABMode = !isABMode;
-        // ループ開始時に現在のA点/B点の位置を確定させる
-        const duration = player.getDuration();
-        aTime = (parseFloat(pointA.style.left || 0) / 100) * duration;
-        bTime = (parseFloat(pointB.style.left || 100) / 100) * duration;
-        
-        const status = isABMode ? "ON" : "OFF";
-        console.log("A-B LOOP: " + status + " (" + aTime.toFixed(1) + "s - " + bTime.toFixed(1) + "s)");
+        syncABTimes();
+        console.log("A-B LOOP: " + (isABMode ? "ON" : "OFF"));
     }
 </script>
 </body>
