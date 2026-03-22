@@ -3,64 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZEFRAM VIDEO ENGINE - Seamless Loop</title>
+    <title>ZEFRAM VIDEO ENGINE - Deadzone Safety</title>
     <style>
         body { background: #000; color: #00f3ff; font-family: monospace; margin: 0; overflow: hidden; }
-        #player-wrapper { position: relative; width: 100vw; aspect-ratio: 16/9; background: #111; }
-        #yt-player { width: 100%; height: 100%; transition: transform 0.3s; pointer-events: none; }
         
-        #zefram-curtain {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; opacity: 0; transition: opacity 0.5s;
-            pointer-events: none; z-index: 10;
-            display: flex; align-items: center; justify-content: center;
+        /* プレーヤー領域：ここ自体へのクリックはYouTubeに届く */
+        #player-wrapper { 
+            position: relative; 
+            width: 100vw; 
+            aspect-ratio: 16/9; 
+            background: #111; 
         }
-        #zefram-curtain.active { opacity: 1; }
+        #yt-player { width: 100%; height: 100%; }
 
+        /* 操作コンテナ：全体を pointer-events: none にしてクリックを透過させる */
         #seekbar-container {
             position: absolute;
-            top: 66.6%;
-            left: 5%;
-            width: 90%;
-            height: 40px;
+            top: 66%; /* 指定のデッドゾーン */
+            left: 0;
+            width: 100%;
+            height: 60px;
             z-index: 20;
             display: flex;
             align-items: center;
-        }
-        #seekbar-bg {
-            width: 100%;
-            height: 4px;
-            background: rgba(0, 243, 255, 0.2);
-            position: relative;
-        }
-        #seekbar-progress {
-            height: 100%;
-            background: #00f3ff;
-            width: 0%;
-            box-shadow: 0 0 10px #00f3ff;
-        }
-        
-        #seekbar-knob {
-            position: absolute;
-            top: 50%;
-            left: 0%;
-            width: 12px;
-            height: 12px;
-            background: #fff;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 10px #fff;
-            pointer-events: none;
-            z-index: 5;
+            pointer-events: none; 
         }
 
+        #seekbar-bg {
+            width: 90%;
+            height: 4px;
+            background: rgba(0, 243, 255, 0.3);
+            margin: 0 auto;
+            position: relative;
+            /* バー自体もクリックを透過（YouTubeのシーク操作を邪魔しないため） */
+            pointer-events: none; 
+        }
+
+        /* 実際にクリックを受け取るパーツだけ pointer-events: auto に設定 */
         .ab-point {
             position: absolute;
             top: 50%;
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             border: 2px solid #00f3ff;
-            background: #000;
+            background: rgba(0, 0, 0, 0.8);
             color: #00f3ff;
             border-radius: 50%;
             transform: translate(-50%, -50%);
@@ -68,28 +54,48 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 14px;
             cursor: pointer;
-            box-shadow: 0 0 15px rgba(0, 243, 255, 0.6);
-            z-index: 10;
+            z-index: 30;
+            pointer-events: auto; /* A・Bボタンは操作可能 */
             user-select: none;
         }
-        #point-a { left: 0%; }
-        #point-b { left: 100%; }
 
-        .controls { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        input, button { background: #222; color: #00f3ff; border: 1px solid #00f3ff; padding: 10px; font-size: 14px; cursor: pointer; }
-        .playlist { height: 150px; overflow-y: auto; border: 1px solid #333; margin-top: 10px; padding: 5px; }
-        .track-item { padding: 5px; cursor: pointer; border-bottom: 1px solid #222; }
-        .track-item:hover { background: #00f3ff33; }
-        .active-track { color: #fff; background: #004444; }
+        #seekbar-knob {
+            position: absolute;
+            top: 50%;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: auto; /* 再生位置ノブも操作可能 */
+            z-index: 25;
+        }
+
+        #seekbar-progress {
+            height: 100%;
+            background: #00f3ff;
+            width: 0%;
+        }
+
+        /* 下部コントロール：YouTube画面に被らないよう配置 */
+        .controls { 
+            padding: 15px; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 10px; 
+            background: #000;
+        }
+        input, button { background: #222; color: #00f3ff; border: 1px solid #00f3ff; padding: 12px; font-size: 14px; cursor: pointer; }
+        .playlist { height: 120px; overflow-y: auto; border: 1px solid #333; margin: 10px; padding: 5px; }
+        .track-item { padding: 8px; cursor: pointer; border-bottom: 1px solid #222; }
+        .active-track { background: #004444; color: #fff; }
     </style>
 </head>
 <body>
 
 <div id="player-wrapper">
     <div id="yt-player"></div>
-    <div id="zefram-curtain"><span>SYSTEM: TRANSITIONING...</span></div>
     
     <div id="seekbar-container">
         <div id="seekbar-bg">
@@ -102,9 +108,9 @@
 </div>
 
 <div class="controls">
-    <input type="text" id="url-input" placeholder="YouTube URLを貼り付け">
+    <input type="text" id="url-input" placeholder="YouTube URL">
     <button onclick="addTrack()">選 曲</button>
-    <button onclick="toggleMirror()">MIRROR (反転)</button>
+    <button onclick="toggleMirror()">MIRROR</button>
     <button onclick="toggleABLoop()">A-B LOOP (ON/OFF)</button>
 </div>
 
@@ -114,23 +120,20 @@
     let player;
     let playlist = [];
     let currentIndex = 0;
-    let isMirror = false;
     let isABMode = false;
+    let isMirror = false;
     
     let startTime = 0;
     let endTime = 0;
-    // 実験で成功した「通り越し防止」のマージン（0.15秒手前でシーク命令を出す）
-    const PREDICTIVE_MARGIN = 0.15; 
+    const PREDICTIVE_MARGIN = 0.15; // 実験成功値
 
-    const seekbarContainer = document.getElementById('seekbar-container');
-    const seekbarProgress = document.getElementById('seekbar-progress');
-    const seekbarKnob = document.getElementById('seekbar-knob');
     const pointA = document.getElementById('point-a');
     const pointB = document.getElementById('point-b');
-    
-    let isDraggingSeek = false;
-    let activeAB = null;
-    let animationId = null;
+    const knob = document.getElementById('seekbar-knob');
+    const progress = document.getElementById('seekbar-progress');
+    const bg = document.getElementById('seekbar-bg');
+
+    let activeTarget = null;
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -138,103 +141,81 @@
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('yt-player', {
-            playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1, 'rel': 0 },
-            events: {
-                'onReady': () => {
-                    initSeekBar();
-                    initABControls();
-                    startGlobalMonitor();
-                }
-            }
+            // controls: 1 にして純正機能を活かしつつ、独自UIで補助する
+            playerVars: { 'playsinline': 1, 'controls': 1, 'rel': 0 },
+            events: { 'onReady': onPlayerReady }
         });
     }
 
-    // 座標（％）を厳密な秒数データに変換してロックする
-    function lockABTimes() {
-        if (!player || !player.getDuration) return;
-        const duration = player.getDuration();
-        const aPct = parseFloat(pointA.style.left) || 0;
-        const bPct = parseFloat(pointB.style.left) || 100;
+    function onPlayerReady() {
+        initDraggable();
+        setInterval(monitorVideo, 50);
+    }
+
+    function monitorVideo() {
+        if (!player || player.getPlayerState() !== 1) return;
         
-        startTime = Number(((aPct / 100) * duration).toFixed(2));
-        endTime = Number(((bPct / 100) * duration).toFixed(2));
+        const now = player.getCurrentTime();
+        const duration = player.getDuration();
+
+        if (isABMode && now >= (endTime - PREDICTIVE_MARGIN)) {
+            player.seekTo(startTime, true);
+        }
+
+        // ノブの位置更新（ドラッグ中でない時）
+        if (!activeTarget) {
+            const pct = (now / duration) * 100;
+            knob.style.left = pct + "%";
+            progress.style.width = pct + "%";
+        }
     }
 
-    function startGlobalMonitor() {
-        const loop = () => {
-            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                const now = player.getCurrentTime();
-                const duration = player.getDuration();
+    function initDraggable() {
+        const handleMove = (e) => {
+            if (!activeTarget) return;
+            const rect = bg.getBoundingClientRect();
+            const clientX = e.clientX || e.touches?.[0].clientX;
+            let pct = ((clientX - rect.left) / rect.width) * 100;
+            pct = Math.max(0, Math.min(100, pct));
 
-                if (isABMode) {
-                    // 実験で成功した「先読み」タイミングで、A点へ強制ジャンプ（自動再生継続）
-                    if (now >= (endTime - PREDICTIVE_MARGIN)) {
-                        player.seekTo(startTime, true);
-                    }
-                }
+            activeTarget.style.left = pct + "%";
 
-                if (!isDraggingSeek) {
-                    const percent = (now / duration) * 100;
-                    seekbarProgress.style.width = percent + "%";
-                    seekbarKnob.style.left = percent + "%";
-                }
-
-                if (!isABMode && now >= (duration - 1.0) && !isTransitioning) {
-                    executeNextTrack();
-                }
-            }
-            animationId = requestAnimationFrame(loop);
-        };
-        animationId = requestAnimationFrame(loop);
-    }
-
-    function initSeekBar() {
-        const handleSeek = (e) => {
-            const rect = seekbarContainer.getBoundingClientRect();
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const x = clientX - rect.left;
-            let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
-            if (player && player.getDuration) {
-                const time = (percent / 100) * player.getDuration();
+            if (activeTarget === knob) {
+                const time = (pct / 100) * player.getDuration();
                 player.seekTo(time, true);
-                if (isABMode) lockABTimes();
+                progress.style.width = pct + "%";
             }
+            updateABTimes();
         };
-        seekbarContainer.addEventListener('mousedown', (e) => {
-            if(e.target.classList.contains('ab-point')) return;
-            isDraggingSeek = true; handleSeek(e); 
+
+        const startDrag = (e, target) => {
+            activeTarget = target;
+            e.preventDefault();
+        };
+
+        [pointA, pointB, knob].forEach(el => {
+            el.addEventListener('mousedown', (e) => startDrag(e, el));
+            el.addEventListener('touchstart', (e) => startDrag(e, el));
         });
-        window.addEventListener('mousemove', (e) => { if (isDraggingSeek) handleSeek(e); });
-        window.addEventListener('mouseup', () => { isDraggingSeek = false; });
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('touchmove', handleMove);
+        window.addEventListener('mouseup', () => activeTarget = null);
+        window.addEventListener('touchend', () => activeTarget = null);
     }
 
-    function initABControls() {
-        const handleABMove = (e) => {
-            if (!activeAB) return;
-            const rect = seekbarContainer.getBoundingClientRect();
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const x = clientX - rect.left;
-            let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
-            activeAB.style.left = percent + "%";
-            lockABTimes();
-        };
-        [pointA, pointB].forEach(el => {
-            el.addEventListener('mousedown', (e) => { activeAB = el; e.stopPropagation(); });
-            el.addEventListener('touchstart', (e) => { activeAB = el; e.stopPropagation(); });
-        });
-        window.addEventListener('mousemove', handleABMove);
-        window.addEventListener('touchmove', handleABMove);
-        window.addEventListener('mouseup', () => { activeAB = null; });
-        window.addEventListener('touchend', () => { activeAB = null; });
+    function updateABTimes() {
+        const duration = player.getDuration();
+        startTime = (parseFloat(pointA.style.left || 0) / 100) * duration;
+        endTime = (parseFloat(pointB.style.left || 100) / 100) * duration;
     }
 
     function addTrack() {
         const url = document.getElementById('url-input').value;
-        const videoId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
-        if (videoId) {
-            playlist.push({ id: videoId, title: "Track " + (playlist.length + 1) });
+        const id = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
+        if (id) {
+            playlist.push({ id, title: "Track " + (playlist.length + 1) });
             updatePlaylistUI();
-            document.getElementById('url-input').value = "";
             if (playlist.length === 1) playTrack(0);
         }
     }
@@ -242,37 +223,15 @@
     function updatePlaylistUI() {
         const container = document.getElementById('playlist');
         container.innerHTML = playlist.map((t, i) => 
-            `<div class="track-item ${i===currentIndex?'active-track':''}" onclick="playTrack(${i})">${t.title} [${t.id}]</div>`
+            `<div class="track-item ${i===currentIndex?'active-track':''}" onclick="playTrack(${i})">${t.title}</div>`
         ).join('');
     }
 
     function playTrack(index) {
         currentIndex = index;
         updatePlaylistUI();
-        isTransitioning = false;
-        player.loadVideoById({ videoId: playlist[index].id, startSeconds: 0 });
-        setTimeout(lockABTimes, 1200);
-    }
-
-    let isTransitioning = false;
-    function executeNextTrack() {
-        if (playlist.length <= currentIndex + 1) return;
-        isTransitioning = true;
-        const curtain = document.getElementById('zefram-curtain');
-        curtain.classList.add('active');
-        setTimeout(() => {
-            currentIndex++;
-            player.mute();
-            player.loadVideoById({ videoId: playlist[currentIndex].id, startSeconds: 0 });
-            updatePlaylistUI();
-            setTimeout(() => {
-                player.seekTo(1.0);
-                player.unMute();
-                curtain.classList.remove('active');
-                isTransitioning = false;
-                lockABTimes();
-            }, 1500);
-        }, 500);
+        player.loadVideoById(playlist[index].id);
+        setTimeout(updateABTimes, 1000);
     }
 
     function toggleMirror() {
@@ -282,13 +241,7 @@
 
     function toggleABLoop() {
         isABMode = !isABMode;
-        if (isABMode) {
-            lockABTimes();
-            // A-Bループ開始時にもしB点を超えていたら即座にAへ戻す
-            if (player.getCurrentTime() >= endTime) {
-                player.seekTo(startTime, true);
-            }
-        }
+        updateABTimes();
     }
 </script>
 </body>
