@@ -2,19 +2,19 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM PLAYER NEO - CLEAN ARCHITECTURE</title>
+    <title>ZEFRAM PLAYER NEO - MINIMAL EDITION</title>
     <style>
         :root { --neon-blue: #00f3ff; --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); }
         body { background: #000; color: var(--neon-blue); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; text-transform: uppercase; }
 
-        /* 映像層 */
-        #player-wrapper { position: relative; width: 100vw; aspect-ratio: 16/9; background: #000; }
-        #yt-player { width: 100%; height: 100%; pointer-events: auto; }
+        /* 映像層：全画面 */
+        #player-wrapper { position: relative; width: 100vw; height: 100vh; background: #000; display: flex; align-items: center; justify-content: center; }
+        #yt-player { width: 100vw; aspect-ratio: 16/9; pointer-events: auto; }
 
-        /* HOMEメニュー（ステルス対応） */
+        /* 統合されたHOMEメニュー（66%ライン） */
         #home-overlay {
             position: absolute; top: 66%; left: 50%; transform: translate(-50%, -30%);
-            width: 90%; background: rgba(15, 15, 15, 0.95); border-radius: 12px;
+            width: 90%; background: rgba(10, 10, 10, 0.9); border-radius: 12px;
             padding: 20px; z-index: 1000; transition: opacity 0.4s ease;
             display: flex; flex-direction: column; gap: 15px; border: 1px solid #333;
         }
@@ -28,15 +28,15 @@
         .btn-nav {
             flex: 1; padding: 10px 0; background: none; border: 1px solid var(--neon-blue);
             color: #fff; font-size: 11px; cursor: pointer; border-radius: 4px; transition: 0.2s;
+            text-align: center;
         }
         .btn-nav.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
 
-        /* ダイナミックエリア */
         #dynamic-content { min-height: 60px; display: flex; align-items: center; }
         .mode-panel { display: none; width: 100%; }
         .mode-panel.active { display: flex; flex-direction: column; }
 
-        /* シークバー構造 */
+        /* シークバー・AB点 */
         .bar-track { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; }
         .bar-fill { height: 100%; background: var(--neon-blue); width: 0%; pointer-events: none; }
         .knob-now {
@@ -52,19 +52,6 @@
             font-size: 13px; font-weight: bold; cursor: pointer; z-index: 140;
         }
         .knob-ab.active { display: flex; }
-
-        /* 下部固定パネル */
-        .bottom-panel {
-            padding: 12px 20px; background: #000; border-top: 1px solid #222;
-            display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; gap: 20px;
-        }
-        .btn-action {
-            background: none; border: 1px solid var(--neon-blue); color: var(--neon-blue);
-            padding: 8px; cursor: pointer; font-size: 11px; flex: 1;
-        }
-        .btn-action.active { background: var(--neon-blue); color: #000; }
-        input[type=range] { width: 100%; accent-color: var(--neon-blue); cursor: pointer; }
-        input[type=text] { flex: 1; background: #111; border: 1px solid #444; color: #fff; padding: 8px; outline: none; }
     </style>
 </head>
 <body>
@@ -91,13 +78,13 @@
                     <div class="knob-ab" id="knob-a" style="left: 0%;">A</div>
                     <div class="knob-ab" id="knob-b" style="left: 100%;">B</div>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:10px; margin-top:12px;">
+                <div style="display:flex; justify-content:space-between; font-size:10px; margin-top:12px; color: #888;">
                     <span id="txt-cur">00:00</span><span id="txt-total">00:00</span>
                 </div>
             </div>
             <div id="panel-url" class="mode-panel">
                 <div style="display:flex; gap:10px; width:100%;">
-                    <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
+                    <input type="text" id="input-url" style="flex:1; background:#111; border:1px solid #444; color:#fff; padding:8px;" placeholder="YOUTUBE URL OR ID...">
                     <button class="btn-nav" id="btn-url-go" style="flex:none; width:60px;">GO</button>
                 </div>
             </div>
@@ -112,49 +99,27 @@
     </div>
 </div>
 
-<div class="bottom-panel">
-    <input type="range" id="slider-speed" min="0.5" max="1.5" step="0.05" value="1.0">
-    <div style="display:flex; gap:5px;">
-        <button class="btn-action">SELECT TRACK</button>
-        <button class="btn-action" id="action-mirror">MIRROR</button>
-        <button class="btn-action" id="action-loop">A-B LOOP</button>
-    </div>
-    <div id="status-line" style="font-size:9px; opacity:0.5;">SYSTEM READY</div>
-</div>
-
 <script>
-    // --- 1. STATE MANAGEMENT (状態管理の一本化) ---
     const state = {
         player: null,
         isLoop: false,
         isMirror: false,
-        currentMode: 'seek', // seek, url, speed, list
+        currentMode: 'seek',
         startT: 0,
         endT: 0,
         activeDrag: null,
         uiTimer: null
     };
 
-    // --- 2. UTILITIES (共通計算ロジック) ---
     const fmt = (s) => {
         const m = Math.floor(s/60), rs = Math.floor(s%60);
         return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`;
     };
-    const getPos = (e, rect) => Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
 
-    // --- 3. CORE LOGIC (メイン機能) ---
     function update() {
         if (!state.player || !state.player.getCurrentTime || state.activeDrag) return;
-        
-        const now = state.player.getCurrentTime();
-        const dur = state.player.getDuration();
-
-        // AB Loop logic
-        if (state.isLoop && now >= (state.endT - 0.2)) {
-            state.player.seekTo(state.startT, true);
-        }
-
-        // UI Refresh
+        const now = state.player.getCurrentTime(), dur = state.player.getDuration();
+        if (state.isLoop && now >= (state.endT - 0.2)) state.player.seekTo(state.startT, true);
         if (dur > 0) {
             const p = (now / dur) * 100;
             document.getElementById('main-knob').style.left = p + "%";
@@ -168,105 +133,67 @@
         state.isLoop = !state.isLoop;
         const dur = state.player.getDuration();
         if (state.endT === 0 || state.endT > dur) state.endT = dur;
-
-        // UI Reflect
-        const targets = ['nav-loop', 'action-loop', 'knob-a', 'knob-b'];
-        targets.forEach(id => document.getElementById(id).classList.toggle('active', state.isLoop));
-        
-        if (state.isLoop) {
-            switchMode('seek');
-            state.player.seekTo(state.startT, true);
-        }
+        ['nav-loop', 'knob-a', 'knob-b'].forEach(id => document.getElementById(id).classList.toggle('active', state.isLoop));
+        if (state.isLoop) { switchMode('seek'); state.player.seekTo(state.startT, true); }
     }
 
     function toggleMirror() {
         state.isMirror = !state.isMirror;
         document.getElementById('yt-player').style.transform = state.isMirror ? "scaleX(-1)" : "scaleX(1)";
         document.getElementById('nav-mirror').classList.toggle('active', state.isMirror);
-        document.getElementById('action-mirror').classList.toggle('active', state.isMirror);
     }
 
     function switchMode(m) {
         state.currentMode = m;
-        // Panel Switch
         document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
         const targetPanel = (m === 'loop') ? 'seek' : m;
         const panel = document.getElementById(`panel-${targetPanel}`);
         if(panel) panel.classList.add('active');
-
-        // Button Highlight
-        document.querySelectorAll('.btn-nav').forEach(b => {
-            b.classList.toggle('active', b.dataset.mode === m);
-        });
+        document.querySelectorAll('.btn-nav').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
         wakeUI();
     }
 
-    // --- 4. EVENT INITIALIZATION (イベントの集約) ---
     function initEvents() {
-        // Play/Pause
         document.getElementById('play-btn').onclick = () => {
             state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
         };
-
-        // Nav Buttons
-        document.querySelectorAll('.btn-nav[data-mode]').forEach(btn => {
-            btn.onclick = () => switchMode(btn.dataset.mode);
-        });
-
+        document.querySelectorAll('.btn-nav[data-mode]').forEach(btn => btn.onclick = () => switchMode(btn.dataset.mode));
         document.getElementById('nav-loop').onclick = toggleLoop;
-        document.getElementById('action-loop').onclick = toggleLoop;
         document.getElementById('nav-mirror').onclick = toggleMirror;
-        document.getElementById('action-mirror').onclick = toggleMirror;
-
-        // URL Load
         document.getElementById('btn-url-go').onclick = () => {
             const val = document.getElementById('input-url').value;
             const id = val.split('v=')[1]?.split('&')[0] || val.split('/').pop();
             if(id) { state.player.loadVideoById(id); switchMode('seek'); }
         };
 
-        // Speed Control
         const setSpeed = (v) => {
             const s = Math.max(0.5, Math.min(1.5, v));
             state.player.setPlaybackRate(s);
             document.getElementById('txt-speed').innerText = s.toFixed(2) + "x";
-            document.getElementById('slider-speed').value = s;
         };
         document.getElementById('btn-speed-up').onclick = () => setSpeed(state.player.getPlaybackRate() + 0.05);
         document.getElementById('btn-speed-down').onclick = () => setSpeed(state.player.getPlaybackRate() - 0.05);
-        document.getElementById('slider-speed').oninput = (e) => setSpeed(parseFloat(e.target.value));
 
-        // Drag Logic
         const track = document.getElementById('main-track');
-        const dragStart = (type) => (e) => {
-            if ((type === 'a' || type === 'b') && !state.isLoop) return;
-            state.activeDrag = type; e.preventDefault(); e.stopPropagation();
-        };
-
-        track.onmousedown = (e) => { if(e.target.id === 'main-track') { state.activeDrag = 'now'; handleDrag(e); } };
-        document.getElementById('knob-a').onmousedown = dragStart('a');
-        document.getElementById('knob-b').onmousedown = dragStart('b');
-
         const handleDrag = (e) => {
             if (!state.activeDrag) return;
             const rect = track.getBoundingClientRect();
-            const p = getPos(e, rect);
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const p = Math.max(0, Math.min(100, ((x - rect.left) / rect.width) * 100));
             const d = state.player.getDuration() || 0;
-
-            if (state.activeDrag === 'now') {
-                state.player.seekTo((p/100) * d, true);
-            } else {
+            if (state.activeDrag === 'now') state.player.seekTo((p/100) * d, true);
+            else {
                 document.getElementById('knob-' + state.activeDrag).style.left = p + "%";
                 state.startT = (parseFloat(document.getElementById('knob-a').style.left)/100)*d;
                 state.endT = (parseFloat(document.getElementById('knob-b').style.left)/100)*d;
             }
         };
 
+        track.onmousedown = (e) => { if(e.target.id === 'main-track') { state.activeDrag = 'now'; handleDrag(e); } };
+        document.getElementById('knob-a').onmousedown = (e) => { if(state.isLoop) { state.activeDrag = 'a'; e.stopPropagation(); } };
+        document.getElementById('knob-b').onmousedown = (e) => { if(state.isLoop) { state.activeDrag = 'b'; e.stopPropagation(); } };
         window.onmousemove = handleDrag;
         window.onmouseup = () => state.activeDrag = null;
-
-        // Global UI Wake
-        window.onclick = wakeUI;
     }
 
     function wakeUI() {
@@ -278,20 +205,14 @@
         }, 5000);
     }
 
-    // --- 5. YOUTUBE API ---
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
-
     window.onYouTubeIframeAPIReady = () => {
         state.player = new YT.Player('yt-player', {
             videoId: 'ScXNbe_5Y0o',
             playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
-            events: { 'onReady': () => {
-                initEvents();
-                setInterval(update, 50);
-                wakeUI();
-            }}
+            events: { 'onReady': () => { initEvents(); setInterval(update, 50); wakeUI(); } }
         });
     };
 </script>
