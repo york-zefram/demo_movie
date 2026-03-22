@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM PLAYER NEO - SMART LOOP EDITION</title>
+    <title>ZEFRAM PLAYER NEO - STABLE LOOP EDITION</title>
     <style>
         :root { --neon-blue: #00f3ff; --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); }
         body { background: #000; color: var(--neon-blue); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; text-transform: uppercase; }
@@ -52,15 +52,18 @@
             box-shadow: 0 0 10px #fff; pointer-events: none; z-index: 5;
         }
 
-        /* LOOP (AB) 専用 */
+        /* LOOP (AB) 専用：ノブが最前面に来るように調整 */
         .ab-knob {
             position: absolute; top: 50%; width: 34px; height: 34px;
             border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
             color: var(--neon-blue); border-radius: 50%; transform: translate(-50%, -50%);
             display: flex; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: var(--neon-glow); z-index: 10;
+            font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: var(--neon-glow); 
+            z-index: 20; /* 最前面 */
+            pointer-events: auto;
         }
-        #loop-range-highlight { position: absolute; height: 100%; background: var(--neon-blue); opacity: 0.4; pointer-events: none; }
+        #loop-range-highlight { position: absolute; height: 100%; background: var(--neon-blue); opacity: 0.4; pointer-events: none; z-index: 2; }
+        #loop-sync-knob { pointer-events: none; z-index: 5; } /* 再生点はクリック不可に */
 
         /* --- 下部パネル (保持) --- */
         .neo-panel { padding: 10px 20px; background: #000; border-top: 1px solid #222; display: grid; grid-template-columns: 1fr 2fr 1.5fr; align-items: center; gap: 20px; }
@@ -154,40 +157,38 @@
     }
 
     function switchMode(m) {
-        // LOOPモードに入る時だけワープ実行
         if (m === 'loop') {
             isAB = true;
             player.seekTo(startT, true);
         } else if (m === 'seek') {
-            // HOMEに戻った時はリピートを一時的に無視（フラグは維持）
             isAB = false; 
         }
-
         curMode = m;
         document.querySelectorAll('.mode-container').forEach(c => c.classList.remove('active'));
         document.getElementById(`container-${curMode}`).classList.add('active');
-        
         document.querySelectorAll('.home-nav-btn').forEach(b => b.classList.remove('active'));
         const activeBtn = (m === 'seek') ? document.getElementById('nav-home') : document.getElementById(`nav-${m}`);
         if(activeBtn) activeBtn.classList.add('active');
-        
-        // パネル側のボタンも同期
         document.getElementById('p-loop').classList.toggle('active', (m === 'loop'));
         wakeUpUI();
     }
 
-    // パネル側のLOOPボタン用
     function toggleAB_Panel() {
-        if (curMode === 'loop') switchMode('seek');
-        else switchMode('loop');
+        if (curMode === 'loop') switchMode('seek'); else switchMode('loop');
     }
 
     function initEvents() {
         const handleDrag = (e, type) => {
-            const rootId = (type.startsWith('knob')) ? 'loop-bar-root' : `${type}-bar-root`;
+            // ドラッグ対象に関わらず、座標計算の基準はそれぞれのバーのrootにする
+            let rootId;
+            if (type === 'seek') rootId = 'seek-bar-root';
+            else if (type === 'speed') rootId = 'speed-bar-root';
+            else rootId = 'loop-bar-root'; // knob-a, knob-b の場合
+
             const root = document.getElementById(rootId);
             const rect = root.getBoundingClientRect();
-            const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const x = clientX - rect.left;
             let p = Math.max(0, Math.min(100, (x / rect.width) * 100));
 
             if (type === 'seek') {
@@ -210,18 +211,26 @@
 
         const addListener = (id, type) => {
             const el = document.getElementById(id);
-            const start = (e) => { activeDrag = type; handleDrag(e, type); e.stopPropagation(); };
+            if(!el) return;
+            const start = (e) => { 
+                activeDrag = type; 
+                handleDrag(e, type); 
+                e.preventDefault(); // スクロール防止
+                e.stopPropagation(); 
+            };
             el.addEventListener('mousedown', start);
             el.addEventListener('touchstart', start, {passive:false});
         };
 
+        // バー自体をクリックしても動くように設定
         addListener('seek-bar-root', 'seek');
         addListener('speed-bar-root', 'speed');
+        // ABリピートはノブを直接掴むことを優先
         addListener('knob-a', 'knob-a');
         addListener('knob-b', 'knob-b');
 
         window.addEventListener('mousemove', (e) => { if(activeDrag) handleDrag(e, activeDrag); });
-        window.addEventListener('touchmove', (e) => { if(activeDrag) handleDrag(e, activeDrag); }, {passive:false});
+        window.addEventListener('touchmove', (e) => { if(activeDrag) { handleDrag(e, activeDrag); e.preventDefault(); } }, {passive:false});
         window.addEventListener('mouseup', () => activeDrag = null);
         window.addEventListener('touchend', () => activeDrag = null);
     }
@@ -229,10 +238,11 @@
     function syncABTimes() {
         const pa = parseFloat(document.getElementById('knob-a').style.left);
         const pb = parseFloat(document.getElementById('knob-b').style.left);
-        document.getElementById('loop-range-highlight').style.left = pa + "%";
-        document.getElementById('loop-range-highlight').style.width = (pb - pa) + "%";
+        const high = document.getElementById('loop-range-highlight');
+        high.style.left = pa + "%";
+        high.style.width = (pb - pa) + "%";
         const dur = player.getDuration();
-        startT = (pa/100) * dur; endT = (pb/100) * dur;
+        if(dur) { startT = (pa/100) * dur; endT = (pb/100) * dur; }
     }
 
     function adjSpeed(val, reset=false, fromDrag=false) {
@@ -249,19 +259,13 @@
     function update() {
         if(!player || !player.getCurrentTime) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
-        
-        // LOOPモード（コンテナ表示中）のみリピート実行
-        if(isAB && curMode === 'loop' && dur > 0 && now >= endT - 0.1) {
-            player.seekTo(startT, true);
-        }
+        if(isAB && curMode === 'loop' && dur > 0 && now >= endT - 0.1) player.seekTo(startT, true);
 
         if(dur > 0 && !activeDrag) {
             const p = (now/dur) * 100;
-            // すべてのバーの白丸を同期
             document.getElementById('seek-knob').style.left = p + "%";
             document.getElementById('seek-fill').style.width = p + "%";
             document.getElementById('loop-sync-knob').style.left = p + "%";
-            
             document.getElementById('time-cur').innerText = fmt(now);
             document.getElementById('time-total').innerText = fmt(dur);
         }
