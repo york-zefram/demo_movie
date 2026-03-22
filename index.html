@@ -85,7 +85,7 @@
         /* 可変エリア：SEEK / URL / SPEED / LOOP */
         #home-dynamic-area {
             width: 100%;
-            min-height: 40px;
+            min-height: 45px;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -104,7 +104,7 @@
             box-shadow: 0 0 10px #fff; pointer-events: none;
         }
 
-        /* LOOPモード用デザイン */
+        /* LOOP (AB) モード用 */
         #home-loop-wrapper { display: none; width: 100%; position: relative; height: 40px; align-items: center; }
         .ab-point {
             position: absolute; top: 50%; width: 34px; height: 34px;
@@ -115,7 +115,7 @@
             box-shadow: var(--neon-glow); z-index: 10;
         }
 
-        /* SPEEDモード用 */
+        /* SPEED モード用 */
         #home-speed-wrapper { display: none; width: 100%; flex-direction: column; gap: 8px; }
         .speed-btn-row { display: flex; justify-content: center; gap: 20px; align-items: center; }
         .home-speed-btn {
@@ -124,7 +124,7 @@
             display: flex; align-items: center; justify-content: center; font-weight: bold;
         }
 
-        /* URLモード用 */
+        /* URL モード用 */
         #home-url-wrapper { display: none; width: 100%; gap: 10px; }
         #home-url-input { flex: 1; background: #111; border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 8px; border-radius: 4px; outline: none; }
         #home-url-go { background: var(--neon-blue); border: none; padding: 8px 15px; cursor: pointer; font-weight: bold; border-radius: 4px; }
@@ -139,6 +139,7 @@
         .meta-ctrl { display: flex; flex-direction: column; gap: 8px; }
         .url-box { background: #111; border: 1px solid #333; color: var(--neon-blue); padding: 8px; font-size: 12px; outline: none; }
         .btn-rect { flex: 1; background: none; border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px; box-shadow: var(--neon-glow); }
+        .btn-rect.active { background: var(--neon-blue); color: #000; }
         .playlist { height: 80px; overflow-y: auto; font-size: 11px; border-left: 1px solid #222; padding-left: 10px; }
     </style>
 </head>
@@ -172,7 +173,7 @@
 
             <div id="home-loop-wrapper">
                 <div class="home-bar-container" id="home-loop-container" style="cursor: default;">
-                    <div class="home-bar-progress" id="home-loop-range" style="position: absolute;"></div>
+                    <div class="home-bar-progress" id="home-loop-range" style="position: absolute; left: 0%; width: 100%;"></div>
                     <div id="home-point-a" class="ab-point" style="left: 0%;">A</div>
                     <div id="home-point-b" class="ab-point" style="left: 100%;">B</div>
                 </div>
@@ -212,8 +213,8 @@
         <input type="text" id="url-input" class="url-box" placeholder="YOUTUBE URL...">
         <div style="display:flex; gap:5px;">
             <button class="btn-rect" onclick="addTrack()">選 曲</button>
-            <button class="btn-rect" onclick="toggleMirror()">MIRROR</button>
-            <button class="btn-rect" onclick="toggleAB()">A-B LOOP</button>
+            <button class="btn-rect" id="panel-mirror-btn" onclick="toggleMirror()">MIRROR</button>
+            <button class="btn-rect" id="panel-ab-btn" onclick="toggleAB()">A-B LOOP</button>
         </div>
     </div>
     <div id="playlist" class="playlist"></div>
@@ -257,61 +258,78 @@
             if(el) el.style.display = (currentMode === m) ? (m==='url'?'flex':(m==='loop'?'flex':'block')) : 'none';
         });
         
-        document.querySelectorAll('.home-nav-btn').forEach(btn => btn.classList.remove('active'));
-        if (currentMode !== 'seek') document.getElementById(`home-mode-${currentMode}`).classList.add('active');
+        document.querySelectorAll('.home-nav-btn').forEach(btn => {
+            if(btn.id !== 'home-mode-loop' || !isAB) btn.classList.remove('active');
+        });
+        if (currentMode !== 'seek' && currentMode !== 'loop') document.getElementById(`home-mode-${currentMode}`).classList.add('active');
+        if (isAB) document.getElementById('home-mode-loop').classList.add('active');
+        
         wakeUpUI();
     }
 
     function initBars() {
+        const getRelativeX = (e, container) => {
+            const rect = container.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+        };
+
         const setupBar = (id, knobId, callback) => {
             const container = document.getElementById(id);
-            const knob = document.getElementById(knobId);
-            const move = (e) => {
-                if (!isDragging) return;
-                const rect = container.getBoundingClientRect();
-                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                let p = Math.max(0, Math.min(100, (x / rect.width) * 100));
-                if(knob) knob.style.left = p + "%";
-                callback(p);
-                wakeUpUI();
-            };
-            const start = (e) => { isDragging = true; move(e); e.stopPropagation(); };
-            if(knob) knob.addEventListener('mousedown', start);
-            if(knob) knob.addEventListener('touchstart', start);
-            else {
-                container.addEventListener('mousedown', start);
-                container.addEventListener('touchstart', start);
-            }
-            window.addEventListener('mousemove', move);
+            const knob = knobId ? document.getElementById(knobId) : null;
+            
+            const onMove = (e) => { if (!isDragging) return; callback(getRelativeX(e, container)); wakeUpUI(); };
+            const onStart = (e) => { isDragging = true; callback(getRelativeX(e, container)); e.stopPropagation(); };
+            
+            (knob || container).addEventListener('mousedown', onStart);
+            (knob || container).addEventListener('touchstart', onStart, {passive: false});
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('touchmove', onMove, {passive: false});
             window.addEventListener('mouseup', () => isDragging = false);
-            window.addEventListener('touchmove', move);
             window.addEventListener('touchend', () => isDragging = false);
         };
 
         setupBar('home-seekbar-container', 'home-knob', (p) => {
-            if (player && player.getDuration) player.seekTo((p / 100) * player.getDuration(), true);
+            if (player && player.getDuration) {
+                player.seekTo((p / 100) * player.getDuration(), true);
+                document.getElementById('home-knob').style.left = p + "%";
+                document.getElementById('home-progress').style.width = p + "%";
+            }
         });
 
         setupBar('home-speed-container', 'home-speed-knob', (p) => {
             applySpeed(0.5 + (p / 100));
         });
 
-        // AB Loop Drag Logic
-        const updateABRange = () => {
-            const pA = parseFloat(document.getElementById('home-point-a').style.left);
+        // AB LOOP DRAG (Point A)
+        setupBar('home-loop-container', 'home-point-a', (p) => {
             const pB = parseFloat(document.getElementById('home-point-b').style.left);
-            const left = Math.min(pA, pB);
-            const width = Math.abs(pA - pB);
-            const rangeEl = document.getElementById('home-loop-range');
-            rangeEl.style.left = left + "%";
-            rangeEl.style.width = width + "%";
-            const d = player.getDuration() || 0;
-            startT = (left / 100) * d;
-            endT = ((left + width) / 100) * d;
-        };
+            const finalP = Math.min(p, pB - 1);
+            document.getElementById('home-point-a').style.left = finalP + "%";
+            updateABRangeUI();
+        });
 
-        setupBar('home-loop-container', 'home-point-a', updateABRange);
-        setupBar('home-loop-container', 'home-point-b', updateABRange);
+        // AB LOOP DRAG (Point B)
+        setupBar('home-loop-container', 'home-point-b', (p) => {
+            const pA = parseFloat(document.getElementById('home-point-a').style.left);
+            const finalP = Math.max(p, pA + 1);
+            document.getElementById('home-point-b').style.left = finalP + "%";
+            updateABRangeUI();
+        });
+    }
+
+    function updateABRangeUI() {
+        const pA = parseFloat(document.getElementById('home-point-a').style.left);
+        const pB = parseFloat(document.getElementById('home-point-b').style.left);
+        const rangeEl = document.getElementById('home-loop-range');
+        rangeEl.style.left = pA + "%";
+        rangeEl.style.width = (pB - pA) + "%";
+        
+        const dur = player.getDuration() || 0;
+        if (dur > 0) {
+            startT = (pA / 100) * dur;
+            endT = (pB / 100) * dur;
+        }
     }
 
     function applySpeed(val) {
@@ -333,7 +351,11 @@
     function update() {
         if (!player || !player.getCurrentTime) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
-        if (isAB && now >= (endT - 0.15)) player.seekTo(startT, true);
+        
+        if (isAB && dur > 0 && now >= (endT - 0.1)) {
+            player.seekTo(startT, true);
+        }
+
         if (dur > 0 && currentMode === 'seek' && !isDragging) {
             const p = (now / dur) * 100;
             document.getElementById('home-knob').style.left = p + "%";
@@ -350,13 +372,17 @@
 
     function toggleAB() { 
         isAB = !isAB; 
+        updateABRangeUI(); // 同期
         document.getElementById('home-mode-loop').classList.toggle('active', isAB);
+        document.getElementById('panel-ab-btn').classList.toggle('active', isAB);
+        wakeUpUI();
     }
 
     function handleMirror() {
         isMirror = !isMirror;
         document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)";
         document.getElementById('home-mode-mirror').classList.toggle('active', isMirror);
+        document.getElementById('panel-mirror-btn').classList.toggle('active', isMirror);
         wakeUpUI();
     }
 
