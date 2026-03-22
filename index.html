@@ -82,7 +82,7 @@
             box-shadow: var(--neon-glow);
         }
 
-        /* 可変エリア：シークバー / URL / SPEED */
+        /* 可変エリア：SEEK / URL / SPEED / LOOP */
         #home-dynamic-area {
             width: 100%;
             min-height: 40px;
@@ -104,6 +104,17 @@
             box-shadow: 0 0 10px #fff; pointer-events: none;
         }
 
+        /* LOOPモード用デザイン */
+        #home-loop-wrapper { display: none; width: 100%; position: relative; height: 40px; align-items: center; }
+        .ab-point {
+            position: absolute; top: 50%; width: 34px; height: 34px;
+            border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.8);
+            color: var(--neon-blue); border-radius: 50%;
+            transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: bold; cursor: pointer; pointer-events: auto;
+            box-shadow: var(--neon-glow); z-index: 10;
+        }
+
         /* SPEEDモード用 */
         #home-speed-wrapper { display: none; width: 100%; flex-direction: column; gap: 8px; }
         .speed-btn-row { display: flex; justify-content: center; gap: 20px; align-items: center; }
@@ -112,7 +123,6 @@
             width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
             display: flex; align-items: center; justify-content: center; font-weight: bold;
         }
-        #home-speed-display { font-size: 12px; color: #fff; min-width: 50px; text-align: center; }
 
         /* URLモード用 */
         #home-url-wrapper { display: none; width: 100%; gap: 10px; }
@@ -143,7 +153,7 @@
             <div id="home-play-btn" onclick="togglePlay()"></div>
             <button class="home-nav-btn" id="home-mode-url" onclick="toggleMode('url')">URL</button>
             <button class="home-nav-btn" id="home-mode-mirror" onclick="handleMirror()">MIRROR</button>
-            <button class="home-nav-btn" id="home-mode-loop">LOOP</button>
+            <button class="home-nav-btn" id="home-mode-loop" onclick="toggleMode('loop')">LOOP</button>
             <button class="home-nav-btn" id="home-mode-speed" onclick="toggleMode('speed')">SPEED</button>
             <button class="home-nav-btn" id="home-mode-list">LIST</button>
         </div>
@@ -160,6 +170,14 @@
                 </div>
             </div>
 
+            <div id="home-loop-wrapper">
+                <div class="home-bar-container" id="home-loop-container" style="cursor: default;">
+                    <div class="home-bar-progress" id="home-loop-range" style="position: absolute;"></div>
+                    <div id="home-point-a" class="ab-point" style="left: 0%;">A</div>
+                    <div id="home-point-b" class="ab-point" style="left: 100%;">B</div>
+                </div>
+            </div>
+
             <div id="home-speed-wrapper">
                 <div class="home-bar-container" id="home-speed-container">
                     <div class="home-bar-progress" id="home-speed-progress"></div>
@@ -167,14 +185,14 @@
                 </div>
                 <div class="speed-btn-row">
                     <button class="home-speed-btn" onclick="changeSpeed(-0.05)">−</button>
-                    <div id="home-speed-display">1.00x</div>
+                    <div id="home-speed-display" style="font-size: 12px; color: #fff; min-width: 50px; text-align: center;">1.00x</div>
                     <button class="home-speed-btn" onclick="changeSpeed(0, true)">〇</button>
                     <button class="home-speed-btn" onclick="changeSpeed(0.05)">＋</button>
                 </div>
             </div>
 
             <div id="home-url-wrapper">
-                <input type="text" id="home-url-input" placeholder="YOUTUBE URL..." onclick="event.stopPropagation()">
+                <input type="text" id="home-url-input" placeholder="PASTE YOUTUBE URL..." onclick="event.stopPropagation()">
                 <button id="home-url-go" onclick="handleHomeUrlGo()">GO</button>
             </div>
         </div>
@@ -202,8 +220,8 @@
 </div>
 
 <script>
-    let player, playlist = [], currentIndex = 0, isMirror = false, currentMode = 'seek';
-    let uiTimeout, isDragging = false;
+    let player, playlist = [], currentIndex = 0, isMirror = false, isAB = false, currentMode = 'seek';
+    let startT = 0, endT = 0, uiTimeout, isDragging = false;
 
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
@@ -233,9 +251,11 @@
 
     function toggleMode(mode) {
         if (currentMode === mode) currentMode = 'seek'; else currentMode = mode;
-        document.getElementById('home-seekbar-wrapper').style.display = (currentMode === 'seek') ? 'block' : 'none';
-        document.getElementById('home-url-wrapper').style.display = (currentMode === 'url') ? 'flex' : 'none';
-        document.getElementById('home-speed-wrapper').style.display = (currentMode === 'speed') ? 'flex' : 'none';
+        const modes = ['seek', 'url', 'speed', 'loop'];
+        modes.forEach(m => {
+            const el = document.getElementById(`home-${m}-wrapper`);
+            if(el) el.style.display = (currentMode === m) ? (m==='url'?'flex':(m==='loop'?'flex':'block')) : 'none';
+        });
         
         document.querySelectorAll('.home-nav-btn').forEach(btn => btn.classList.remove('active'));
         if (currentMode !== 'seek') document.getElementById(`home-mode-${currentMode}`).classList.add('active');
@@ -243,33 +263,55 @@
     }
 
     function initBars() {
-        const setupBar = (id, callback) => {
+        const setupBar = (id, knobId, callback) => {
             const container = document.getElementById(id);
+            const knob = document.getElementById(knobId);
             const move = (e) => {
                 if (!isDragging) return;
                 const rect = container.getBoundingClientRect();
                 const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                callback(Math.max(0, Math.min(100, (x / rect.width) * 100)));
+                let p = Math.max(0, Math.min(100, (x / rect.width) * 100));
+                if(knob) knob.style.left = p + "%";
+                callback(p);
                 wakeUpUI();
             };
-            container.addEventListener('mousedown', (e) => { isDragging = true; move(e); });
+            const start = (e) => { isDragging = true; move(e); e.stopPropagation(); };
+            if(knob) knob.addEventListener('mousedown', start);
+            if(knob) knob.addEventListener('touchstart', start);
+            else {
+                container.addEventListener('mousedown', start);
+                container.addEventListener('touchstart', start);
+            }
             window.addEventListener('mousemove', move);
             window.addEventListener('mouseup', () => isDragging = false);
-            container.addEventListener('touchstart', (e) => { isDragging = true; move(e); });
             window.addEventListener('touchmove', move);
             window.addEventListener('touchend', () => isDragging = false);
         };
 
-        // Seek Bar logic
-        setupBar('home-seekbar-container', (p) => {
+        setupBar('home-seekbar-container', 'home-knob', (p) => {
             if (player && player.getDuration) player.seekTo((p / 100) * player.getDuration(), true);
         });
 
-        // Speed Bar logic
-        setupBar('home-speed-container', (p) => {
-            const speed = 0.5 + (p / 100); // 0.5 to 1.5
-            applySpeed(speed);
+        setupBar('home-speed-container', 'home-speed-knob', (p) => {
+            applySpeed(0.5 + (p / 100));
         });
+
+        // AB Loop Drag Logic
+        const updateABRange = () => {
+            const pA = parseFloat(document.getElementById('home-point-a').style.left);
+            const pB = parseFloat(document.getElementById('home-point-b').style.left);
+            const left = Math.min(pA, pB);
+            const width = Math.abs(pA - pB);
+            const rangeEl = document.getElementById('home-loop-range');
+            rangeEl.style.left = left + "%";
+            rangeEl.style.width = width + "%";
+            const d = player.getDuration() || 0;
+            startT = (left / 100) * d;
+            endT = ((left + width) / 100) * d;
+        };
+
+        setupBar('home-loop-container', 'home-point-a', updateABRange);
+        setupBar('home-loop-container', 'home-point-b', updateABRange);
     }
 
     function applySpeed(val) {
@@ -289,9 +331,10 @@
     }
 
     function update() {
-        if (!player || !player.getCurrentTime || isDragging) return;
+        if (!player || !player.getCurrentTime) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
-        if (dur > 0 && currentMode === 'seek') {
+        if (isAB && now >= (endT - 0.15)) player.seekTo(startT, true);
+        if (dur > 0 && currentMode === 'seek' && !isDragging) {
             const p = (now / dur) * 100;
             document.getElementById('home-knob').style.left = p + "%";
             document.getElementById('home-progress').style.width = p + "%";
@@ -305,11 +348,16 @@
         wakeUpUI(); 
     }
 
-    function handleMirror() { toggleMirror(); wakeUpUI(); }
-    function toggleMirror() {
+    function toggleAB() { 
+        isAB = !isAB; 
+        document.getElementById('home-mode-loop').classList.toggle('active', isAB);
+    }
+
+    function handleMirror() {
         isMirror = !isMirror;
         document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)";
         document.getElementById('home-mode-mirror').classList.toggle('active', isMirror);
+        wakeUpUI();
     }
 
     function handleHomeUrlGo() {
@@ -323,7 +371,6 @@
         return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
     }
 
-    // 下部パネル連動
     const slider = document.getElementById('speed-slider');
     slider.oninput = () => applySpeed(slider.value);
     document.getElementById('speed-reset').onclick = () => changeSpeed(0, true);
