@@ -57,7 +57,7 @@
             z-index: 5;
         }
 
-        /* A点・B点ノブ（画像デザイン参照） */
+        /* A点・B点ノブ */
         .ab-point {
             position: absolute;
             top: 50%;
@@ -121,8 +121,10 @@
     let currentIndex = 0;
     let isMirror = false;
     let isABMode = false;
-    let aPoint = 5; 
-    let bPoint = 10; 
+    
+    // A-Bループ用の実時間（秒）
+    let aTime = 0;
+    let bTime = 0;
     const C_POINT = 1.0;
 
     const seekbarContainer = document.getElementById('seekbar-container');
@@ -151,35 +153,47 @@
         });
     }
 
-    // 再生バーのドラッグ
     function initSeekBar() {
         const handleSeek = (e) => {
             const rect = seekbarContainer.getBoundingClientRect();
-            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
             let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
             if (player && player.getDuration) {
                 const time = (percent / 100) * player.getDuration();
                 player.seekTo(time, true);
             }
         };
-
         seekbarContainer.addEventListener('mousedown', (e) => {
             if(e.target.classList.contains('ab-point')) return;
-            isDraggingSeek = true; 
-            handleSeek(e); 
+            isDraggingSeek = true; handleSeek(e); 
         });
         window.addEventListener('mousemove', (e) => { if (isDraggingSeek) handleSeek(e); });
         window.addEventListener('mouseup', () => { isDraggingSeek = false; });
     }
 
-    // A点・B点のスライド操作
     function initABControls() {
+        const updateABTimes = () => {
+            if (!player || !player.getDuration) return;
+            const duration = player.getDuration();
+            const rect = seekbarContainer.getBoundingClientRect();
+            
+            // A点の位置から秒数を算出
+            const aPos = parseFloat(pointA.style.left) || 0;
+            aTime = (aPos / 100) * duration;
+            
+            // B点の位置から秒数を算出
+            const bPos = parseFloat(pointB.style.left) || 100;
+            bTime = (bPos / 100) * duration;
+        };
+
         const handleABMove = (e) => {
             if (!activeAB) return;
             const rect = seekbarContainer.getBoundingClientRect();
-            const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const x = clientX - rect.left;
             let percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
             activeAB.style.left = percent + "%";
+            updateABTimes();
         };
 
         [pointA, pointB].forEach(el => {
@@ -232,18 +246,24 @@
 
                 const now = player.getCurrentTime();
 
+                // バー更新
                 if (!isDraggingSeek) {
                     const percent = (now / duration) * 100;
                     seekbarProgress.style.width = percent + "%";
                     seekbarKnob.style.left = percent + "%";
                 }
 
-                if (isABMode && now >= bPoint) {
-                    player.seekTo(aPoint);
-                    return;
+                // A-Bループ実行
+                if (isABMode) {
+                    // もしB点の時間が設定されていない（初期状態）なら動画末尾をBとする
+                    const actualB = bTime || duration;
+                    if (now >= actualB) {
+                        player.seekTo(aTime);
+                    }
                 }
 
-                if (now >= dPoint && !isTransitioning) {
+                // 次曲への遷移（ループOFF時のみ有効にするか、ループ内でも有効にするかは設計次第）
+                if (!isABMode && now >= dPoint && !isTransitioning) {
                     clearInterval(monitor);
                     executeNextTrack();
                 }
@@ -277,7 +297,13 @@
 
     function setABLoop() {
         isABMode = !isABMode;
-        alert(isABMode ? "ループ有効（ノブの位置は未連動）" : "リピート解除");
+        // ループ開始時に現在のA点/B点の位置を確定させる
+        const duration = player.getDuration();
+        aTime = (parseFloat(pointA.style.left || 0) / 100) * duration;
+        bTime = (parseFloat(pointB.style.left || 100) / 100) * duration;
+        
+        const status = isABMode ? "ON" : "OFF";
+        console.log("A-B LOOP: " + status + " (" + aTime.toFixed(1) + "s - " + bTime.toFixed(1) + "s)");
     }
 </script>
 </body>
