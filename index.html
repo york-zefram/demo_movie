@@ -13,19 +13,12 @@
         }
         
         body { 
-            background: #000; 
-            color: var(--neon-blue); 
-            font-family: 'Michroma', sans-serif; 
-            margin: 0; 
-            overflow: hidden; 
-            height: 100vh;
-            width: 100vw;
-            text-transform: uppercase;
+            background: #000; color: var(--neon-blue); font-family: 'Michroma', sans-serif; 
+            margin: 0; overflow: hidden; height: 100vh; width: 100vw; text-transform: uppercase;
         }
 
         header {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 50px;
+            position: absolute; top: 0; left: 0; width: 100%; height: 50px;
             display: flex; align-items: center; justify-content: center;
             background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
             letter-spacing: 0.15em; font-size: 14px; z-index: 2000; pointer-events: none;
@@ -40,17 +33,11 @@
         #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         #local-video { display: none; background: #000; object-fit: contain; }
 
-        /* --- home-overlay 修正: 背景を透明にし、要素を浮かせる --- */
         #home-overlay {
-            position: absolute; 
-            bottom: 5%; left: 50%; transform: translateX(-50%);
-            width: 95%; 
-            z-index: 1000; 
-            display: flex; flex-direction: column; gap: 30px; 
-            pointer-events: none; /* 親パネル自体はクリックを透過させる */
+            position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%);
+            width: 95%; z-index: 1000; display: flex; flex-direction: column; gap: 30px; pointer-events: none;
         }
 
-        /* 各子要素はクリックを有効にする */
         .nav-row, #dynamic-content, .transport-container { pointer-events: auto; }
 
         .nav-row { 
@@ -61,8 +48,7 @@
         .btn-nav {
             flex: 1; padding: 10px 0; background: none; border: 1px solid var(--neon-blue);
             color: #fff; font-family: 'Michroma', sans-serif; font-size: 9px; 
-            cursor: pointer; border-radius: 4px; transition: 0.2s; text-align: center;
-            white-space: nowrap;
+            cursor: pointer; border-radius: 4px; transition: 0.2s; text-align: center; white-space: nowrap;
         }
         .btn-nav.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
 
@@ -73,16 +59,14 @@
         .mode-panel { display: none; width: 100%; flex-direction: column; }
         .mode-panel.active { display: flex; }
 
-        /* スライダー共通 */
-        .bar-track { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 3px; }
+        .bar-track { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 4px; }
         .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; z-index: 1; pointer-events: none; }
-        .knob { position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; }
-        .knob-white { width: 16px; height: 16px; background: #fff; box-shadow: 0 0 10px #fff; z-index: 10; }
+        .knob { position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; will-change: left; }
+        .knob-white { width: 18px; height: 18px; background: #fff; box-shadow: 0 0 12px #fff; z-index: 10; }
 
-        /* 再生バー専用 */
         #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 2; box-shadow: var(--neon-glow); pointer-events: none; }
         .knob-ab {
-            width: 34px; height: 34px; border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
+            width: 36px; height: 36px; border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
             color: var(--neon-blue); display: none; align-items: center; justify-content: center;
             font-size: 12px; z-index: 15; box-shadow: var(--neon-glow);
         }
@@ -91,7 +75,6 @@
         .speed-value-display { text-align: center; margin-top: 15px; font-size: 18px; letter-spacing: 0.1em; }
         .time-display { display: flex; justify-content: space-between; margin-top: 24px; font-size: 18px; filter: drop-shadow(var(--neon-glow)); }
 
-        /* トランスポート */
         .transport-container { 
             display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; 
             background: var(--panel-bg); padding: 15px 0; border-radius: 12px; border: 1px solid #333;
@@ -195,15 +178,22 @@
         return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`;
     };
 
-    function update() {
+    // ヌルヌル描画ループ (requestAnimationFrame)
+    function renderLoop() {
         const now = getT(), dur = getD();
-        if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.5)) setT(state.startT);
+        
+        // ループ処理
+        if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) {
+            setT(state.startT);
+        }
         
         if (dur > 0) {
             const p = (now / dur) * 100;
-            document.getElementById('main-fill').style.width = p + "%";
-            document.getElementById('main-knob').style.left = p + "%";
-            document.getElementById('txt-cur').innerText = fmt(now);
+            if (!state.activeDrag || state.activeDrag !== 'now') {
+                document.getElementById('main-fill').style.width = p + "%";
+                document.getElementById('main-knob').style.left = p + "%";
+                document.getElementById('txt-cur').innerText = fmt(now);
+            }
             document.getElementById('txt-total').innerText = fmt(dur);
 
             const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
@@ -220,6 +210,7 @@
                 btnA.disabled = btnB.disabled = true;
             }
         }
+        requestAnimationFrame(renderLoop);
     }
 
     function initEvents() {
@@ -236,7 +227,7 @@
             e.stopPropagation();
             state.isLoop = !state.isLoop;
             document.getElementById('nav-loop').classList.toggle('active', state.isLoop);
-            if(state.isLoop) state.endT = getD();
+            if(state.isLoop) { state.startT = 0; state.endT = getD(); }
         };
 
         document.getElementById('btn-play').onclick = (e) => {
@@ -252,28 +243,48 @@
         document.getElementById('btn-set-b').onclick = () => { if(state.isLoop) { state.endT = getT(); document.getElementById('btn-set-b').classList.add('active'); } };
         document.getElementById('btn-prev').onclick = () => setT(state.startT);
 
-        const handleDrag = (e) => {
-            if (!state.activeDrag) return;
-            const trackId = state.activeDrag === 'speed' ? 'speed-track' : 'main-track';
-            const rect = document.getElementById(trackId).getBoundingClientRect();
+        const handleInput = (e, type) => {
+            const track = document.getElementById(type === 'speed' ? 'speed-track' : 'main-track');
+            const rect = track.getBoundingClientRect();
             const x = e.touches ? e.touches[0].clientX : e.clientX;
             const p = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
 
-            if (state.activeDrag === 'now') setT(p * getD());
-            else if (state.activeDrag === 'a') state.startT = p * getD();
-            else if (state.activeDrag === 'b') state.endT = p * getD();
-            else if (state.activeDrag === 'speed') {
+            if (type === 'now') {
+                const time = p * getD();
+                setT(time);
+                document.getElementById('main-fill').style.width = (p * 100) + "%";
+                document.getElementById('main-knob').style.left = (p * 100) + "%";
+            } else if (type === 'a') {
+                state.startT = p * getD();
+            } else if (type === 'b') {
+                state.endT = p * getD();
+            } else if (type === 'speed') {
                 const r = 0.5 + p; setR(r);
                 document.getElementById('speed-knob').style.left = (p * 100) + "%";
                 document.getElementById('txt-speed').innerText = r.toFixed(2) + "x";
             }
         };
 
-        document.getElementById('main-knob').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'now'; };
+        // トラッククリックで即座にシーク
+        document.getElementById('main-track').onmousedown = (e) => {
+            state.activeDrag = 'now';
+            handleInput(e, 'now');
+        };
+        document.getElementById('speed-track').onmousedown = (e) => {
+            state.activeDrag = 'speed';
+            handleInput(e, 'speed');
+        };
+
         document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); if(state.isLoop) state.activeDrag = 'a'; };
         document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); if(state.isLoop) state.activeDrag = 'b'; };
-        document.getElementById('speed-track').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'speed'; handleDrag(e); };
-        window.onmousemove = handleDrag; window.onmouseup = () => state.activeDrag = null;
+        
+        window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
+        window.onmouseup = () => state.activeDrag = null;
+
+        // タッチ対応
+        document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+        window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
+        window.ontouchend = () => state.activeDrag = null;
 
         document.querySelectorAll('.btn-nav[data-mode]').forEach(b => b.onclick = () => {
             const m = b.dataset.mode;
@@ -308,7 +319,7 @@
         state.player = new YT.Player('yt-player', {
             videoId: 'ScXNbe_5Y0o',
             playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
-            events: { 'onReady': () => { initEvents(); setInterval(update, 100); } }
+            events: { 'onReady': () => { initEvents(); requestAnimationFrame(renderLoop); } }
         });
     };
 </script>
