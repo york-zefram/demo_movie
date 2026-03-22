@@ -50,7 +50,6 @@
         #yt-player {
             width: 100%;
             height: 100%;
-            max-width: 100%;
             pointer-events: none;
         }
 
@@ -72,7 +71,6 @@
             pointer-events: auto;
         }
 
-        /* 1段目：ナビゲーション（再生ボタンを削除し、GOボタンのスペースを確保） */
         .nav-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
         .btn-nav {
             flex: 1; padding: 10px 0; background: none; border: 1px solid var(--neon-blue);
@@ -81,54 +79,32 @@
         }
         .btn-nav.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
 
-        /* 2段目：情報表示エリア */
         #dynamic-content { min-height: 60px; display: flex; align-items: center; }
         .mode-panel { display: none; width: 100%; }
         .mode-panel.active { display: flex; flex-direction: column; }
 
+        /* シークバー周り */
         .bar-track { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 3px; }
-        .bar-fill { height: 100%; background: var(--neon-blue); width: 0%; pointer-events: none; border-radius: 3px; }
+        .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; pointer-events: none; position: absolute; }
+        #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; box-shadow: var(--neon-glow); }
         
         .time-display {
-            display: flex; 
-            justify-content: space-between; 
-            margin-top: 24px; 
-            color: var(--neon-blue); 
-            font-size: 18px; 
-            letter-spacing: 0.1em;
-            filter: drop-shadow(var(--neon-glow));
+            display: flex; justify-content: space-between; margin-top: 24px; 
+            color: var(--neon-blue); font-size: 18px; letter-spacing: 0.1em; filter: drop-shadow(var(--neon-glow));
         }
 
-        /* 3段目：トランスポート（中央に凝縮） */
-        .transport-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px; /* 中央にまとめるための適度な間隔 */
-            width: 100%;
-        }
-
+        /* トランスポートエリア */
+        .transport-container { display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; }
         .btn-circle {
-            background: none;
-            border: 2px solid var(--neon-blue);
-            color: var(--neon-blue);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-family: 'Michroma', sans-serif;
-            transition: 0.2s;
+            background: none; border: 2px solid var(--neon-blue); color: var(--neon-blue);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-family: 'Michroma', sans-serif; transition: 0.2s;
             box-shadow: var(--neon-glow);
-            text-shadow: var(--neon-glow);
         }
-        .btn-circle:active { transform: scale(0.9); opacity: 0.8; }
         .btn-circle.active { background: var(--neon-blue); color: #000; }
-
         .btn-ab { width: 45px; height: 45px; font-size: 14px; }
         .btn-main { width: 65px; height: 65px; font-size: 20px; }
 
-        /* URL入力欄とGOボタンの調整 */
         .url-box { display: flex; gap: 10px; width: 100%; }
         input[type=text] { 
             flex: 1; background: #111; border: 1px solid #444; color: #fff; padding: 10px; 
@@ -157,6 +133,7 @@
             <div id="panel-seek" class="mode-panel active">
                 <div class="bar-track" id="main-track">
                     <div class="bar-fill" id="main-fill"></div>
+                    <div id="ab-range"></div>
                 </div>
                 <div class="time-display">
                     <span id="txt-cur">00:00</span><span id="txt-total">00:00</span>
@@ -206,8 +183,11 @@
         if (!state.player || !state.player.getCurrentTime) return;
         const now = state.player.getCurrentTime(), dur = state.player.getDuration();
         
-        if (state.isLoop && state.endT > 0 && now >= (state.endT - 0.1)) {
-            state.player.seekTo(state.startT, true);
+        // LOOP ロジック
+        if (state.isLoop && state.endT > state.startT) {
+            if (now >= state.endT || now < state.startT - 0.5) {
+                state.player.seekTo(state.startT, true);
+            }
         }
 
         if (dur > 0) {
@@ -215,6 +195,18 @@
             document.getElementById('main-fill').style.width = p + "%";
             document.getElementById('txt-cur').innerText = fmt(now);
             document.getElementById('txt-total').innerText = fmt(dur);
+
+            // AB範囲の視覚化
+            const range = document.getElementById('ab-range');
+            if (state.endT > 0) {
+                const sP = (state.startT / dur) * 100;
+                const eP = (state.endT / dur) * 100;
+                range.style.left = sP + "%";
+                range.style.width = (eP - sP) + "%";
+                range.style.display = 'block';
+            } else {
+                range.style.display = 'none';
+            }
         }
     }
 
@@ -228,7 +220,6 @@
     }
 
     function initEvents() {
-        // Transport Events
         document.getElementById('btn-play').onclick = (e) => {
             e.stopPropagation();
             state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
@@ -238,16 +229,21 @@
         document.getElementById('btn-set-a').onclick = (e) => {
             e.stopPropagation();
             state.startT = state.player.getCurrentTime();
+            state.endT = 0; // 新しいA点を打ったらB点をリセット
             document.getElementById('btn-set-a').classList.add('active');
+            document.getElementById('btn-set-b').classList.remove('active');
             wakeUI();
         };
 
         document.getElementById('btn-set-b').onclick = (e) => {
             e.stopPropagation();
-            state.endT = state.player.getCurrentTime();
-            document.getElementById('btn-set-b').classList.add('active');
-            state.isLoop = true;
-            document.getElementById('nav-loop').classList.add('active');
+            const now = state.player.getCurrentTime();
+            if (now > state.startT) {
+                state.endT = now;
+                document.getElementById('btn-set-b').classList.add('active');
+                state.isLoop = true;
+                document.getElementById('nav-loop').classList.add('active');
+            }
             wakeUI();
         };
 
@@ -257,7 +253,6 @@
             wakeUI();
         };
 
-        // Nav Events
         document.getElementById('nav-loop').onclick = (e) => {
             e.stopPropagation();
             state.isLoop = !state.isLoop;
@@ -283,6 +278,13 @@
             if(id) { state.player.loadVideoById(id); switchMode('seek'); }
         };
 
+        document.getElementById('main-track').onclick = (e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const p = (e.clientX - rect.left) / rect.width;
+            state.player.seekTo(p * state.player.getDuration(), true);
+            wakeUI();
+        };
+
         const setSpeed = (v) => {
             const s = Math.max(0.5, Math.min(1.5, v));
             state.player.setPlaybackRate(s);
@@ -290,14 +292,6 @@
         };
         document.getElementById('btn-speed-up').onclick = () => setSpeed(state.player.getPlaybackRate() + 0.05);
         document.getElementById('btn-speed-down').onclick = () => setSpeed(state.player.getPlaybackRate() - 0.05);
-
-        // Track Seek
-        document.getElementById('main-track').onclick = (e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const p = (e.clientX - rect.left) / rect.width;
-            state.player.seekTo(p * state.player.getDuration(), true);
-            wakeUI();
-        };
 
         document.getElementById('main-container').onclick = () => wakeUI();
     }
