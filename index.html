@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM PLAYER NEO - STABLE SYNC</title>
+    <title>ZEFRAM PLAYER NEO - RECOVERY</title>
     <style>
         :root { --neon-blue: #00f3ff; --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); }
         body { background: #000; color: var(--neon-blue); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; text-transform: uppercase; }
@@ -10,6 +10,7 @@
         #player-wrapper { position: relative; width: 100vw; aspect-ratio: 16/9; background: #000; }
         #yt-player { width: 100%; height: 100%; pointer-events: auto; }
 
+        /* HOMEオーバーレイ */
         #home-overlay {
             position: absolute; top: 66%; left: 50%; transform: translate(-50%, -30%);
             width: 90%; background: rgba(20, 20, 20, 0.9); border-radius: 15px;
@@ -34,17 +35,15 @@
         .mode-container { display: none; width: 100%; flex-direction: column; justify-content: center; }
         .mode-container.active { display: flex; }
 
+        /* シークバー */
         .bar-base { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.2); position: relative; cursor: pointer; }
         .bar-fill { height: 100%; background: var(--neon-blue); box-shadow: var(--neon-glow); width: 0%; pointer-events: none; }
-        
-        /* 再生位置（白い点）：最も手前に配置 */
         .knob-main {
             position: absolute; top: 50%; width: 16px; height: 16px;
             background: #fff; border-radius: 50%; transform: translate(-50%, -50%);
             box-shadow: 0 0 10px #fff; pointer-events: none; z-index: 150;
         }
 
-        /* ABポイント：LOOP時のみ出現 */
         .ab-point {
             position: absolute; top: 50%; width: 34px; height: 34px;
             border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
@@ -55,10 +54,12 @@
         }
         .ab-point.active { display: flex; }
 
+        /* 下部パネル */
         .neo-panel { padding: 10px 20px; background: #000; border-top: 1px solid #222; display: grid; grid-template-columns: 1fr 2fr 1.5fr; align-items: center; gap: 20px; }
         .btn-rect { width: 100%; background: none; border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 8px; cursor: pointer; font-size: 11px; text-align: center; }
         .btn-rect.active { background: var(--neon-blue); color: #000; }
         input[type=range] { width: 100%; accent-color: var(--neon-blue); }
+        .url-in { flex:1; background:#111; border:1px solid var(--neon-blue); color:#fff; padding:8px; outline:none; }
     </style>
 </head>
 <body onclick="wakeUpUI()">
@@ -88,7 +89,20 @@
                     <span id="time-cur">00:00</span><span id="time-total">00:00</span>
                 </div>
             </div>
+            <div id="container-url" class="mode-container">
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="url-input-field" class="url-in" placeholder="YOUTUBE URL..." onclick="event.stopPropagation()">
+                    <button onclick="loadUrl()" class="home-nav-btn" style="flex:none; width:60px;">GO</button>
+                </div>
             </div>
+            <div id="container-speed" class="mode-container">
+                <div style="display:flex; justify-content:center; align-items:center; gap:20px;">
+                    <button onclick="adjSpeed(-0.05)" class="home-nav-btn" style="flex:none; width:40px;">-</button>
+                    <span id="speed-display" style="min-width:60px; text-align:center; font-size:18px;">1.00x</span>
+                    <button onclick="adjSpeed(0.05)" class="home-nav-btn" style="flex:none; width:40px;">+</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -117,6 +131,30 @@
         });
     }
 
+    function switchMode(m) {
+        curMode = m;
+        document.querySelectorAll('.mode-container').forEach(c => c.classList.remove('active'));
+        // LOOP以外の時は指定のコンテナ、LOOPの時はSEEKコンテナを表示
+        const target = (m === 'loop') ? 'seek' : m;
+        const container = document.getElementById(`container-${target}`);
+        if(container) container.classList.add('active');
+
+        document.querySelectorAll('.home-nav-btn').forEach(b => b.classList.remove('active'));
+        const btnId = (m === 'seek') ? 'nav-home' : `nav-${m}`;
+        const btn = document.getElementById(btnId);
+        if(btn) btn.classList.add('active');
+        wakeUpUI();
+    }
+
+    function loadUrl() {
+        const val = document.getElementById('url-input-field').value;
+        const id = val.split('v=')[1]?.split('&')[0] || val.split('/').pop();
+        if(id) {
+            player.loadVideoById(id);
+            switchMode('seek');
+        }
+    }
+
     function toggleLoopMode() {
         isLoopActive = !isLoopActive;
         const dur = player.getDuration();
@@ -127,17 +165,18 @@
         document.getElementById('point-a').classList.toggle('active', isLoopActive);
         document.getElementById('point-b').classList.toggle('active', isLoopActive);
 
-        if(isLoopActive) player.seekTo(startT, true);
+        if(isLoopActive) {
+            switchMode('seek');
+            player.seekTo(startT, true);
+        }
     }
 
     function update() {
         if (!player || !player.getCurrentTime || activeDrag) return;
         const now = player.getCurrentTime(), dur = player.getDuration();
         
-        // LOOP判定
         if (isLoopActive && now >= (endT - 0.2)) player.seekTo(startT, true);
 
-        // 再生バー（白い点）の更新：常に全体比率
         if (dur > 0) {
             const p = (now / dur) * 100;
             document.getElementById('seek-knob').style.left = p + "%";
@@ -151,7 +190,6 @@
         const root = document.getElementById('seek-bar-root');
         const els = { 'a': document.getElementById('point-a'), 'b': document.getElementById('point-b') };
 
-        // バーそのものをクリックでシーク
         root.addEventListener('mousedown', (e) => {
             if(e.target.classList.contains('ab-point')) return;
             activeDrag = 'knob'; handleMove(e);
@@ -184,12 +222,18 @@
         }
     }
 
+    function adjSpeed(v, d=false) {
+        let s = d ? parseFloat(v) : player.getPlaybackRate() + v;
+        s = Math.max(0.5, Math.min(1.5, s));
+        player.setPlaybackRate(s);
+        document.getElementById('speed-display').innerText = s.toFixed(2) + "x";
+        document.getElementById('p-speed').value = s;
+    }
+
     function toggleGlobalPlay() { player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); }
     function handleMirror() { isMirror = !isMirror; document.getElementById('yt-player').style.transform = isMirror ? "scaleX(-1)" : "scaleX(1)"; }
-    function switchMode(m) { curMode = m; wakeUpUI(); }
-    function adjSpeed(v, d=false) { let s = d ? parseFloat(v) : player.getPlaybackRate()+v; player.setPlaybackRate(Math.max(0.5, Math.min(1.5, s))); }
     function fmt(s) { const m=Math.floor(s/60), rs=Math.floor(s%60); return (m<10?'0'+m:m)+":"+(rs<10?'0'+rs:rs); }
-    function wakeUpUI() { document.getElementById('home-overlay').style.opacity = "1"; clearTimeout(uiTimer); uiTimer = setTimeout(()=> { if(!isLoopActive) document.getElementById('home-overlay').style.opacity="0"; }, 5000); }
+    function wakeUpUI() { document.getElementById('home-overlay').style.opacity = "1"; clearTimeout(uiTimer); uiTimer = setTimeout(()=> { if(!isLoopActive && curMode === 'seek') document.getElementById('home-overlay').style.opacity="0"; }, 5000); }
 </script>
 </body>
 </html>
