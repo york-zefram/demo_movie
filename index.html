@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Layout Debug)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Color Debug)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -11,11 +11,6 @@
             --disabled-color: #444;
             --panel-bg: rgba(10, 10, 10, 0.85);
             --ad-height: 50px;
-            
-            /* デバッグ用カラー変数 */
-            --debug-side: #333333;   /* 左右サイドバー：グレー */
-            --debug-bottom: #000033; /* ボトムバー：濃紺 */
-            --debug-main: #002200;   /* メイン背景：深緑 */
         }
         
         body { 
@@ -24,131 +19,323 @@
             display: flex; flex-direction: column;
         }
 
-        /* 広告領域 */
+        /* 広告領域：視認のため濃いグレーに */
         #ad-container {
             width: 100%; height: var(--ad-height);
             background: #222; z-index: 3000;
             display: flex; align-items: center; justify-content: center;
-        }
-
-        /* メインレイアウト：左右サイドバーと中央エリアの横並び */
-        #layout-wrapper {
-            display: flex;
-            flex: 1;
-            width: 100vw;
-            overflow: hidden;
-        }
-
-        /* 左右サイドバー：10vw */
-        .sidebar {
-            width: 10vw;
-            height: 100%;
-            background: var(--debug-side);
-            z-index: 2000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 20px;
-            gap: 20px;
-        }
-
-        /* 中央メインコンテナ：上下に分割 */
-        #center-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: var(--debug-main);
-        }
-
-        /* 動画表示エリア：アスペクト比維持 */
-        #video-viewport { 
-            flex: 1;
-            width: 100%;
-            display: flex; align-items: center; justify-content: center;
-            position: relative;
-        }
-        
-        #yt-player, #local-video { 
-            width: 100%; height: 100%; 
-            max-width: 100%; max-height: 100%;
-            object-fit: contain; /* アスペクト比を厳守 */
-        }
-
-        /* ボトム操作バー：15vh */
-        #bottom-bar {
-            height: 15vh;
-            width: 100%;
-            background: var(--debug-bottom);
-            z-index: 2000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 0 20px;
-            box-sizing: border-box;
-        }
-
-        /* --- 既存UI要素の調整 --- */
-        #home-overlay {
-            display: none; /* 新レイアウト確認のため一時非表示 */
+            border-bottom: 1px solid #444;
         }
 
         header {
-            position: absolute; top: var(--ad-height); left: 50%; transform: translateX(-50%);
-            width: auto; height: 30px; display: flex; align-items: center;
-            font-size: 10px; z-index: 2500; pointer-events: none;
-            color: rgba(255,255,255,0.5);
+            position: absolute; top: var(--ad-height); left: 0; width: 100%; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+            letter-spacing: 0.15em; font-size: 12px; z-index: 2000; pointer-events: none;
+            transition: opacity 0.5s ease;
         }
 
+        /* メインコンテナ：アスペクト比確認のため背景を深緑に */
+        #main-container {
+            position: relative; flex: 1; width: 100vw;
+            display: flex; align-items: center; justify-content: center; 
+            background: #002200; /* デバッグ用：深緑 */
+        }
+
+        #video-viewport { 
+            width: 100%; height: 100%; 
+            display: flex; align-items: center; justify-content: center; 
+        }
+        #yt-player, #local-video { 
+            width: 100%; height: 100%; 
+            max-width: 100%; max-height: 100%;
+            object-fit: contain; 
+        }
         #local-video { display: none; background: #000; }
+
+        /* オーバーレイ全体：デバッグのため左右に10vwの余白、背景を濃紺に */
+        #home-overlay {
+            position: absolute; bottom: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1000; display: flex; flex-direction: column; 
+            justify-content: flex-end; /* 下に寄せる */
+            padding: 0 10vw 5vh 10vw; /* 左右10vw、下5vhの余白 */
+            box-sizing: border-box;
+            pointer-events: none; transition: opacity 0.5s ease;
+            background: rgba(0, 0, 51, 0.3); /* デバッグ用：薄い濃紺 */
+        }
+
+        .nav-row, #dynamic-content, .transport-container { pointer-events: auto; }
+
+        /* ナビゲーション行 */
+        .nav-row { 
+            display: flex; justify-content: space-between; gap: 5px; 
+            background: var(--panel-bg); padding: 8px; border-radius: 8px; border: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        
+        .btn-nav {
+            flex: 1; padding: 10px 0; background: none; border: 1px solid var(--neon-blue);
+            color: #fff; font-family: 'Michroma', sans-serif; font-size: 9px; 
+            cursor: pointer; border-radius: 4px; transition: 0.2s; text-align: center; white-space: nowrap;
+        }
+        .btn-nav.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
+
+        /* コンテンツエリア */
+        #dynamic-content { 
+            min-height: 100px; display: flex; align-items: center; padding: 20px;
+            background: var(--panel-bg); border-radius: 12px; border: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        .mode-panel { display: none; width: 100%; flex-direction: column; }
+        .mode-panel.active { display: flex; }
+
+        /* 操作バー：高さを確保し、背景を明確な濃紺に */
+        .transport-container { 
+            display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; 
+            min-height: 15vh; /* 操作性向上のため15vh確保 */
+            background: #000033; /* デバッグ用：濃紺 */
+            padding: 15px 0; border-radius: 12px; border: 1px solid var(--neon-blue);
+        }
+
+        /* 以下、既存のパーツスタイル（変更なし） */
+        .bar-track { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.15); position: relative; cursor: pointer; border-radius: 4px; }
+        .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; z-index: 1; pointer-events: none; }
+        .knob { position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; will-change: left; }
+        .knob-white { width: 18px; height: 18px; background: #fff; box-shadow: 0 0 12px #fff; z-index: 10; }
+        #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 2; box-shadow: var(--neon-glow); pointer-events: none; }
+        .knob-ab { width: 36px; height: 36px; border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9); color: var(--neon-blue); display: none; align-items: center; justify-content: center; font-size: 12px; z-index: 15; box-shadow: var(--neon-glow); }
+        .speed-labels { display: flex; justify-content: space-between; width: 100%; margin-bottom: 20px; color: var(--neon-blue); font-size: 10px; opacity: 0.8; }
+        .speed-value-display { text-align: center; margin-top: 15px; font-size: 18px; letter-spacing: 0.1em; }
+        .time-display { display: flex; justify-content: space-between; margin-top: 24px; font-size: 18px; filter: drop-shadow(var(--neon-glow)); }
+        .btn-circle { background: none; border: 2px solid var(--neon-blue); color: var(--neon-blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-family: 'Michroma', sans-serif; transition: 0.2s; box-shadow: var(--neon-glow); }
+        .btn-circle:disabled { border-color: var(--disabled-color); color: var(--disabled-color); box-shadow: none; cursor: default; }
+        .btn-circle.active { background: var(--neon-blue); color: #000; }
+        .btn-ab-ctrl { width: 45px; height: 45px; font-size: 14px; }
+        .btn-main-ctrl { width: 65px; height: 65px; font-size: 20px; }
+        .input-box { display: flex; gap: 10px; width: 100%; }
+        input[type=text] { flex: 1; background: #111; border: 1px solid #444; color: #fff; padding: 10px; font-family: 'Michroma', sans-serif; font-size: 10px; outline: none; }
+        #file-input { display: none; }
+        .hidden { opacity: 0; pointer-events: none !important; }
     </style>
 </head>
 <body>
 
 <div id="ad-container">
-    <div style="font-size: 9px; color: #555; letter-spacing: 2px;">ADVERTISEMENT AREA (50PX)</div>
+    <div style="font-size: 9px; color: #555; letter-spacing: 2px;">ADVERTISEMENT (50PX)</div>
 </div>
 
-<header id="ui-header">ZEFRAM VIDEO PLAYER - LAYOUT DEBUG</header>
+<header id="ui-header">ZEFRAM VIDEO PLAYER</header>
 
-<div id="layout-wrapper">
-    <div class="sidebar" id="left-sidebar">
-        <div style="font-size:8px; color:#666;">LEFT (10vw)</div>
+<div id="main-container">
+    <div id="video-viewport">
+        <div id="yt-player"></div>
+        <video id="local-video" playsinline></video>
     </div>
-
-    <div id="center-container">
-        <div id="video-viewport">
-            <div id="yt-player"></div>
-            <video id="local-video" playsinline></video>
+    
+    <div id="home-overlay">
+        <div class="nav-row">
+            <button class="btn-nav active" data-mode="seek">HOME</button>
+            <button class="btn-nav" id="nav-mirror">MIRROR</button>
+            <button class="btn-nav" id="nav-loop">LOOP</button>
+            <button class="btn-nav" data-mode="speed">SPEED</button>
+            <button class="btn-nav" data-mode="url">URL</button>
+            <button class="btn-nav" data-mode="file">FILE</button>
+            <button class="btn-nav" data-mode="list">LIST</button>
+            <button class="btn-nav" data-mode="setting">SETTING</button>
         </div>
 
-        <div id="bottom-bar">
-            <div style="font-size:8px; color:#666; margin-bottom:10px;">BOTTOM BAR (15vh)</div>
-            <div style="width:100%; height:4px; background:rgba(255,255,255,0.2); border-radius:2px;">
-                <div style="width:30%; height:100%; background:var(--neon-blue); box-shadow:var(--neon-glow);"></div>
+        <div id="dynamic-content">
+            <div id="panel-seek" class="mode-panel active">
+                <div class="bar-track" id="main-track">
+                    <div class="bar-fill" id="main-fill"></div>
+                    <div id="ab-range"></div>
+                    <div class="knob knob-white" id="main-knob" style="left: 0%;"></div>
+                    <div class="knob knob-ab" id="knob-a" style="left: 0%;">A</div>
+                    <div class="knob knob-ab" id="knob-b" style="left: 100%;">B</div>
+                </div>
+                <div class="time-display">
+                    <span id="txt-cur">00:00</span><span id="txt-total">00:00</span>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <div class="sidebar" id="right-sidebar">
-        <div style="font-size:8px; color:#666;">RIGHT (10vw)</div>
+            <div id="panel-speed" class="mode-panel">
+                <div class="speed-labels"><span>-50%</span><span>0%</span><span>+50%</span></div>
+                <div class="bar-track" id="speed-track"><div class="knob knob-white" id="speed-knob" style="left: 50%;"></div></div>
+                <div class="speed-value-display" id="txt-speed">1.00x</div>
+            </div>
+
+            <div id="panel-url" class="mode-panel">
+                <div class="input-box">
+                    <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
+                    <button class="btn-nav" id="btn-url-go" style="flex:none; width:60px;">GO</button>
+                </div>
+            </div>
+
+            <div id="panel-file" class="mode-panel">
+                <div class="input-box">
+                    <button class="btn-nav" onclick="document.getElementById('file-input').click()">CHOOSE VIDEO FILE</button>
+                    <input type="file" id="file-input" accept="video/*">
+                </div>
+            </div>
+            
+            <div id="panel-list" class="mode-panel"><div style="text-align:center;font-size:10px;">LIST MODE (COMING SOON)</div></div>
+            <div id="panel-setting" class="mode-panel"><div style="text-align:center;font-size:10px;">SETTING / INFORMATION (COMING SOON)</div></div>
+        </div>
+
+        <div class="transport-container">
+            <button class="btn-circle btn-ab-ctrl" id="btn-set-a" disabled>A</button>
+            <button class="btn-circle btn-main-ctrl" id="btn-prev">|◀</button>
+            <button class="btn-circle btn-main-ctrl" id="btn-play">▶</button>
+            <button class="btn-circle btn-ab-ctrl" id="btn-set-b" disabled>B</button>
+        </div>
     </div>
 </div>
 
 <script>
+    /* JavaScriptロジックは index5.html のものを一字一句変えずに継承 */
     const state = {
         player: null, localVid: null, isYoutube: true,
         isLoop: false, isMirror: false, currentMode: 'seek',
-        startT: 0, endT: 0, activeDrag: null
+        startT: 0, endT: 0, activeDrag: null, uiTimeout: null
     };
+
+    const getT = () => state.isYoutube ? state.player.getCurrentTime() : state.localVid.currentTime;
+    const getD = () => state.isYoutube ? state.player.getDuration() : state.localVid.duration;
+    const setT = (t) => state.isYoutube ? state.player.seekTo(t, true) : (state.localVid.currentTime = t);
+    const setR = (r) => state.isYoutube ? state.player.setPlaybackRate(r) : (state.localVid.playbackRate = r);
+    const fmt = (s) => {
+        if(!s || isNaN(s)) return "00:00";
+        const m = Math.floor(s/60), rs = Math.floor(s%60);
+        return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`;
+    };
+
+    function resetUITimeout() {
+        const overlay = document.getElementById('home-overlay');
+        const header = document.getElementById('ui-header');
+        overlay.classList.remove('hidden');
+        header.classList.remove('hidden');
+        clearTimeout(state.uiTimeout);
+        state.uiTimeout = setTimeout(() => {
+            overlay.classList.add('hidden');
+            header.classList.add('hidden');
+        }, 5000);
+    }
+
+    function updatePlayButton() {
+        const btn = document.getElementById('btn-play');
+        const isPlaying = state.isYoutube ? (state.player && state.player.getPlayerState && state.player.getPlayerState() === 1) : !state.localVid.paused;
+        btn.innerText = isPlaying ? "Ⅱ" : "▶";
+    }
+
+    function renderLoop() {
+        const now = getT(), dur = getD();
+        if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) setT(state.startT);
+        if (dur > 0) {
+            const p = (now / dur) * 100;
+            if (!state.activeDrag || state.activeDrag !== 'now') {
+                document.getElementById('main-fill').style.width = p + "%";
+                document.getElementById('main-knob').style.left = p + "%";
+                document.getElementById('txt-cur').innerText = fmt(now);
+            }
+            document.getElementById('txt-total').innerText = fmt(dur);
+            const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
+            const btnA = document.getElementById('btn-set-a'), btnB = document.getElementById('btn-set-b');
+            if (state.isLoop) {
+                ka.style.display = kb.style.display = range.style.display = 'flex';
+                btnA.disabled = btnB.disabled = false;
+                const sP = (state.startT / dur) * 100, eP = (state.endT || dur) / dur * 100;
+                ka.style.left = sP + "%"; kb.style.left = eP + "%";
+                range.style.left = sP + "%"; range.style.width = (eP - sP) + "%";
+            } else {
+                ka.style.display = kb.style.display = range.style.display = 'none';
+                btnA.disabled = btnB.disabled = true;
+            }
+        }
+        updatePlayButton();
+        requestAnimationFrame(renderLoop);
+    }
+
+    function initEvents() {
+        state.localVid = document.getElementById('local-video');
+        window.addEventListener('mousemove', resetUITimeout);
+        window.addEventListener('mousedown', resetUITimeout);
+        window.addEventListener('touchstart', resetUITimeout);
+        resetUITimeout();
+
+        document.getElementById('nav-mirror').onclick = (e) => {
+            e.stopPropagation();
+            state.isMirror = !state.isMirror;
+            document.getElementById('video-viewport').style.transform = state.isMirror ? "scaleX(-1)" : "scaleX(1)";
+            document.getElementById('nav-mirror').classList.toggle('active', state.isMirror);
+        };
+        document.getElementById('nav-loop').onclick = (e) => {
+            e.stopPropagation();
+            state.isLoop = !state.isLoop;
+            document.getElementById('nav-loop').classList.toggle('active', state.isLoop);
+            if(state.isLoop) { state.startT = 0; state.endT = getD(); }
+        };
+        document.getElementById('btn-play').onclick = (e) => {
+            e.stopPropagation();
+            if(state.isYoutube) { state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo(); }
+            else { state.localVid.paused ? state.localVid.play() : state.localVid.pause(); }
+        };
+        document.getElementById('btn-set-a').onclick = () => { if(state.isLoop) { state.startT = getT(); document.getElementById('btn-set-a').classList.add('active'); } };
+        document.getElementById('btn-set-b').onclick = () => { if(state.isLoop) { state.endT = getT(); document.getElementById('btn-set-b').classList.add('active'); } };
+        document.getElementById('btn-prev').onclick = () => setT(state.startT);
+
+        const handleInput = (e, type) => {
+            const track = document.getElementById(type === 'speed' ? 'speed-track' : 'main-track');
+            const rect = track.getBoundingClientRect();
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const p = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
+            if (type === 'now') { setT(p * getD()); }
+            else if (type === 'a') state.startT = p * getD();
+            else if (type === 'b') state.endT = p * getD();
+            else if (type === 'speed') {
+                const r = 0.5 + p; setR(r);
+                document.getElementById('speed-knob').style.left = (p * 100) + "%";
+                document.getElementById('txt-speed').innerText = r.toFixed(2) + "x";
+            }
+        };
+
+        document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+        document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
+        document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); if(state.isLoop) state.activeDrag = 'a'; };
+        document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); if(state.isLoop) state.activeDrag = 'b'; };
+        window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
+        window.onmouseup = () => state.activeDrag = null;
+        document.querySelectorAll('.btn-nav[data-mode]').forEach(b => b.onclick = () => {
+            const m = b.dataset.mode;
+            document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(`panel-${m}`).classList.add('active');
+            document.querySelectorAll('.btn-nav[data-mode]').forEach(btn => btn.classList.toggle('active', btn === b));
+        });
+
+        document.getElementById('btn-url-go').onclick = () => {
+            const v = document.getElementById('input-url').value;
+            const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
+            if(id) {
+                state.isYoutube = true; state.localVid.style.display = 'none'; document.getElementById('yt-player').style.display = 'block';
+                state.player.loadVideoById(id);
+            }
+        };
+        document.getElementById('file-input').onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                state.isYoutube = false; document.getElementById('yt-player').style.display = 'none'; state.localVid.style.display = 'block';
+                state.player.pauseVideo(); state.localVid.src = URL.createObjectURL(file); state.localVid.play();
+            }
+        };
+    }
 
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
-    
     window.onYouTubeIframeAPIReady = () => {
         state.player = new YT.Player('yt-player', {
             videoId: 'ScXNbe_5Y0o',
             playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
-            events: { 'onReady': () => { console.log("Layout Ready"); } }
+            events: { 'onReady': () => { initEvents(); requestAnimationFrame(renderLoop); } }
         });
     };
 </script>
