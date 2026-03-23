@@ -10,29 +10,49 @@
             --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); 
             --disabled-color: #444;
             --panel-bg: rgba(10, 10, 10, 0.85);
+            --ad-height: 50px; /* 広告領域の高さ */
         }
         
         body { 
             background: #000; color: var(--neon-blue); font-family: 'Michroma', sans-serif; 
             margin: 0; overflow: hidden; height: 100vh; width: 100vw; text-transform: uppercase;
+            display: flex; flex-direction: column;
+        }
+
+        /* 広告領域：50px固定・黒塗り */
+        #ad-container {
+            width: 100%; height: var(--ad-height);
+            background: #000; z-index: 3000;
+            display: flex; align-items: center; justify-content: center;
+            border-bottom: 1px solid #222; /* 境界を僅かに示す */
         }
 
         header {
-            position: absolute; top: 0; left: 0; width: 100%; height: 50px;
+            position: absolute; top: var(--ad-height); left: 0; width: 100%; height: 40px;
             display: flex; align-items: center; justify-content: center;
             background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
-            letter-spacing: 0.15em; font-size: 14px; z-index: 2000; pointer-events: none;
+            letter-spacing: 0.15em; font-size: 12px; z-index: 2000; pointer-events: none;
             transition: opacity 0.5s ease;
         }
 
+        /* メインコンテンツ：広告を除いた残りの全域 */
         #main-container {
-            position: relative; width: 100vw; height: 100vh;
+            position: relative; flex: 1; width: 100vw;
             display: flex; align-items: center; justify-content: center; background: #000;
         }
 
-        #video-viewport { width: 100%; height: 100%; transition: transform 0.3s ease; display: flex; align-items: center; justify-content: center; }
-        #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-        #local-video { display: none; background: #000; object-fit: contain; }
+        /* アスペクト比維持のロジック：object-fit: contain */
+        #video-viewport { 
+            width: 100%; height: 100%; 
+            transition: transform 0.3s ease; 
+            display: flex; align-items: center; justify-content: center; 
+        }
+        #yt-player, #local-video { 
+            width: 100%; height: 100%; 
+            max-width: 100%; max-height: 100%;
+            object-fit: contain; /* アスペクト比を維持 */
+        }
+        #local-video { display: none; background: #000; }
 
         #home-overlay {
             position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%);
@@ -95,11 +115,14 @@
         input[type=text] { flex: 1; background: #111; border: 1px solid #444; color: #fff; padding: 10px; font-family: 'Michroma', sans-serif; font-size: 10px; outline: none; }
         #file-input { display: none; }
 
-        /* フェードアウト用クラス */
         .hidden { opacity: 0; pointer-events: none !important; }
     </style>
 </head>
 <body>
+
+<div id="ad-container">
+    <div style="font-size: 9px; color: #333; letter-spacing: 2px;">ADVERTISEMENT AREA</div>
+</div>
 
 <header id="ui-header">ZEFRAM VIDEO PLAYER</header>
 
@@ -185,7 +208,6 @@
         return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`;
     };
 
-    // UIフェードアウト管理
     function resetUITimeout() {
         const overlay = document.getElementById('home-overlay');
         const header = document.getElementById('ui-header');
@@ -195,10 +217,9 @@
         state.uiTimeout = setTimeout(() => {
             overlay.classList.add('hidden');
             header.classList.add('hidden');
-        }, 5000); // 5秒
+        }, 5000);
     }
 
-    // 再生ボタンのトグル更新
     function updatePlayButton() {
         const btn = document.getElementById('btn-play');
         const isPlaying = state.isYoutube ? (state.player.getPlayerState() === 1) : !state.localVid.paused;
@@ -239,7 +260,6 @@
     function initEvents() {
         state.localVid = document.getElementById('local-video');
 
-        // 無操作監視イベント
         window.addEventListener('mousemove', resetUITimeout);
         window.addEventListener('mousedown', resetUITimeout);
         window.addEventListener('touchstart', resetUITimeout);
@@ -281,8 +301,6 @@
             if (type === 'now') {
                 const time = p * getD();
                 setT(time);
-                document.getElementById('main-fill').style.width = (p * 100) + "%";
-                document.getElementById('main-knob').style.left = (p * 100) + "%";
             } else if (type === 'a') state.startT = p * getD();
             else if (type === 'b') state.endT = p * getD();
             else if (type === 'speed') {
