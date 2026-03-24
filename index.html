@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Safe Scale Optimized)</title>
+    <title>ZEFRAM PLAYER NEO - Universal Bezel</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -10,10 +10,9 @@
             --top-h: 50px;
             --bottom-h: 25vh;
             --lane-w: 15vw;
-            --center-ratio: 16 / 9;
-            --sync-height: calc(var(--bottom-h) / 2);
-            --icon-size: 8vh; 
-            --icon-max: 55px;
+            /* 全画面モード用の変数 */
+            --fs-status-h: 10vh; 
+            --fs-side-vazel: 5vw; 
         }
 
         body { 
@@ -22,6 +21,7 @@
             display: flex; flex-direction: column;
         }
 
+        /* --- HOME LAYOUT --- */
         #top-container {
             flex: 0 0 var(--top-h); background: #000; z-index: 300;
             display: flex; align-items: center; justify-content: center;
@@ -32,20 +32,11 @@
             flex: 1; position: relative; display: flex; background: #111; z-index: 50; overflow: hidden;
         }
 
-        /* 全画面時は赤の判定色 */
-        #center-area:fullscreen { 
-            background: #ff0000 !important; 
-            width: 100vw; height: 100vh;
-            display: flex; align-items: center; justify-content: center;
-        }
-
         .side-lane {
             width: var(--lane-w); height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
             padding: 2vh 0; box-sizing: border-box; z-index: 200;
         }
-        #left-lane { background: rgba(0, 100, 0, 0.2); }
-        #right-lane { background: rgba(139, 69, 19, 0.2); }
 
         #video-main {
             flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
@@ -53,15 +44,13 @@
         
         #yt-player {
             background: #000;
-            transition: width 0.2s, height 0.2s;
+            transition: all 0.3s ease;
         }
 
-        /* 通常時はサイドレーンの内側にフィット */
         #yt-player:not(:fullscreen) {
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
-            aspect-ratio: var(--center-ratio);
+            aspect-ratio: 16 / 9;
         }
 
         #bottom-container {
@@ -69,28 +58,42 @@
             display: flex; align-items: center;
         }
 
-        .bottom-lane-sync { width: var(--lane-w); height: 100%; display: flex; justify-content: center; align-items: center; }
-        .seekbar-area { flex: 1; padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+        /* --- FULLSCREEN BEZEL SYSTEM --- */
+        #center-area:fullscreen {
+            background: #ff0000 !important;
+            display: flex; flex-direction: column;
+            justify-content: flex-start; /* 上寄せ */
+            align-items: center;
+        }
 
-        .url-input-wrap { display: flex; gap: 5px; width: 100%; }
-        #input-url { 
-            flex: 1; background: #111; border: 1px solid var(--neon-blue); color: #fff; 
-            padding: 5px; font-family: 'Michroma'; font-size: 10px;
+        /* 全画面時のステータスエリア (10vh) */
+        #fs-status-bar {
+            display: none;
+            position: absolute; bottom: 0; left: 0;
+            width: 100vw; height: var(--fs-status-h);
+            background: #ff0000; /* 赤のベゼル */
+            z-index: 9999;
+            align-items: center;
+            padding: 0 5vw;
+            box-sizing: border-box;
+        }
+
+        #center-area:fullscreen #fs-status-bar { display: flex; justify-content: flex-end; }
+        #center-area:fullscreen .side-lane { display: none; }
+
+        /* EXITテキストボタン */
+        .fs-exit-txt {
+            color: #fff; font-size: 3vw; cursor: pointer;
+            letter-spacing: 2px; font-weight: bold;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
 
         .grid-icon-box {
-            width: var(--icon-size); height: var(--icon-size);
-            max-width: var(--icon-max); max-height: var(--icon-max);
+            width: 8vh; height: 8vh; max-width: 55px; max-height: 55px;
             background: #fff; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: #000; font-size: 10px; font-weight: bold;
         }
-
-        #exit-fullscreen-btn-sync {
-            display: none; position: absolute; z-index: 9999;
-        }
-        #center-area:fullscreen #exit-fullscreen-btn-sync { display: block; }
-        #center-area:fullscreen .side-lane { display: none; }
     </style>
 </head>
 <body>
@@ -100,36 +103,39 @@
     <div id="center-area">
         <div id="left-lane" class="side-lane">
             <div class="grid-icon-box">SPD</div><div class="grid-icon-box">LOP</div><div class="grid-icon-box">MIR</div>
-            <div class="grid-icon-box">HOM</div><div class="grid-icon-box">A</div><div class="grid-icon-box">TOP</div>
         </div>
-        <div id="video-main"><div id="yt-player"></div></div>
+        
+        <div id="video-main">
+            <div id="yt-player"></div>
+        </div>
+
         <div id="right-lane" class="side-lane">
-            <div class="grid-icon-box">BAG</div><div class="grid-icon-box">LST</div><div class="grid-icon-box">FIL</div>
-            <div class="grid-icon-box" onclick="document.getElementById('input-url').focus()">WEB</div>
-            <div class="grid-icon-box">B</div><div class="grid-icon-box">--</div>
+            <div class="grid-icon-box">FIL</div><div class="grid-icon-box">WEB</div><div class="grid-icon-box">--</div>
         </div>
-        <div id="exit-fullscreen-btn-sync" onclick="exitFull()">
-            <div class="grid-icon-box" style="background: var(--neon-blue);">EXIT</div>
+
+        <div id="fs-status-bar">
+            <div class="fs-exit-txt" onclick="exitFull()">EXIT</div>
         </div>
     </div>
 
     <div id="bottom-container">
-        <div class="bottom-lane-sync"><div class="grid-icon-box" id="btn-play-sync" onclick="togglePlay()">PLAY</div></div>
-        <div class="seekbar-area">
-            <div class="url-input-wrap">
-                <input type="text" id="input-url" placeholder="PASTE YOUTUBE URL...">
-                <div class="grid-icon-box" style="width:40px; height:30px;" onclick="loadVideo()">GO</div>
-            </div>
-            <div style="width:100%; height:4px; background:rgba(0, 243, 255, 0.2);"><div id="progress-fill" style="width:0%; height:100%; background:var(--neon-blue);"></div></div>
+        <div style="width:var(--lane-w); display:flex; justify-content:center;">
+            <div class="grid-icon-box" id="btn-play-sync" onclick="togglePlay()">PLAY</div>
         </div>
-        <div class="bottom-lane-sync"><div class="grid-icon-box" onclick="enterFull()">FULL</div></div>
+        <div style="flex:1; padding:0 20px;">
+            <div style="width:100%; height:4px; background:rgba(0, 243, 255, 0.2);">
+                <div id="progress-fill" style="width:0%; height:100%; background:var(--neon-blue);"></div>
+            </div>
+        </div>
+        <div style="width:var(--lane-w); display:flex; justify-content:center;">
+            <div class="grid-icon-box" onclick="enterFull()">FULL</div>
+        </div>
     </div>
 
     <script>
         let player;
         const centerArea = document.getElementById('center-area');
-        const ytContainer = document.getElementById('yt-player');
-        const exitBtn = document.getElementById('exit-fullscreen-btn-sync');
+        const yt = document.getElementById('yt-player');
 
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -146,55 +152,39 @@
         };
 
         function togglePlay() { player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); }
-        function loadVideo() {
-            const v = document.getElementById('input-url').value;
-            const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
-            if(id) player.loadVideoById(id);
-        }
 
-        function updateLayout() {
-            const sw = window.innerWidth;
-            const sh = window.innerHeight;
-
+        function updateFullscreenLayout() {
             if (!document.fullscreenElement) {
-                // ホーム画面：CSSの制限に従うためJSでの強制上書きを解除
-                ytContainer.style.width = "";
-                ytContainer.style.height = "";
+                yt.style.width = ""; yt.style.height = "";
                 return;
             }
 
-            // 全画面時
-            const minSafeWidth = 70; // EXITボタン用の最小ガード（片側）
-            let vw = Math.min(sw, sh * (16/9));
+            const sw = window.innerWidth;
+            const sh = window.innerHeight;
+            const statusBarH = sh * 0.1; // 10vh
+
+            // 映像利用可能エリア（高さは10vhを引いた残り）
+            const availableH = sh - statusBarH;
+            const bezelW = sw * 0.1; // 左右に合計10vwのベゼル（片側5vwずつ）を想定
+
+            let vw = Math.min(sw - (bezelW * 2), availableH * (16/9));
             let vh = vw * (9/16);
 
-            // 衝突判定：16:9スマホなどで余白がminSafeWidthより狭い場合のみ縮小
-            const margin = (sw - vw) / 2;
-            if (margin < minSafeWidth) {
-                vw = sw - (minSafeWidth * 2);
-                vh = vw * (9/16);
-            }
-
-            ytContainer.style.width = vw + "px";
-            ytContainer.style.height = vh + "px";
-
-            // ボタン配置
-            const currentMargin = (sw - vw) / 2;
-            exitBtn.style.bottom = ((sh * 0.25) / 2) + "px";
-            exitBtn.style.right = (currentMargin / 2) + "px";
-            exitBtn.style.transform = "translate(50%, 50%)";
+            yt.style.width = vw + "px";
+            yt.style.height = vh + "px";
+            // 上寄せ配置はCSSのjustify-content: flex-startで担保
         }
 
-        function enterFull() { centerArea.requestFullscreen().then(updateLayout); }
+        function enterFull() { centerArea.requestFullscreen().then(updateFullscreenLayout); }
         function exitFull() { document.exitFullscreen(); }
 
-        window.addEventListener('resize', updateLayout);
-        document.addEventListener('fullscreenchange', updateLayout);
+        window.addEventListener('resize', updateFullscreenLayout);
+        document.addEventListener('fullscreenchange', updateFullscreenLayout);
 
         function tick() {
             if(player && player.getCurrentTime) {
                 const p = (player.getCurrentTime() / player.getDuration()) * 100;
-                document.getElementById('progress-fill').style.width = p + "%";
+                document.getElementById('progress-fill').style.width = (p || 0) + "%";
             }
             requestAnimationFrame(tick);
         }
