@@ -74,7 +74,6 @@
         }
         .grid-icon-box.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
         .grid-icon-box.blank { border: 1px solid #222; cursor: default; color: #444; }
-
         .grid-icon-box.locked { border-color: var(--disabled-color); color: var(--disabled-color); cursor: default; pointer-events: none; }
 
         @keyframes breathe {
@@ -91,27 +90,27 @@
         .mode-panel { display: none; width: 100%; flex-direction: column; gap: 5px; }
         .mode-panel.active { display: flex; }
 
-        /* Title List Overlay */
+        /* Full Screen Title List Overlay */
         #list-overlay {
-            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 500; flex-direction: column;
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 9999; flex-direction: column;
         }
         #list-overlay.active { display: flex; }
 
         #list-ad-area { height: var(--ad-h); width: 100%; background: #000; flex-shrink: 0; }
         
         #list-header {
-            padding: 10px 15px; border-bottom: 1px solid #333;
-            display: flex; flex-direction: column; gap: 10px;
+            padding: 15px 20px; border-bottom: 1px solid #333;
+            display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;
         }
         .list-top-row { display: flex; justify-content: space-between; align-items: center; }
-        .list-title { font-size: 14px; letter-spacing: 0.1em; color: var(--neon-blue); }
-        .list-close { font-size: 14px; cursor: pointer; color: var(--neon-blue); }
-        .list-breadcrumb { font-size: 10px; color: var(--neon-blue); opacity: 0.8; letter-spacing: 0.05em; }
+        .list-title { font-size: 16px; letter-spacing: 0.1em; color: var(--neon-blue); }
+        .list-close { font-size: 16px; cursor: pointer; color: var(--neon-blue); padding: 5px; }
+        .list-breadcrumb { font-size: 11px; color: var(--neon-blue); opacity: 0.8; letter-spacing: 0.1em; }
 
-        #list-content { flex: 1; overflow-y: auto; padding: 10px 15px; }
+        #list-content { flex: 1; overflow-y: auto; padding: 10px 20px; }
 
-        /* Rest of the common styles */
+        /* Control UI Elements */
         .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
         .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
         #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 1; box-shadow: var(--neon-glow); border-radius: 6px; pointer-events: none; }
@@ -143,7 +142,7 @@
 
         #fs-status-bar {
             display: none; position: absolute; bottom: 0; left: 0; width: 100%; height: var(--fs-status-h);
-            background: #000; border-top: 1px solid #333; z-index: 9999;
+            background: #000; border-top: 1px solid #333; z-index: 999;
             align-items: center; justify-content: space-evenly;
         }
         #center-area:fullscreen #fs-status-bar { display: flex; }
@@ -180,19 +179,6 @@
                 <div id="yt-player"></div>
                 <video id="local-video" playsinline></video>
             </div>
-
-            <div id="list-overlay">
-                <div id="list-ad-area"></div>
-                <div id="list-header">
-                    <div class="list-top-row">
-                        <div class="list-title">MUSIC PLAYLIST</div>
-                        <div class="list-close" id="list-btn-close">CLOSE</div>
-                    </div>
-                    <div class="list-breadcrumb">ROOT / </div>
-                </div>
-                <div id="list-content">
-                    </div>
-            </div>
         </div>
 
         <div id="right-lane" class="side-lane">
@@ -215,6 +201,19 @@
             <div class="fs-sep"></div>
             <div class="fs-btn" id="fs-btn-exit" style="color:#fff;">EXIT</div>
         </div>
+    </div>
+
+    <div id="list-overlay">
+        <div id="list-ad-area"></div>
+        <div id="list-header">
+            <div class="list-top-row">
+                <div class="list-title">MUSIC PLAYLIST</div>
+                <div class="list-close" id="list-btn-close">CLOSE</div>
+            </div>
+            <div class="list-breadcrumb">ROOT / </div>
+        </div>
+        <div id="list-content">
+            </div>
     </div>
 
     <div id="bottom-container">
@@ -317,6 +316,12 @@
             switchMode('home');
         }
 
+        function pausePlayback() {
+            if(!state.isInitialized) return;
+            if(state.isYoutube) state.player.pauseVideo();
+            else state.localVid.pause();
+        }
+
         function updatePlayIcon() {
             const btn = document.getElementById('btn-play-pause');
             const isPlaying = state.isYoutube ? (state.player?.getPlayerState?.() === 1) : !state.localVid.paused;
@@ -390,11 +395,13 @@
             document.getElementById('btn-web').onclick = () => switchMode('web');
             document.getElementById('btn-fil').onclick = () => switchMode('file');
             
-            // List Overlay Events
+            // LST Button: Pause playback and show full screen overlay
             document.getElementById('btn-lst').onclick = () => {
                 if(!state.isInitialized) return;
+                pausePlayback();
                 document.getElementById('list-overlay').classList.add('active');
             };
+
             document.getElementById('list-btn-close').onclick = () => {
                 document.getElementById('list-overlay').classList.remove('active');
             };
