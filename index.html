@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Baseline Check)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Baseline Check - Fixed)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -47,12 +47,14 @@
             flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
         }
 
-        /* 16:9を維持するコンテナ */
+        /* 16:9を維持しつつ、上下の切れを防止するために2pxの遊びを追加 */
         #yt-player {
             width: 100%;
-            max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
+            max-width: calc((100vh - var(--top-h) - var(--bottom-h) - 2px) * (16 / 9));
+            max-height: calc(100% - 2px);
             aspect-ratio: var(--center-ratio);
             background: #000;
+            object-fit: contain; /* 映像を枠内に収める */
         }
 
         #center-area:fullscreen #video-main {
@@ -61,8 +63,8 @@
         }
 
         #center-area:fullscreen #yt-player {
-            max-width: calc((100vh - var(--fs-status-h)) * (16 / 9));
-            max-height: calc(100vh - var(--fs-status-h));
+            max-width: calc((100vh - var(--fs-status-h) - 2px) * (16 / 9));
+            max-height: calc(100vh - var(--fs-status-h) - 2px);
         }
 
         /* URL入力オーバーレイ */
@@ -141,7 +143,6 @@
         let player;
         const centerArea = document.getElementById('center-area');
 
-        // YouTube API ロジック (index6.htmlより移植)
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
