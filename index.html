@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (HD Sync)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Speed Sync)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -45,8 +45,7 @@
         }
 
         #video-viewport-wrapper {
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
             max-height: 100%;
             aspect-ratio: var(--center-ratio);
@@ -54,10 +53,7 @@
             transition: transform 0.3s ease;
         }
 
-        #yt-player {
-            width: 100%;
-            height: 100%;
-        }
+        #yt-player { width: 100%; height: 100%; }
 
         .side-lane {
             width: var(--lane-w); height: 100%;
@@ -79,11 +75,16 @@
             flex: 1; height: 100%; padding: 0 20px; display: flex; align-items: center; justify-content: center;
         }
 
-        .mode-panel { display: none; width: 100%; flex-direction: column; gap: 10px; }
+        .mode-panel { display: none; width: 100%; flex-direction: column; gap: 5px; }
         .mode-panel.active { display: flex; }
 
         .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
         .bar-fill { height: 100%; background: var(--neon-blue); width: 0%; position: absolute; border-radius: 6px; box-shadow: var(--neon-glow); pointer-events: none; }
+        
+        /* スピード用スタイル */
+        .speed-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--neon-blue); margin-bottom: 4px; opacity: 0.7; }
+        .speed-display { text-align: center; font-size: 16px; margin-top: 8px; letter-spacing: 0.1em; }
+
         .time-display { display: flex; justify-content: space-between; font-size: 14px; margin-top: 5px; }
 
         .input-box { display: flex; gap: 10px; width: 100%; }
@@ -116,7 +117,7 @@
 
     <div id="center-area">
         <div id="left-lane" class="side-lane">
-            <div class="grid-icon-box blank">SPD</div>
+            <div class="grid-icon-box" id="btn-spd">SPD</div>
             <div class="grid-icon-box blank">LOP</div>
             <div class="grid-icon-box" id="btn-mir">MIR</div>
             <div class="grid-icon-box active" id="btn-hom">HOM</div>
@@ -160,6 +161,14 @@
                 </div>
             </div>
 
+            <div id="panel-speed" class="mode-panel">
+                <div class="speed-labels"><span>0.5x</span><span>1.0x</span><span>1.5x</span></div>
+                <div class="bar-track" id="speed-track">
+                    <div class="bar-fill" id="speed-fill" style="width: 50%;"></div>
+                </div>
+                <div class="speed-display" id="txt-speed">1.00x</div>
+            </div>
+
             <div id="panel-web" class="mode-panel">
                 <div class="input-box">
                     <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
@@ -178,7 +187,8 @@
             player: null,
             currentMode: 'home',
             isMirror: false,
-            isDragging: false
+            isDragging: false,
+            activeTrack: null
         };
 
         const tag = document.createElement('script');
@@ -186,22 +196,12 @@
         document.head.appendChild(tag);
 
         window.onYouTubeIframeAPIReady = () => {
-            // 画質低下を防ぐため、生成時に親要素のサイズを明示的に取得
             const wrapper = document.getElementById('video-viewport-wrapper');
-            const w = wrapper.clientWidth;
-            const h = wrapper.clientHeight;
-
             state.player = new YT.Player('yt-player', {
-                width: w,
-                height: h,
+                width: wrapper.clientWidth,
+                height: wrapper.clientHeight,
                 videoId: 'ScXNbe_5Y0o',
-                playerVars: { 
-                    'rel': 0, 
-                    'controls': 0, 
-                    'modestbranding': 1, 
-                    'playsinline': 1,
-                    'vq': 'highres' // 高解像度を優先的に要求
-                },
+                playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1, 'vq': 'highres' },
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange
@@ -209,11 +209,8 @@
             });
         };
 
-        function onPlayerReady(event) {
-            // API経由で可能な最高画質を設定（強制力はYouTube側に依存）
-            if(state.player.setPlaybackQuality) {
-                state.player.setPlaybackQuality('hd1080');
-            }
+        function onPlayerReady() {
+            if(state.player.setPlaybackQuality) state.player.setPlaybackQuality('hd1080');
             render();
             initEvents();
         }
@@ -221,12 +218,8 @@
         function onPlayerStateChange(event) {
             const btn = document.getElementById('btn-play-pause');
             btn.innerText = (event.data === YT.PlayerState.PLAYING) ? "Ⅱ" : "▶";
-            
-            // 再生開始時にも改めて高画質設定を試行
-            if (event.data === YT.PlayerState.PLAYING) {
-                if(state.player.setPlaybackQuality) {
-                    state.player.setPlaybackQuality('hd1080');
-                }
+            if (event.data === YT.PlayerState.PLAYING && state.player.setPlaybackQuality) {
+                state.player.setPlaybackQuality('hd1080');
             }
         }
 
@@ -258,27 +251,42 @@
             document.getElementById('btn-mir').onclick = () => {
                 state.isMirror = !state.isMirror;
                 const wrapper = document.getElementById('video-viewport-wrapper');
-                const btn = document.getElementById('btn-mir');
+                document.getElementById('btn-mir').classList.toggle('active', state.isMirror);
                 wrapper.style.transform = state.isMirror ? "scaleX(-1)" : "none";
-                btn.classList.toggle('active', state.isMirror);
             };
 
             document.getElementById('btn-hom').onclick = () => switchMode('home');
+            document.getElementById('btn-spd').onclick = () => switchMode('speed');
             document.getElementById('btn-web').onclick = () => switchMode('web');
 
-            const track = document.getElementById('main-track');
-            const handleSeek = (e) => {
+            const handleInput = (e, type) => {
+                const track = document.getElementById(type === 'speed' ? 'speed-track' : 'main-track');
                 const rect = track.getBoundingClientRect();
                 const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
                 const p = Math.max(0, Math.min(1, x / rect.width));
-                state.player.seekTo(p * state.player.getDuration(), true);
+
+                if (type === 'seek') {
+                    state.player.seekTo(p * state.player.getDuration(), true);
+                } else if (type === 'speed') {
+                    const rate = 0.5 + p; // 0.5x - 1.5x
+                    state.player.setPlaybackRate(rate);
+                    document.getElementById('speed-fill').style.width = (p * 100) + "%";
+                    document.getElementById('txt-speed').innerText = rate.toFixed(2) + "x";
+                }
             };
 
-            track.onmousedown = (e) => { state.isDragging = true; handleSeek(e); };
-            window.onmousemove = (e) => { if(state.isDragging) handleSeek(e); };
-            window.onmouseup = () => { state.isDragging = false; };
-            track.ontouchstart = (e) => { state.isDragging = true; handleSeek(e); };
-            window.ontouchend = () => { state.isDragging = false; };
+            const setupTrack = (id, type) => {
+                const el = document.getElementById(id);
+                el.onmousedown = (e) => { state.isDragging = true; state.activeTrack = type; handleInput(e, type); };
+                el.ontouchstart = (e) => { state.isDragging = true; state.activeTrack = type; handleInput(e, type); };
+            };
+
+            setupTrack('main-track', 'seek');
+            setupTrack('speed-track', 'speed');
+
+            window.onmousemove = (e) => { if(state.isDragging) handleInput(e, state.activeTrack); };
+            window.ontouchmove = (e) => { if(state.isDragging) handleInput(e, state.activeTrack); };
+            window.onmouseup = window.ontouchend = () => { state.isDragging = false; state.activeTrack = null; };
 
             document.getElementById('btn-url-go').onclick = () => {
                 const v = document.getElementById('input-url').value;
@@ -294,9 +302,9 @@
             state.currentMode = mode;
             document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
             document.getElementById('btn-hom').classList.toggle('active', mode === 'home');
+            document.getElementById('btn-spd').classList.toggle('active', mode === 'speed');
             document.getElementById('btn-web').classList.toggle('active', mode === 'web');
-            if(mode === 'home') document.getElementById('panel-home').classList.add('active');
-            else if(mode === 'web') document.getElementById('panel-web').classList.add('active');
+            document.getElementById(`panel-${mode}`).classList.add('active');
         }
 
         function enterFull() {
