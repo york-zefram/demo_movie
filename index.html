@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Speed Sync)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Speed Logic Sync)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -81,7 +81,6 @@
         .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
         .bar-fill { height: 100%; background: var(--neon-blue); width: 0%; position: absolute; border-radius: 6px; box-shadow: var(--neon-glow); pointer-events: none; }
         
-        /* スピード用スタイル */
         .speed-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--neon-blue); margin-bottom: 4px; opacity: 0.7; }
         .speed-display { text-align: center; font-size: 16px; margin-top: 8px; letter-spacing: 0.1em; }
 
@@ -188,7 +187,8 @@
             currentMode: 'home',
             isMirror: false,
             isDragging: false,
-            activeTrack: null
+            activeTrack: null,
+            playbackRate: 1.0
         };
 
         const tag = document.createElement('script');
@@ -242,6 +242,16 @@
             return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`;
         }
 
+        function updateSpeedIcon() {
+            const btnSpd = document.getElementById('btn-spd');
+            // 1.00以外なら点灯、1.00なら枠のみ（消灯）
+            if (Math.abs(state.playbackRate - 1.0) > 0.01) {
+                btnSpd.classList.add('active');
+            } else {
+                btnSpd.classList.remove('active');
+            }
+        }
+
         function initEvents() {
             document.getElementById('btn-play-pause').onclick = () => {
                 const s = state.player.getPlayerState();
@@ -269,9 +279,11 @@
                     state.player.seekTo(p * state.player.getDuration(), true);
                 } else if (type === 'speed') {
                     const rate = 0.5 + p; // 0.5x - 1.5x
+                    state.playbackRate = rate;
                     state.player.setPlaybackRate(rate);
                     document.getElementById('speed-fill').style.width = (p * 100) + "%";
                     document.getElementById('txt-speed').innerText = rate.toFixed(2) + "x";
+                    updateSpeedIcon();
                 }
             };
 
@@ -302,8 +314,8 @@
             state.currentMode = mode;
             document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
             document.getElementById('btn-hom').classList.toggle('active', mode === 'home');
-            document.getElementById('btn-spd').classList.toggle('active', mode === 'speed');
             document.getElementById('btn-web').classList.toggle('active', mode === 'web');
+            // SPDボタン自体のactiveクラスはupdateSpeedIcon()が管理するため、ここではパネル表示のみ制御
             document.getElementById(`panel-${mode}`).classList.add('active');
         }
 
