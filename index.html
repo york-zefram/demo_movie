@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Speed Logic Sync)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Full Integration)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -78,12 +78,21 @@
         .mode-panel { display: none; width: 100%; flex-direction: column; gap: 5px; }
         .mode-panel.active { display: flex; }
 
+        /* シークバー構造 */
         .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
-        .bar-fill { height: 100%; background: var(--neon-blue); width: 0%; position: absolute; border-radius: 6px; box-shadow: var(--neon-glow); pointer-events: none; }
+        .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
         
+        /* ABリピート用視覚要素 */
+        #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 1; box-shadow: var(--neon-glow); border-radius: 6px; pointer-events: none; }
+        .knob-ab {
+            position: absolute; top: 50%; transform: translate(-50%, -50%);
+            width: 20px; height: 20px; background: #000; border: 1px solid var(--neon-blue);
+            color: var(--neon-blue); display: none; align-items: center; justify-content: center;
+            font-size: 8px; border-radius: 4px; z-index: 5; pointer-events: none;
+        }
+
         .speed-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--neon-blue); margin-bottom: 4px; opacity: 0.7; }
         .speed-display { text-align: center; font-size: 16px; margin-top: 8px; letter-spacing: 0.1em; }
-
         .time-display { display: flex; justify-content: space-between; font-size: 14px; margin-top: 5px; }
 
         .input-box { display: flex; gap: 10px; width: 100%; }
@@ -117,11 +126,11 @@
     <div id="center-area">
         <div id="left-lane" class="side-lane">
             <div class="grid-icon-box" id="btn-spd">SPD</div>
-            <div class="grid-icon-box blank">LOP</div>
+            <div class="grid-icon-box" id="btn-lop">LOP</div>
             <div class="grid-icon-box" id="btn-mir">MIR</div>
             <div class="grid-icon-box active" id="btn-hom">HOM</div>
-            <div class="grid-icon-box blank">A</div>
-            <div class="grid-icon-box blank">TOP</div>
+            <div class="grid-icon-box" id="btn-a">A</div>
+            <div class="grid-icon-box" id="btn-top">TOP</div>
         </div>
 
         <div id="video-main">
@@ -135,7 +144,7 @@
             <div class="grid-icon-box blank">LST</div>
             <div class="grid-icon-box blank">FIL</div>
             <div class="grid-icon-box" id="btn-web">WEB</div>
-            <div class="grid-icon-box blank">B</div>
+            <div class="grid-icon-box" id="btn-b">B</div>
             <div class="grid-icon-box blank">--</div>
         </div>
 
@@ -152,7 +161,10 @@
         <div id="dynamic-slot">
             <div id="panel-home" class="mode-panel active">
                 <div class="bar-track" id="main-track">
+                    <div id="ab-range"></div>
                     <div class="bar-fill" id="main-fill"></div>
+                    <div class="knob-ab" id="knob-a">A</div>
+                    <div class="knob-ab" id="knob-b">B</div>
                 </div>
                 <div class="time-display">
                     <span id="txt-cur">00:00</span>
@@ -163,7 +175,7 @@
             <div id="panel-speed" class="mode-panel">
                 <div class="speed-labels"><span>0.5x</span><span>1.0x</span><span>1.5x</span></div>
                 <div class="bar-track" id="speed-track">
-                    <div class="bar-fill" id="speed-fill" style="width: 50%;"></div>
+                    <div class="bar-fill" id="speed-fill" style="width: 50%; background:var(--neon-blue); opacity:1;"></div>
                 </div>
                 <div class="speed-display" id="txt-speed">1.00x</div>
             </div>
@@ -186,9 +198,12 @@
             player: null,
             currentMode: 'home',
             isMirror: false,
+            isLoop: false,
             isDragging: false,
             activeTrack: null,
-            playbackRate: 1.0
+            playbackRate: 1.0,
+            startT: 0,
+            endT: 0
         };
 
         const tag = document.createElement('script');
@@ -211,6 +226,7 @@
 
         function onPlayerReady() {
             if(state.player.setPlaybackQuality) state.player.setPlaybackQuality('hd1080');
+            state.endT = state.player.getDuration();
             render();
             initEvents();
         }
@@ -227,29 +243,55 @@
             if (state.player && state.player.getCurrentTime) {
                 const now = state.player.getCurrentTime();
                 const dur = state.player.getDuration();
-                if (dur > 0 && !state.isDragging) {
-                    const p = (now / dur) * 100;
-                    document.getElementById('main-fill').style.width = p + "%";
-                    document.getElementById('txt-cur').innerText = formatTime(now);
-                    document.getElementById('txt-total').innerText = formatTime(dur);
+
+                // ループ処理
+                if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) {
+                    state.player.seekTo(state.startT, true);
+                }
+
+                if (dur > 0) {
+                    // 通常シークバー
+                    if (!state.isDragging) {
+                        const p = (now / dur) * 100;
+                        document.getElementById('main-fill').style.width = p + "%";
+                        document.getElementById('txt-cur').innerText = formatTime(now);
+                        document.getElementById('txt-total').innerText = formatTime(dur);
+                    }
+
+                    // LOP視覚要素の更新
+                    const range = document.getElementById('ab-range');
+                    const ka = document.getElementById('knob-a');
+                    const kb = document.getElementById('knob-b');
+                    const btnLop = document.getElementById('btn-lop');
+
+                    if (state.isLoop) {
+                        range.style.display = ka.style.display = kb.style.display = 'flex';
+                        btnLop.classList.add('active');
+                        const sP = (state.startT / dur) * 100;
+                        const eP = (state.endT / dur) * 100;
+                        ka.style.left = sP + "%";
+                        kb.style.left = eP + "%";
+                        range.style.left = sP + "%";
+                        range.style.width = (eP - sP) + "%";
+                    } else {
+                        range.style.display = ka.style.display = kb.style.display = 'none';
+                        btnLop.classList.remove('active');
+                    }
                 }
             }
             requestAnimationFrame(render);
         }
 
         function formatTime(s) {
+            if(!s || isNaN(s)) return "00:00";
             const m = Math.floor(s/60), rs = Math.floor(s%60);
             return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`;
         }
 
         function updateSpeedIcon() {
             const btnSpd = document.getElementById('btn-spd');
-            // 1.00以外なら点灯、1.00なら枠のみ（消灯）
-            if (Math.abs(state.playbackRate - 1.0) > 0.01) {
-                btnSpd.classList.add('active');
-            } else {
-                btnSpd.classList.remove('active');
-            }
+            if (Math.abs(state.playbackRate - 1.0) > 0.01) btnSpd.classList.add('active');
+            else btnSpd.classList.remove('active');
         }
 
         function initEvents() {
@@ -260,9 +302,28 @@
 
             document.getElementById('btn-mir').onclick = () => {
                 state.isMirror = !state.isMirror;
-                const wrapper = document.getElementById('video-viewport-wrapper');
                 document.getElementById('btn-mir').classList.toggle('active', state.isMirror);
-                wrapper.style.transform = state.isMirror ? "scaleX(-1)" : "none";
+                document.getElementById('video-viewport-wrapper').style.transform = state.isMirror ? "scaleX(-1)" : "none";
+            };
+
+            // ループ関連イベント
+            document.getElementById('btn-lop').onclick = () => {
+                state.isLoop = !state.isLoop;
+                if(state.isLoop && state.endT === 0) state.endT = state.player.getDuration();
+            };
+
+            document.getElementById('btn-a').onclick = () => {
+                state.startT = state.player.getCurrentTime();
+                if(!state.isLoop) state.isLoop = true;
+            };
+
+            document.getElementById('btn-b').onclick = () => {
+                state.endT = state.player.getCurrentTime();
+                if(!state.isLoop) state.isLoop = true;
+            };
+
+            document.getElementById('btn-top').onclick = () => {
+                state.player.seekTo(state.isLoop ? state.startT : 0, true);
             };
 
             document.getElementById('btn-hom').onclick = () => switchMode('home');
@@ -278,7 +339,7 @@
                 if (type === 'seek') {
                     state.player.seekTo(p * state.player.getDuration(), true);
                 } else if (type === 'speed') {
-                    const rate = 0.5 + p; // 0.5x - 1.5x
+                    const rate = 0.5 + p; 
                     state.playbackRate = rate;
                     state.player.setPlaybackRate(rate);
                     document.getElementById('speed-fill').style.width = (p * 100) + "%";
@@ -305,6 +366,7 @@
                 const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
                 if(id) {
                     state.player.loadVideoById({'videoId': id, 'suggestedQuality': 'hd1080'});
+                    state.startT = 0; state.endT = 0; state.isLoop = false;
                     switchMode('home');
                 }
             };
@@ -315,7 +377,6 @@
             document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
             document.getElementById('btn-hom').classList.toggle('active', mode === 'home');
             document.getElementById('btn-web').classList.toggle('active', mode === 'web');
-            // SPDボタン自体のactiveクラスはupdateSpeedIcon()が管理するため、ここではパネル表示のみ制御
             document.getElementById(`panel-${mode}`).classList.add('active');
         }
 
