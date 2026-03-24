@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Home/Web Sync)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Layout Optimized)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -15,7 +15,6 @@
             --icon-size: 8vh; 
             --icon-max: 55px;
             --fs-status-h: 10vh;
-            --panel-bg: rgba(10, 10, 10, 0.85);
         }
 
         body { 
@@ -24,7 +23,6 @@
             display: flex; flex-direction: column;
         }
 
-        /* レイアウト構造 */
         #top-container {
             flex: 0 0 var(--top-h);
             background: #000; z-index: 300;
@@ -42,7 +40,6 @@
             display: flex; align-items: center; border-top: 1px solid #333;
         }
 
-        /* 映像エリア（はみ出し防止ロジック） */
         #video-main {
             flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
         }
@@ -56,7 +53,6 @@
             background: #000;
         }
 
-        /* サイドレーン */
         .side-lane {
             width: var(--lane-w); height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
@@ -71,8 +67,8 @@
             cursor: pointer; color: #fff; font-size: 10px; transition: 0.2s;
         }
         .grid-icon-box.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
+        .grid-icon-box.blank { border: 1px solid #222; cursor: default; }
 
-        /* ボトムスロット（動的切り替えエリア） */
         #dynamic-slot {
             flex: 1; height: 100%; padding: 0 20px; display: flex; align-items: center; justify-content: center;
         }
@@ -80,12 +76,10 @@
         .mode-panel { display: none; width: 100%; flex-direction: column; gap: 10px; }
         .mode-panel.active { display: flex; }
 
-        /* HOMEモード: 再生バー */
         .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
         .bar-fill { height: 100%; background: var(--neon-blue); width: 0%; position: absolute; border-radius: 6px; box-shadow: var(--neon-glow); pointer-events: none; }
         .time-display { display: flex; justify-content: space-between; font-size: 14px; margin-top: 5px; }
 
-        /* WEBモード: URL入力 */
         .input-box { display: flex; gap: 10px; width: 100%; }
         input[type=text] { 
             flex: 1; background: #111; border: 1px solid var(--neon-blue); color: #fff; 
@@ -96,7 +90,6 @@
             font-family: 'Michroma', sans-serif; font-size: 12px; cursor: pointer; border-radius: 4px;
         }
 
-        /* 全画面時 */
         #center-area:fullscreen #video-main { height: calc(100vh - var(--fs-status-h)); align-items: flex-start; }
         #center-area:fullscreen #yt-player { max-width: calc((100vh - var(--fs-status-h)) * (16 / 9)); max-height: calc(100vh - var(--fs-status-h)); }
         #center-area:fullscreen .side-lane { display: none; }
@@ -132,8 +125,7 @@
             <div class="grid-icon-box" id="btn-fil">FIL</div>
             <div class="grid-icon-box" id="btn-web">WEB</div>
             <div class="grid-icon-box" id="btn-b">B</div>
-            <div class="grid-icon-box" id="btn-full" onclick="enterFull()">FULL</div>
-        </div>
+            <div class="grid-icon-box blank">--</div> </div>
 
         <div id="exit-fs" onclick="exitFull()">
             <div style="color: #fff; font-size: 12px; font-weight: bold; cursor: pointer;">EXIT</div>
@@ -165,7 +157,7 @@
         </div>
 
         <div style="width:var(--lane-w); display:flex; justify-content:center;">
-            <div class="grid-icon-box" style="font-size: 9px; line-height: 1.2; text-align: center;">選 曲</div>
+            <div class="grid-icon-box" id="btn-full" onclick="enterFull()">FULL</div>
         </div>
     </div>
 
@@ -176,14 +168,13 @@
             isDragging: false
         };
 
-        // YouTube API 初期化
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
 
         window.onYouTubeIframeAPIReady = () => {
             state.player = new YT.Player('yt-player', {
-                videoId: 'ScXNbe_5Y0o', // 初期動画
+                videoId: 'ScXNbe_5Y0o',
                 playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
                 events: {
                     'onReady': onPlayerReady,
@@ -222,17 +213,14 @@
         }
 
         function initEvents() {
-            // 再生・一時停止
             document.getElementById('btn-play-pause').onclick = () => {
                 const s = state.player.getPlayerState();
                 s === YT.PlayerState.PLAYING ? state.player.pauseVideo() : state.player.playVideo();
             };
 
-            // モード切り替え (HOM / WEB)
             document.getElementById('btn-hom').onclick = () => switchMode('home');
             document.getElementById('btn-web').onclick = () => switchMode('web');
 
-            // シーク操作
             const track = document.getElementById('main-track');
             const handleSeek = (e) => {
                 const rect = track.getBoundingClientRect();
@@ -245,16 +233,14 @@
             window.onmousemove = (e) => { if(state.isDragging) handleSeek(e); };
             window.onmouseup = () => { state.isDragging = false; };
             track.ontouchstart = (e) => { state.isDragging = true; handleSeek(e); };
-            window.ontouchmove = (e) => { if(state.isDragging) handleSeek(e); };
             window.ontouchend = () => { state.isDragging = false; };
 
-            // URL読み込み
             document.getElementById('btn-url-go').onclick = () => {
                 const v = document.getElementById('input-url').value;
                 const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
                 if(id) {
                     state.player.loadVideoById(id);
-                    switchMode('home'); // ロード後はHOMEへ戻る
+                    switchMode('home');
                 }
             };
         }
@@ -262,7 +248,7 @@
         function switchMode(mode) {
             state.currentMode = mode;
             document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.grid-icon-box').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.side-lane .grid-icon-box').forEach(b => b.classList.remove('active'));
             
             if(mode === 'home') {
                 document.getElementById('panel-home').classList.add('active');
