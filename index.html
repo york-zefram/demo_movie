@@ -114,6 +114,7 @@
         .list-item {
             display: flex; align-items: center; padding: 10px 20px;
             border-bottom: 1px solid #111; cursor: pointer; gap: 15px;
+            position: relative;
         }
         .list-item:hover { background: #0a0a0a; }
         .list-thumb {
@@ -132,6 +133,11 @@
         }
         .list-meta { display: flex; align-items: center; gap: 15px; flex-shrink: 0; }
         .list-item-time { color: #fff; font-size: 12px; }
+        .list-item-del {
+            color: #666; font-size: 18px; padding: 5px 10px; cursor: pointer;
+            transition: color 0.2s;
+        }
+        .list-item-del:hover { color: #ff4444; }
         .list-item-icons { display: flex; gap: 10px; color: var(--neon-blue); font-size: 14px; opacity: 0.5; }
 
         .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
@@ -331,7 +337,7 @@
             state.localVid = document.getElementById('local-video');
             initEvents();
             updateLSTButtonState();
-            renderPlaylist(); // 初回起動時にリストを描画
+            renderPlaylist();
             render();
         }
 
@@ -352,7 +358,14 @@
             }
         }
 
-        // プレイリスト描画関数
+        function deleteItem(id, e) {
+            e.stopPropagation();
+            state.playlist = state.playlist.filter(item => item.id !== id);
+            localStorage.setItem('zefram_playlist', JSON.stringify(state.playlist));
+            updateLSTButtonState();
+            renderPlaylist();
+        }
+
         function renderPlaylist() {
             const container = document.getElementById('list-content');
             container.innerHTML = '';
@@ -369,6 +382,7 @@
                     </div>
                     <div class="list-meta">
                         <div class="list-item-time">${item.duration || '00:00'}</div>
+                        <div class="list-item-del" onclick="deleteItem('${item.id}', event)">×</div>
                         <div class="list-item-icons">🔗 QR</div>
                     </div>
                 `;
@@ -463,7 +477,7 @@
             document.getElementById('btn-lst').onclick = () => {
                 if(!state.isInitialized || state.playlist.length === 0) return;
                 pausePlayback();
-                renderPlaylist(); // リスト画面を開く直前に再描画して最新化
+                renderPlaylist();
                 document.getElementById('list-overlay').classList.add('active');
             };
 
@@ -524,7 +538,7 @@
                 const videoData = state.player.getVideoData();
                 const videoId = videoData.video_id;
                 const title = videoData.title;
-                const author = videoData.author; // チャンネル名取得
+                const author = videoData.author;
 
                 if (videoId && title && title !== "Unknown") {
                     if (!state.playlist.some(item => item.id === videoId)) {
@@ -536,8 +550,7 @@
                         });
                         localStorage.setItem('zefram_playlist', JSON.stringify(state.playlist));
                         updateLSTButtonState();
-                        renderPlaylist(); // リストを即座に更新
-                        alert(`ADDED: ${title}`);
+                        renderPlaylist();
                     }
                 }
             };
