@@ -2,23 +2,23 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Layout Gamma)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Aligned Layout)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
             --neon-blue: #00f3ff; 
             --top-h: 50px;
-            --bottom-h: 25vh; /* 高さの25%を操作エリアに割り当て（切れないための設定） */
+            --bottom-h: 25vh;
+            --side-w: 10vw; /* 左右コンテナの幅 兼 下部の余白基準 */
             --center-ratio: 16 / 9;
         }
 
         body { 
             background: #000; color: var(--neon-blue); font-family: 'Michroma', sans-serif; 
             margin: 0; overflow: hidden; height: 100vh; width: 100vw; text-transform: uppercase;
-            display: flex; flex-direction: column; /* 縦に並べる */
+            display: flex; flex-direction: column;
         }
 
-        /* 1. TOPコンテナ (黒) - 高さを固定 */
         #top-container {
             flex: 0 0 var(--top-h);
             background: #000; z-index: 300;
@@ -26,19 +26,17 @@
             border-bottom: 1px solid #333; font-size: 12px;
         }
 
-        /* 2. CENTERコンテナ (16:9 / 隙間にフィット) */
         #center-container {
-            flex: 1; /* 残りの高さをまず確保 */
+            flex: 1;
             position: relative;
             display: flex; align-items: center; justify-content: center;
             background: #111;
             z-index: 50;
-            overflow: hidden;
         }
 
-        /* 動画本体の枠：16:9を維持しつつ、親(Center)のサイズを超えない */
+        /* 動画枠：左右のサイドレーン(side-w)を確保した最大幅に制限 */
         #video-viewport-mock {
-            width: 100%;
+            width: calc(100vw - (var(--side-w) * 2));
             height: 100%;
             max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
             aspect-ratio: var(--center-ratio);
@@ -46,37 +44,44 @@
             position: relative;
         }
 
-        /* 3. BOTTOMコンテナ (紺) - 高さを確保 */
         #bottom-container {
             flex: 0 0 var(--bottom-h);
             background: #000080; z-index: 100;
             display: flex; flex-direction: column; justify-content: center;
-            padding: 0 2vw; box-sizing: border-box;
-            border-top: 1px solid rgba(255,255,255,0.1);
+            /* 下部コンテナ自体のパディングをside-wの半分程度に設定し、アイコンのセンターを合わせる */
+            padding: 0 calc(var(--side-w) / 2); 
+            box-sizing: border-box;
         }
 
-        /* 4. LEFT / 5. RIGHTコンテナ - 動画の左右端に吸着 */
+        /* 左右コンテナの幅をside-wに固定し、アイコンを中央配置 */
         #left-container, #right-container {
             position: absolute; top: 0; bottom: 0;
-            width: 10%; max-width: 60px;
+            width: var(--side-w);
             z-index: 200;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
             padding: 1vh 0;
         }
-        #left-container { left: 0; background: rgba(0, 100, 0, 0.6); }
-        #right-container { right: 0; background: rgba(139, 69, 19, 0.6); }
+        #left-container { left: calc(var(--side-w) * -1); background: rgba(0, 100, 0, 0.6); }
+        #right-container { right: calc(var(--side-w) * -1); background: rgba(139, 69, 19, 0.6); }
 
-        /* アイコン プレースホルダー */
         .dummy-icon {
             width: 6vh; height: 6vh; max-width: 40px; max-height: 40px;
             background: #fff; border-radius: 4px; opacity: 0.9;
         }
         .circle-icon { border-radius: 50%; }
 
-        /* ボトムエリア内のレイアウト */
+        /* 下部ボタンのコンテナ：左右のアイコンと軸を合わせるための配置 */
         .bottom-controls {
-            display: flex; align-items: center; width: 100%; gap: 20px;
+            display: flex; align-items: center; justify-content: space-between; width: 100%;
         }
+        
+        /* 再生ボタンと全画面ボタンの親：side-wの中で中央に来るように幅を調整 */
+        .side-btn-wrapper {
+            width: var(--side-w);
+            display: flex;
+            justify-content: center;
+        }
+
         .dummy-seekbar {
             flex: 1; height: 6px; background: var(--neon-blue); border-radius: 3px; position: relative;
         }
@@ -86,7 +91,7 @@
         }
         .time-row {
             display: flex; justify-content: space-between; width: 100%; 
-            margin-top: 8px; font-size: 12px; padding: 0 10%; box-sizing: border-box;
+            margin-top: 8px; font-size: 12px; padding: 0 15%; box-sizing: border-box;
         }
     </style>
 </head>
@@ -117,9 +122,13 @@
 
     <div id="bottom-container">
         <div class="bottom-controls">
-            <div class="dummy-icon circle-icon" style="width:10vh; height:10vh; max-width:55px; max-height:55px; background: var(--neon-blue);"></div>
+            <div class="side-btn-wrapper">
+                <div class="dummy-icon circle-icon" style="width:10vh; height:10vh; max-width:55px; max-height:55px; background: var(--neon-blue);"></div>
+            </div>
             <div class="dummy-seekbar"><div class="dummy-knob"></div></div>
-            <div class="dummy-icon" style="width:8vh; height:8vh; max-width:45px; max-height:45px;"></div>
+            <div class="side-btn-wrapper">
+                <div class="dummy-icon" style="width:8vh; height:8vh; max-width:45px; max-height:45px;"></div>
+            </div>
         </div>
         <div class="time-row">
             <span>01:00</span>
