@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM PLAYER NEO - Recovery Build</title>
+    <title>ZEFRAM PLAYER NEO - RESET & RECOVERY</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -10,9 +10,9 @@
             --top-h: 50px;
             --bottom-h: 25vh;
             --lane-w: 15vw;
+            --fs-status-h: 10vh; /* 全画面時の下部ベゼル */
         }
 
-        /* 基本リセット：崩れの原因を排除 */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             background: #000; color: var(--neon-blue); font-family: 'Michroma', sans-serif; 
@@ -23,49 +23,49 @@
         /* --- HOME LAYOUT --- */
         #top-container {
             flex: 0 0 var(--top-h); display: flex; align-items: center; justify-content: center;
-            border-bottom: 1px solid #333; font-size: 12px; z-index: 10;
+            border-bottom: 1px solid #333; font-size: 12px;
         }
 
         #center-area {
-            flex: 1; display: flex; position: relative; background: #111; overflow: hidden;
+            flex: 1; display: flex; position: relative; background: #111;
         }
 
         .side-lane {
             width: var(--lane-w); height: 100%; display: flex; flex-direction: column;
-            align-items: center; justify-content: space-around; z-index: 5;
+            align-items: center; justify-content: space-around; background: rgba(255,255,255,0.05);
         }
 
         #video-main {
-            flex: 1; display: flex; align-items: center; justify-content: center;
+            flex: 1; display: flex; align-items: center; justify-content: center; background: #000;
         }
         
         #yt-player {
             width: 100%; height: 100%;
             max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
-            aspect-ratio: 16 / 9; background: #000;
+            aspect-ratio: 16 / 9;
         }
 
         #bottom-container {
-            flex: 0 0 var(--bottom-h); background: #000080; display: flex; align-items: center; z-index: 10;
+            flex: 0 0 var(--bottom-h); background: #000080; display: flex; align-items: center;
         }
 
-        /* --- FULLSCREEN SYSTEM (Fixed & Robust) --- */
+        /* --- FULLSCREEN SYSTEM (Minimal & Robust) --- */
         #center-area:fullscreen {
             background: #ff0000 !important; display: flex; flex-direction: column;
         }
 
-        /* 全画面時：映像を90vhのエリアで上寄せ */
+        /* 映像：上寄せ90vh */
         #center-area:fullscreen #video-main {
-            height: 90vh; flex: none; align-items: flex-start; padding: 0 5vw;
+            flex: 0 0 90vh; align-items: flex-start; padding: 0;
         }
 
         #center-area:fullscreen #yt-player {
-            width: 100%; height: auto; max-height: 90vh; aspect-ratio: 16 / 9;
+            width: 100vw; height: auto; max-height: 90vh; aspect-ratio: 16 / 9;
         }
 
-        /* 全画面時：下部10vhの赤ベゼル */
+        /* ステータスエリア：下10vh */
         #fs-status-bar {
-            display: none; height: 10vh; width: 100%; background: #ff0000;
+            display: none; height: var(--fs-status-h); width: 100%; background: #ff0000;
             align-items: center; justify-content: flex-end; padding: 0 5vw;
         }
 
@@ -73,10 +73,10 @@
         #center-area:fullscreen .side-lane { display: none; }
 
         .fs-exit-txt {
-            color: #fff; font-size: 5vw; cursor: pointer; font-weight: bold; z-index: 9999;
+            color: #fff; font-size: 4vw; cursor: pointer; font-weight: bold;
         }
 
-        /* UI Components */
+        /* UI Parts */
         .grid-icon-box {
             width: 8vh; height: 8vh; max-width: 55px; max-height: 55px;
             background: #fff; border-radius: 12px; display: flex;
@@ -90,7 +90,7 @@
     <div id="top-container">ZEFRAM PLAYER NEO</div>
 
     <div id="center-area">
-        <div class="side-lane" style="background:rgba(0,100,0,0.1)">
+        <div class="side-lane">
             <div class="grid-icon-box">SPD</div><div class="grid-icon-box">LOP</div><div class="grid-icon-box">MIR</div>
         </div>
         
@@ -98,7 +98,7 @@
             <div id="yt-player"></div>
         </div>
 
-        <div class="side-lane" style="background:rgba(139,69,19,0.1)">
+        <div class="side-lane">
             <div class="grid-icon-box">FIL</div><div class="grid-icon-box">WEB</div><div class="grid-icon-box">--</div>
         </div>
 
