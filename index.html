@@ -53,8 +53,7 @@
             transition: transform 0.3s ease;
         }
 
-        #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-        #local-video { display: none; background: #000; object-fit: contain; }
+        #yt-player { width: 100%; height: 100%; }
 
         .side-lane {
             width: var(--lane-w); height: 100%;
@@ -71,8 +70,6 @@
         }
         .grid-icon-box.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
         .grid-icon-box.blank { border: 1px solid #222; cursor: default; color: #444; }
-        /* 無効化（消灯）状態のスタイル */
-        .grid-icon-box:disabled { border-color: #222; color: #444; cursor: default; box-shadow: none; }
 
         #dynamic-slot {
             flex: 1; height: 100%; padding: 0 20px; display: flex; align-items: center; justify-content: center;
@@ -107,7 +104,6 @@
             background: var(--neon-blue); color: #000; border: none; padding: 0 20px; 
             font-family: 'Michroma', sans-serif; font-size: 12px; cursor: pointer; border-radius: 4px;
         }
-        #file-input { display: none; }
 
         #center-area:fullscreen #video-main { height: calc(100vh - var(--fs-status-h)); align-items: flex-start; }
         #center-area:fullscreen #video-viewport-wrapper { 
@@ -133,23 +129,22 @@
             <div class="grid-icon-box" id="btn-lop">LOP</div>
             <div class="grid-icon-box" id="btn-mir">MIR</div>
             <div class="grid-icon-box active" id="btn-hom">HOM</div>
-            <div class="grid-icon-box" id="btn-a" disabled>A</div>
+            <div class="grid-icon-box" id="btn-a">A</div>
             <div class="grid-icon-box" id="btn-top">TOP</div>
         </div>
 
         <div id="video-main">
             <div id="video-viewport-wrapper">
                 <div id="yt-player"></div>
-                <video id="local-video" playsinline></video>
             </div>
         </div>
 
         <div id="right-lane" class="side-lane">
             <div class="grid-icon-box blank">BAG</div>
             <div class="grid-icon-box blank">LST</div>
-            <div class="grid-icon-box" id="btn-fil">FIL</div>
+            <div class="grid-icon-box blank">FIL</div>
             <div class="grid-icon-box" id="btn-web">WEB</div>
-            <div class="grid-icon-box" id="btn-b" disabled>B</div>
+            <div class="grid-icon-box" id="btn-b">B</div>
             <div class="grid-icon-box blank">--</div>
         </div>
 
@@ -191,13 +186,6 @@
                     <button class="btn-go" id="btn-url-go">GO</button>
                 </div>
             </div>
-
-            <div id="panel-file" class="mode-panel">
-                <div class="input-box">
-                    <button class="btn-go" style="flex:1;" onclick="document.getElementById('file-input').click()">CHOOSE VIDEO FILE</button>
-                    <input type="file" id="file-input" accept="video/*">
-                </div>
-            </div>
         </div>
 
         <div style="width:var(--lane-w); display:flex; justify-content:center;">
@@ -208,8 +196,6 @@
     <script>
         const state = {
             player: null,
-            localVid: null,
-            isYoutube: true,
             currentMode: 'home',
             isMirror: false,
             isLoop: false,
@@ -219,11 +205,6 @@
             startT: 0,
             endT: 0
         };
-
-        const getT = () => state.isYoutube ? state.player.getCurrentTime() : state.localVid.currentTime;
-        const getD = () => state.isYoutube ? state.player.getDuration() : state.localVid.duration;
-        const setT = (t) => state.isYoutube ? state.player.seekTo(t, true) : (state.localVid.currentTime = t);
-        const setR = (r) => state.isYoutube ? state.player.setPlaybackRate(r) : (state.localVid.playbackRate = r);
 
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -244,8 +225,8 @@
         };
 
         function onPlayerReady() {
-            state.localVid = document.getElementById('local-video');
             if(state.player.setPlaybackQuality) state.player.setPlaybackQuality('hd1080');
+            state.endT = state.player.getDuration();
             render();
             initEvents();
         }
@@ -253,48 +234,51 @@
         function onPlayerStateChange(event) {
             const btn = document.getElementById('btn-play-pause');
             btn.innerText = (event.data === YT.PlayerState.PLAYING) ? "Ⅱ" : "▶";
+            if (event.data === YT.PlayerState.PLAYING && state.player.setPlaybackQuality) {
+                state.player.setPlaybackQuality('hd1080');
+            }
         }
 
         function render() {
-            const now = getT();
-            const dur = getD();
+            if (state.player && state.player.getCurrentTime) {
+                const now = state.player.getCurrentTime();
+                const dur = state.player.getDuration();
 
-            if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) {
-                setT(state.startT);
-            }
-
-            if (dur > 0) {
-                if (!state.isDragging) {
-                    const p = (now / dur) * 100;
-                    document.getElementById('main-fill').style.width = p + "%";
-                    document.getElementById('txt-cur').innerText = formatTime(now);
-                    document.getElementById('txt-total').innerText = formatTime(dur);
+                // ループ処理
+                if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) {
+                    state.player.seekTo(state.startT, true);
                 }
 
-                const range = document.getElementById('ab-range');
-                const ka = document.getElementById('knob-a');
-                const kb = document.getElementById('knob-b');
-                const btnLop = document.getElementById('btn-lop');
+                if (dur > 0) {
+                    // 通常シークバー
+                    if (!state.isDragging) {
+                        const p = (now / dur) * 100;
+                        document.getElementById('main-fill').style.width = p + "%";
+                        document.getElementById('txt-cur').innerText = formatTime(now);
+                        document.getElementById('txt-total').innerText = formatTime(dur);
+                    }
 
-                if (state.isLoop) {
-                    range.style.display = ka.style.display = kb.style.display = 'flex';
-                    btnLop.classList.add('active');
-                    const sP = (state.startT / dur) * 100;
-                    const eP = (state.endT / dur) * 100;
-                    ka.style.left = sP + "%";
-                    kb.style.left = eP + "%";
-                    range.style.left = sP + "%";
-                    range.style.width = (eP - sP) + "%";
-                } else {
-                    range.style.display = ka.style.display = kb.style.display = 'none';
-                    btnLop.classList.remove('active');
+                    // LOP視覚要素の更新
+                    const range = document.getElementById('ab-range');
+                    const ka = document.getElementById('knob-a');
+                    const kb = document.getElementById('knob-b');
+                    const btnLop = document.getElementById('btn-lop');
+
+                    if (state.isLoop) {
+                        range.style.display = ka.style.display = kb.style.display = 'flex';
+                        btnLop.classList.add('active');
+                        const sP = (state.startT / dur) * 100;
+                        const eP = (state.endT / dur) * 100;
+                        ka.style.left = sP + "%";
+                        kb.style.left = eP + "%";
+                        range.style.left = sP + "%";
+                        range.style.width = (eP - sP) + "%";
+                    } else {
+                        range.style.display = ka.style.display = kb.style.display = 'none';
+                        btnLop.classList.remove('active');
+                    }
                 }
             }
-            
-            const btnPlay = document.getElementById('btn-play-pause');
-            const isPlaying = state.isYoutube ? (state.player && state.player.getPlayerState() === 1) : !state.localVid.paused;
-            btnPlay.innerText = isPlaying ? "Ⅱ" : "▶";
-
             requestAnimationFrame(render);
         }
 
@@ -304,13 +288,16 @@
             return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`;
         }
 
+        function updateSpeedIcon() {
+            const btnSpd = document.getElementById('btn-spd');
+            if (Math.abs(state.playbackRate - 1.0) > 0.01) btnSpd.classList.add('active');
+            else btnSpd.classList.remove('active');
+        }
+
         function initEvents() {
             document.getElementById('btn-play-pause').onclick = () => {
-                if(state.isYoutube) {
-                    state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
-                } else {
-                    state.localVid.paused ? state.localVid.play() : state.localVid.pause();
-                }
+                const s = state.player.getPlayerState();
+                s === YT.PlayerState.PLAYING ? state.player.pauseVideo() : state.player.playVideo();
             };
 
             document.getElementById('btn-mir').onclick = () => {
@@ -319,49 +306,29 @@
                 document.getElementById('video-viewport-wrapper').style.transform = state.isMirror ? "scaleX(-1)" : "none";
             };
 
-            // LOOPボタンによる起動とリセット
+            // ループ関連イベント
             document.getElementById('btn-lop').onclick = () => {
                 state.isLoop = !state.isLoop;
-                const btnA = document.getElementById('btn-a');
-                const btnB = document.getElementById('btn-b');
-                
-                if(state.isLoop) {
-                    btnA.disabled = false;
-                    btnB.disabled = false;
-                    state.startT = 0;
-                    state.endT = getD();
-                } else {
-                    btnA.disabled = true;
-                    btnB.disabled = true;
-                    btnA.classList.remove('active');
-                    btnB.classList.remove('active');
-                    state.startT = 0;
-                    state.endT = 0;
-                }
+                if(state.isLoop && state.endT === 0) state.endT = state.player.getDuration();
             };
 
             document.getElementById('btn-a').onclick = () => {
-                if(state.isLoop) {
-                    state.startT = getT();
-                    document.getElementById('btn-a').classList.add('active');
-                }
+                state.startT = state.player.getCurrentTime();
+                if(!state.isLoop) state.isLoop = true;
             };
 
             document.getElementById('btn-b').onclick = () => {
-                if(state.isLoop) {
-                    state.endT = getT();
-                    document.getElementById('btn-b').classList.add('active');
-                }
+                state.endT = state.player.getCurrentTime();
+                if(!state.isLoop) state.isLoop = true;
             };
 
             document.getElementById('btn-top').onclick = () => {
-                setT(state.isLoop ? state.startT : 0);
+                state.player.seekTo(state.isLoop ? state.startT : 0, true);
             };
 
             document.getElementById('btn-hom').onclick = () => switchMode('home');
             document.getElementById('btn-spd').onclick = () => switchMode('speed');
             document.getElementById('btn-web').onclick = () => switchMode('web');
-            document.getElementById('btn-fil').onclick = () => switchMode('file');
 
             const handleInput = (e, type) => {
                 const track = document.getElementById(type === 'speed' ? 'speed-track' : 'main-track');
@@ -370,14 +337,14 @@
                 const p = Math.max(0, Math.min(1, x / rect.width));
 
                 if (type === 'seek') {
-                    setT(p * getD());
+                    state.player.seekTo(p * state.player.getDuration(), true);
                 } else if (type === 'speed') {
                     const rate = 0.5 + p; 
                     state.playbackRate = rate;
-                    setR(rate);
+                    state.player.setPlaybackRate(rate);
                     document.getElementById('speed-fill').style.width = (p * 100) + "%";
                     document.getElementById('txt-speed').innerText = rate.toFixed(2) + "x";
-                    document.getElementById('btn-spd').classList.toggle('active', Math.abs(rate - 1.0) > 0.01);
+                    updateSpeedIcon();
                 }
             };
 
@@ -394,39 +361,13 @@
             window.ontouchmove = (e) => { if(state.isDragging) handleInput(e, state.activeTrack); };
             window.onmouseup = window.ontouchend = () => { state.isDragging = false; state.activeTrack = null; };
 
-            const resetMedia = () => {
-                state.isLoop = false;
-                state.startT = 0;
-                state.endT = 0;
-                document.getElementById('btn-a').disabled = true;
-                document.getElementById('btn-b').disabled = true;
-                document.getElementById('btn-a').classList.remove('active');
-                document.getElementById('btn-b').classList.remove('active');
-                switchMode('home');
-            };
-
             document.getElementById('btn-url-go').onclick = () => {
                 const v = document.getElementById('input-url').value;
                 const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
                 if(id) {
-                    state.isYoutube = true;
-                    state.localVid.style.display = 'none';
-                    document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById({'videoId': id, 'suggestedQuality': 'hd1080'});
-                    resetMedia();
-                }
-            };
-
-            document.getElementById('file-input').onchange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    state.isYoutube = false;
-                    document.getElementById('yt-player').style.display = 'none';
-                    state.localVid.style.display = 'block';
-                    state.player.pauseVideo();
-                    state.localVid.src = URL.createObjectURL(file);
-                    state.localVid.play();
-                    resetMedia();
+                    state.startT = 0; state.endT = 0; state.isLoop = false;
+                    switchMode('home');
                 }
             };
         }
@@ -436,7 +377,6 @@
             document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
             document.getElementById('btn-hom').classList.toggle('active', mode === 'home');
             document.getElementById('btn-web').classList.toggle('active', mode === 'web');
-            document.getElementById('btn-fil').classList.toggle('active', mode === 'file');
             document.getElementById(`panel-${mode}`).classList.add('active');
         }
 
