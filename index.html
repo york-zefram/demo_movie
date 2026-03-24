@@ -51,9 +51,11 @@
             aspect-ratio: var(--center-ratio);
             background: #000;
             transition: transform 0.3s ease;
+            position: relative;
         }
 
-        #yt-player { width: 100%; height: 100%; }
+        #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        #local-video { display: none; object-fit: contain; }
 
         .side-lane {
             width: var(--lane-w); height: 100%;
@@ -78,11 +80,9 @@
         .mode-panel { display: none; width: 100%; flex-direction: column; gap: 5px; }
         .mode-panel.active { display: flex; }
 
-        /* シークバー構造 */
         .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
         .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
         
-        /* ABリピート用視覚要素 */
         #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 1; box-shadow: var(--neon-glow); border-radius: 6px; pointer-events: none; }
         .knob-ab {
             position: absolute; top: 50%; transform: translate(-50%, -50%);
@@ -90,7 +90,6 @@
             color: var(--neon-blue); display: none; align-items: center; justify-content: center;
             font-size: 10px; border-radius: 4px; z-index: 10; cursor: pointer;
         }
-        /* 現在地を示す白い点 */
         #now-knob {
             position: absolute; top: 50%; transform: translate(-50%, -50%);
             width: 12px; height: 12px; background: #fff; border-radius: 50%;
@@ -123,6 +122,7 @@
             z-index: 9999; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);
         }
         #center-area:fullscreen #exit-fs { display: flex; }
+        #file-input { display: none; }
     </style>
 </head>
 <body>
@@ -142,13 +142,14 @@
         <div id="video-main">
             <div id="video-viewport-wrapper">
                 <div id="yt-player"></div>
+                <video id="local-video" playsinline></video>
             </div>
         </div>
 
         <div id="right-lane" class="side-lane">
             <div class="grid-icon-box blank">BAG</div>
             <div class="grid-icon-box blank">LST</div>
-            <div class="grid-icon-box blank">FIL</div>
+            <div class="grid-icon-box" id="btn-fil">FIL</div>
             <div class="grid-icon-box" id="btn-web">WEB</div>
             <div class="grid-icon-box" id="btn-b">B</div>
             <div class="grid-icon-box blank">--</div>
@@ -193,6 +194,13 @@
                     <button class="btn-go" id="btn-url-go">GO</button>
                 </div>
             </div>
+
+            <div id="panel-file" class="mode-panel">
+                <div class="input-box">
+                    <button class="btn-go" style="width:100%; height:45px;" onclick="document.getElementById('file-input').click()">CHOOSE LOCAL FILE</button>
+                    <input type="file" id="file-input" accept="video/*,audio/*">
+                </div>
+            </div>
         </div>
 
         <div style="width:var(--lane-w); display:flex; justify-content:center;">
@@ -203,14 +211,21 @@
     <script>
         const state = {
             player: null,
+            localVid: null,
+            isYoutube: true,
             currentMode: 'home',
             isMirror: false,
             isLoop: false,
-            activeDrag: null, // 'now', 'a', 'b', 'speed'
+            activeDrag: null,
             playbackRate: 1.0,
             startT: 0,
             endT: 0
         };
+
+        const getT = () => state.isYoutube ? state.player.getCurrentTime() : state.localVid.currentTime;
+        const getD = () => state.isYoutube ? state.player.getDuration() : state.localVid.duration;
+        const setT = (t) => state.isYoutube ? state.player.seekTo(t, true) : (state.localVid.currentTime = t);
+        const setR = (r) => state.isYoutube ? state.player.setPlaybackRate(r) : (state.localVid.playbackRate = r);
 
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -231,60 +246,62 @@
         };
 
         function onPlayerReady() {
+            state.localVid = document.getElementById('local-video');
             if(state.player.setPlaybackQuality) state.player.setPlaybackQuality('hd1080');
-            state.endT = state.player.getDuration();
+            state.endT = getD();
             render();
             initEvents();
         }
 
         function onPlayerStateChange(event) {
+            updatePlayIcon();
+        }
+
+        function updatePlayIcon() {
             const btn = document.getElementById('btn-play-pause');
-            btn.innerText = (event.data === YT.PlayerState.PLAYING) ? "Ⅱ" : "▶";
+            const isPlaying = state.isYoutube ? (state.player.getPlayerState() === 1) : !state.localVid.paused;
+            btn.innerText = isPlaying ? "Ⅱ" : "▶";
         }
 
         function render() {
-            if (state.player && state.player.getCurrentTime) {
-                const now = state.player.getCurrentTime();
-                const dur = state.player.getDuration();
+            const now = getT();
+            const dur = getD();
 
-                // ループ処理
-                if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) {
-                    state.player.seekTo(state.startT, true);
+            if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) {
+                setT(state.startT);
+            }
+
+            if (dur > 0) {
+                const fill = document.getElementById('main-fill');
+                const nowKnob = document.getElementById('now-knob');
+                const range = document.getElementById('ab-range');
+                const ka = document.getElementById('knob-a');
+                const kb = document.getElementById('knob-b');
+                const btnLop = document.getElementById('btn-lop');
+
+                if (state.activeDrag !== 'now') {
+                    const p = (now / dur) * 100;
+                    fill.style.width = p + "%";
+                    nowKnob.style.left = p + "%";
+                    document.getElementById('txt-cur').innerText = formatTime(now);
                 }
+                document.getElementById('txt-total').innerText = formatTime(dur);
 
-                if (dur > 0) {
-                    const fill = document.getElementById('main-fill');
-                    const nowKnob = document.getElementById('now-knob');
-                    const range = document.getElementById('ab-range');
-                    const ka = document.getElementById('knob-a');
-                    const kb = document.getElementById('knob-b');
-                    const btnLop = document.getElementById('btn-lop');
-
-                    // 再生位置の更新
-                    if (state.activeDrag !== 'now') {
-                        const p = (now / dur) * 100;
-                        fill.style.width = p + "%";
-                        nowKnob.style.left = p + "%";
-                        document.getElementById('txt-cur').innerText = formatTime(now);
-                    }
-                    document.getElementById('txt-total').innerText = formatTime(dur);
-
-                    // LOP視覚要素の更新
-                    if (state.isLoop) {
-                        range.style.display = ka.style.display = kb.style.display = 'flex';
-                        btnLop.classList.add('active');
-                        const sP = (state.startT / dur) * 100;
-                        const eP = (state.endT / dur) * 100;
-                        ka.style.left = sP + "%";
-                        kb.style.left = eP + "%";
-                        range.style.left = sP + "%";
-                        range.style.width = (eP - sP) + "%";
-                    } else {
-                        range.style.display = ka.style.display = kb.style.display = 'none';
-                        btnLop.classList.remove('active');
-                    }
+                if (state.isLoop) {
+                    range.style.display = ka.style.display = kb.style.display = 'flex';
+                    btnLop.classList.add('active');
+                    const sP = (state.startT / dur) * 100;
+                    const eP = (state.endT / dur) * 100;
+                    ka.style.left = sP + "%";
+                    kb.style.left = eP + "%";
+                    range.style.left = sP + "%";
+                    range.style.width = (eP - sP) + "%";
+                } else {
+                    range.style.display = ka.style.display = kb.style.display = 'none';
+                    btnLop.classList.remove('active');
                 }
             }
+            updatePlayIcon();
             requestAnimationFrame(render);
         }
 
@@ -302,8 +319,11 @@
 
         function initEvents() {
             document.getElementById('btn-play-pause').onclick = () => {
-                const s = state.player.getPlayerState();
-                s === YT.PlayerState.PLAYING ? state.player.pauseVideo() : state.player.playVideo();
+                if(state.isYoutube) {
+                    state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
+                } else {
+                    state.localVid.paused ? state.localVid.play() : state.localVid.pause();
+                }
             };
 
             document.getElementById('btn-mir').onclick = () => {
@@ -314,26 +334,27 @@
 
             document.getElementById('btn-lop').onclick = () => {
                 state.isLoop = !state.isLoop;
-                if(state.isLoop && state.endT === 0) state.endT = state.player.getDuration();
+                if(state.isLoop && state.endT === 0) state.endT = getD();
             };
 
             document.getElementById('btn-a').onclick = () => {
-                state.startT = state.player.getCurrentTime();
+                state.startT = getT();
                 if(!state.isLoop) state.isLoop = true;
             };
 
             document.getElementById('btn-b').onclick = () => {
-                state.endT = state.player.getCurrentTime();
+                state.endT = getT();
                 if(!state.isLoop) state.isLoop = true;
             };
 
             document.getElementById('btn-top').onclick = () => {
-                state.player.seekTo(state.isLoop ? state.startT : 0, true);
+                setT(state.isLoop ? state.startT : 0);
             };
 
             document.getElementById('btn-hom').onclick = () => switchMode('home');
             document.getElementById('btn-spd').onclick = () => switchMode('speed');
             document.getElementById('btn-web').onclick = () => switchMode('web');
+            document.getElementById('btn-fil').onclick = () => switchMode('file');
 
             const handleInput = (e, type) => {
                 const track = document.getElementById(type === 'speed' ? 'speed-track' : 'main-track');
@@ -342,38 +363,33 @@
                 const p = Math.max(0, Math.min(1, x / rect.width));
 
                 if (type === 'now') {
-                    const time = p * state.player.getDuration();
-                    state.player.seekTo(time, true);
+                    const time = p * getD();
+                    setT(time);
                     document.getElementById('main-fill').style.width = (p * 100) + "%";
                     document.getElementById('now-knob').style.left = (p * 100) + "%";
                 } else if (type === 'a') {
-                    state.startT = p * state.player.getDuration();
+                    state.startT = p * getD();
                 } else if (type === 'b') {
-                    state.endT = p * state.player.getDuration();
+                    state.endT = p * getD();
                 } else if (type === 'speed') {
                     const rate = 0.5 + p; 
                     state.playbackRate = rate;
-                    state.player.setPlaybackRate(rate);
+                    setR(rate);
                     document.getElementById('speed-fill').style.width = (p * 100) + "%";
                     document.getElementById('txt-speed').innerText = rate.toFixed(2) + "x";
                     updateSpeedIcon();
                 }
             };
 
-            // ドラッグ開始
             document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
             document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
-            
             document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-a').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
-            
             document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
             document.getElementById('knob-b').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
-
             document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
             document.getElementById('speed-track').ontouchstart = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
 
-            // ドラッグ中・終了
             window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.onmouseup = window.ontouchend = () => { state.activeDrag = null; };
@@ -382,7 +398,24 @@
                 const v = document.getElementById('input-url').value;
                 const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
                 if(id) {
+                    state.isYoutube = true;
+                    document.getElementById('local-video').style.display = 'none';
+                    document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById({'videoId': id, 'suggestedQuality': 'hd1080'});
+                    state.startT = 0; state.endT = 0; state.isLoop = false;
+                    switchMode('home');
+                }
+            };
+
+            document.getElementById('file-input').onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    state.isYoutube = false;
+                    document.getElementById('yt-player').style.display = 'none';
+                    document.getElementById('local-video').style.display = 'block';
+                    state.player.pauseVideo();
+                    state.localVid.src = URL.createObjectURL(file);
+                    state.localVid.play();
                     state.startT = 0; state.endT = 0; state.isLoop = false;
                     switchMode('home');
                 }
@@ -394,6 +427,7 @@
             document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
             document.getElementById('btn-hom').classList.toggle('active', mode === 'home');
             document.getElementById('btn-web').classList.toggle('active', mode === 'web');
+            document.getElementById('btn-fil').classList.toggle('active', mode === 'file');
             document.getElementById(`panel-${mode}`).classList.add('active');
         }
 
