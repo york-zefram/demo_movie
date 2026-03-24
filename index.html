@@ -2,17 +2,16 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Grid Fixed)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Dynamic Center Pin)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
             --neon-blue: #00f3ff; 
             --top-h: 50px;
             --bottom-h: 25vh;
-            --lane-w: 15vw; /* タッチエリアを考慮し少し広めに設定 */
+            --lane-w: 15vw;
             --center-ratio: 16 / 9;
             --sync-height: calc(var(--bottom-h) / 2);
-            /* アイコン枠の共通サイズ */
             --icon-size: 8vh; 
             --icon-max: 55px;
         }
@@ -34,9 +33,9 @@
             flex: 1; position: relative; display: flex; background: #111; z-index: 50; overflow: hidden;
         }
 
+        /* 全画面デモ設定 */
         #center-area:fullscreen { background: #ff0000; }
 
-        /* 垂直レーンのグリッド固定 */
         .side-lane {
             width: var(--lane-w); height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
@@ -54,6 +53,8 @@
             aspect-ratio: var(--center-ratio);
             background: #222;
         }
+
+        /* 全画面時の動画サイズ（高さ100%基準） */
         #center-area:fullscreen #video-viewport-mock {
             max-width: calc(100vh * (16 / 9));
         }
@@ -64,7 +65,6 @@
             display: flex; align-items: center;
         }
 
-        /* ボトムの左右ボタンをレーンの軸に合わせる */
         .bottom-lane-sync { 
             width: var(--lane-w); height: 100%; 
             display: flex; justify-content: center; align-items: center; 
@@ -72,26 +72,30 @@
 
         .seekbar-area { flex: 1; padding: 0 20px; }
 
-        /* 統一された角丸正方形（将来の透明タッチエリア） */
         .grid-icon-box {
             width: var(--icon-size); height: var(--icon-size);
             max-width: var(--icon-max); max-height: var(--icon-max);
-            background: #fff; border-radius: 12px; /* 角丸固定 */
+            background: #fff; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: opacity 0.2s;
-            color: #000; font-size: 10px; font-weight: bold;
+            cursor: pointer; color: #000; font-size: 10px; font-weight: bold;
         }
 
-        /* 全画面復帰ボタン（右下ボタンと高さを同期） */
+        /* 【動的センターピン留め】 */
         #exit-fullscreen-btn-sync {
             display: none;
             position: absolute;
+            /* 垂直方向：ホーム画面のBottom中央の高さを継承 */
             bottom: var(--sync-height);
-            right: calc(var(--lane-w) / 2);
-            transform: translate(50%, 50%);
+            /* 水平方向：JavaScriptで「赤い余白のセンター」を計算するため一旦右端に配置 */
+            right: 0;
+            transform: translateY(50%); /* 垂直軸の補正のみ先に実施 */
             z-index: 9999;
         }
-        #center-area:fullscreen #exit-fullscreen-btn-sync { display: block; }
+
+        #center-area:fullscreen #exit-fullscreen-btn-sync {
+            display: block;
+        }
+
         #center-area:fullscreen .side-lane { display: none; }
     </style>
 </head>
@@ -101,12 +105,8 @@
 
     <div id="center-area">
         <div id="left-lane" class="side-lane">
-            <div class="grid-icon-box">SPD</div>
-            <div class="grid-icon-box">LOP</div>
-            <div class="grid-icon-box">MIR</div>
-            <div class="grid-icon-box">HOM</div>
-            <div class="grid-icon-box">A</div>
-            <div class="grid-icon-box">TOP</div>
+            <div class="grid-icon-box">SPD</div><div class="grid-icon-box">LOP</div><div class="grid-icon-box">MIR</div>
+            <div class="grid-icon-box">HOM</div><div class="grid-icon-box">A</div><div class="grid-icon-box">TOP</div>
         </div>
 
         <div id="video-main">
@@ -114,12 +114,8 @@
         </div>
 
         <div id="right-lane" class="side-lane">
-            <div class="grid-icon-box">BAG</div>
-            <div class="grid-icon-box">LST</div>
-            <div class="grid-icon-box">FIL</div>
-            <div class="grid-icon-box">WEB</div>
-            <div class="grid-icon-box">B</div>
-            <div class="grid-icon-box">--</div>
+            <div class="grid-icon-box">BAG</div><div class="grid-icon-box">LST</div><div class="grid-icon-box">FIL</div>
+            <div class="grid-icon-box">WEB</div><div class="grid-icon-box">B</div><div class="grid-icon-box">--</div>
         </div>
 
         <div id="exit-fullscreen-btn-sync" onclick="exitFull()">
@@ -128,29 +124,50 @@
     </div>
 
     <div id="bottom-container">
-        <div class="bottom-lane-sync">
-            <div class="grid-icon-box">PLAY</div>
-        </div>
-
-        <div class="seekbar-area">
-            <div style="width:100%; height:4px; background:var(--neon-blue); opacity:0.3;"></div>
-        </div>
-
-        <div class="bottom-lane-sync">
-            <div class="grid-icon-box" onclick="enterFull()">FULL</div>
-        </div>
+        <div class="bottom-lane-sync"><div class="grid-icon-box">PLAY</div></div>
+        <div class="seekbar-area"><div style="width:100%; height:4px; background:var(--neon-blue); opacity:0.3;"></div></div>
+        <div class="bottom-lane-sync"><div class="grid-icon-box" onclick="enterFull()">FULL</div></div>
     </div>
 
     <script>
         const centerArea = document.getElementById('center-area');
-        function enterFull() {
-            if (centerArea.requestFullscreen) centerArea.requestFullscreen();
-            else if (centerArea.webkitRequestFullscreen) centerArea.webkitRequestFullscreen();
+        const exitBtn = document.getElementById('exit-fullscreen-btn-sync');
+
+        // 赤い余白のセンターを計算してボタンを配置する関数
+        function updateExitButtonPosition() {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) return;
+
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
+            const videoW = screenH * (16 / 9); // 16:9動画の実際の幅
+            const marginW = (screenW - videoW) / 2; // 片側の赤い余白の幅
+
+            if (marginW > 0) {
+                // 右側の赤い余白の水平センター = (余白の半分)
+                // 座標計算：右端から「余白幅の半分」の位置にボタンの中心をもってくる
+                exitBtn.style.right = (marginW / 2) + "px";
+                exitBtn.style.transform = "translate(50%, 50%)"; 
+            } else {
+                // 余白がない場合は画面端に寄せる
+                exitBtn.style.right = "10px";
+                exitBtn.style.transform = "translate(0, 50%)";
+            }
         }
+
+        function enterFull() {
+            if (centerArea.requestFullscreen) centerArea.requestFullscreen().then(updateExitButtonPosition);
+            else if (centerArea.webkitRequestFullscreen) centerArea.webkitRequestFullscreen().then(updateExitButtonPosition);
+        }
+
         function exitFull() {
             if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
+
+        // 画面リサイズ（回転など）時に位置を再計算
+        window.addEventListener('resize', updateExitButtonPosition);
+        document.addEventListener('fullscreenchange', updateExitButtonPosition);
+        document.addEventListener('webkitfullscreenchange', updateExitButtonPosition);
     </script>
 </body>
 </html>
