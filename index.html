@@ -15,6 +15,7 @@
             --icon-size: 8vh; 
             --icon-max: 55px;
             --fs-status-h: 10vh;
+            --disabled-color: #333;
         }
 
         body { 
@@ -73,6 +74,24 @@
         .grid-icon-box.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
         .grid-icon-box.blank { border: 1px solid #222; cursor: default; color: #444; }
 
+        /* Initial Disabled State */
+        .grid-icon-box.locked {
+            border-color: var(--disabled-color);
+            color: var(--disabled-color);
+            cursor: default;
+            pointer-events: none;
+        }
+
+        /* Breathing Animation */
+        @keyframes breathe {
+            0% { opacity: 0.3; box-shadow: none; }
+            50% { opacity: 1; box-shadow: var(--neon-glow); }
+            100% { opacity: 0.3; box-shadow: none; }
+        }
+        .breathe {
+            animation: breathe 2s infinite ease-in-out;
+        }
+
         #dynamic-slot {
             flex: 1; height: 100%; padding: 0 20px; display: flex; align-items: center; justify-content: center;
         }
@@ -110,7 +129,6 @@
             font-family: 'Michroma', sans-serif; font-size: 12px; cursor: pointer; border-radius: 4px;
         }
 
-        /* Fullscreen Status Bar */
         #fs-status-bar {
             display: none; position: absolute; bottom: 0; left: 0; width: 100%; height: var(--fs-status-h);
             background: #000; border-top: 1px solid #333; z-index: 9999;
@@ -140,12 +158,12 @@
 
     <div id="center-area">
         <div id="left-lane" class="side-lane">
-            <div class="grid-icon-box" id="btn-spd">SPD</div>
-            <div class="grid-icon-box" id="btn-lop">LOP</div>
-            <div class="grid-icon-box" id="btn-mir">MIR</div>
-            <div class="grid-icon-box active" id="btn-hom">HOM</div>
-            <div class="grid-icon-box" id="btn-a">A</div>
-            <div class="grid-icon-box" id="btn-top">TOP</div>
+            <div class="grid-icon-box locked" id="btn-spd">SPD</div>
+            <div class="grid-icon-box locked" id="btn-lop">LOP</div>
+            <div class="grid-icon-box locked" id="btn-mir">MIR</div>
+            <div class="grid-icon-box locked" id="btn-hom">HOM</div>
+            <div class="grid-icon-box locked" id="btn-a">A</div>
+            <div class="grid-icon-box locked" id="btn-top">TOP</div>
         </div>
 
         <div id="video-main">
@@ -158,9 +176,9 @@
         <div id="right-lane" class="side-lane">
             <div class="grid-icon-box blank">BAG</div>
             <div class="grid-icon-box blank">LST</div>
-            <div class="grid-icon-box" id="btn-fil">FIL</div>
-            <div class="grid-icon-box" id="btn-web">WEB</div>
-            <div class="grid-icon-box" id="btn-b">B</div>
+            <div class="grid-icon-box breathe" id="btn-fil">FIL</div>
+            <div class="grid-icon-box breathe" id="btn-web">WEB</div>
+            <div class="grid-icon-box locked" id="btn-b">B</div>
             <div class="grid-icon-box blank">--</div>
         </div>
 
@@ -179,11 +197,11 @@
 
     <div id="bottom-container">
         <div style="width:var(--lane-w); display:flex; justify-content:center;">
-            <div class="grid-icon-box" id="btn-play-pause" style="border-radius: 50%; width: 60px; height: 60px; font-size: 20px;">▶</div>
+            <div class="grid-icon-box locked" id="btn-play-pause" style="border-radius: 50%; width: 60px; height: 60px; font-size: 20px;">▶</div>
         </div>
 
         <div id="dynamic-slot">
-            <div id="panel-home" class="mode-panel active">
+            <div id="panel-home" class="mode-panel">
                 <div class="bar-track" id="main-track">
                     <div id="ab-range"></div>
                     <div class="bar-fill" id="main-fill"></div>
@@ -205,7 +223,7 @@
                 <div class="speed-display" id="txt-speed">1.00X</div>
             </div>
 
-            <div id="panel-web" class="mode-panel">
+            <div id="panel-web" class="mode-panel active">
                 <div class="input-box">
                     <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
                     <button class="btn-go" id="btn-url-go">GO</button>
@@ -221,7 +239,7 @@
         </div>
 
         <div style="width:var(--lane-w); display:flex; justify-content:center;">
-            <div class="grid-icon-box" id="btn-full" onclick="enterFull()">FULL</div>
+            <div class="grid-icon-box locked" id="btn-full" onclick="enterFull()">FULL</div>
         </div>
     </div>
 
@@ -230,7 +248,8 @@
             player: null,
             localVid: null,
             isYoutube: true,
-            currentMode: 'home',
+            isInitialized: false,
+            currentMode: 'web',
             lastModeBeforeFull: 'home',
             isMirror: false,
             isLoop: false,
@@ -254,23 +273,33 @@
             state.player = new YT.Player('yt-player', {
                 width: wrapper.clientWidth,
                 height: wrapper.clientHeight,
-                videoId: 'ScXNbe_5Y0o',
+                videoId: '',
                 playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1, 'vq': 'highres' },
                 events: {
                     'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange
+                    'onStateChange': () => updatePlayIcon()
                 }
             });
         };
 
         function onPlayerReady() {
             state.localVid = document.getElementById('local-video');
-            state.endT = getD();
-            render();
             initEvents();
+            render();
         }
 
-        function onPlayerStateChange() { updatePlayIcon(); }
+        function activateApp() {
+            if (state.isInitialized) return;
+            state.isInitialized = true;
+            
+            // Remove locks and breathing
+            document.querySelectorAll('.grid-icon-box').forEach(el => {
+                el.classList.remove('locked');
+                el.classList.remove('breathe');
+            });
+            
+            switchMode('home');
+        }
 
         function updatePlayIcon() {
             const btn = document.getElementById('btn-play-pause');
@@ -279,6 +308,11 @@
         }
 
         function render() {
+            if (!state.isInitialized) {
+                requestAnimationFrame(render);
+                return;
+            }
+
             const now = getT();
             const dur = getD();
 
@@ -295,7 +329,6 @@
                 }
                 document.getElementById('txt-total').innerText = formatTime(dur);
 
-                // Update FS Status Bar
                 document.getElementById('fs-btn-time').innerText = `${formatTime(now)} / ${formatTime(dur)}`;
                 document.getElementById('fs-btn-speed').innerText = state.playbackRate.toFixed(2) + "X";
                 
@@ -312,7 +345,6 @@
                 fsMir.innerText = `MIR: ${state.isMirror ? 'ON' : 'OFF'}`;
                 fsMir.classList.toggle('dim', !state.isMirror);
 
-                // Update AB Range UI
                 const range = document.getElementById('ab-range');
                 const ka = document.getElementById('knob-a');
                 const kb = document.getElementById('knob-b');
@@ -340,6 +372,7 @@
 
         function initEvents() {
             document.getElementById('btn-play-pause').onclick = () => {
+                if(!state.isInitialized) return;
                 if(state.isYoutube) {
                     state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
                 } else {
@@ -370,13 +403,13 @@
             document.getElementById('btn-web').onclick = () => switchMode('web');
             document.getElementById('btn-fil').onclick = () => switchMode('file');
 
-            // FS Status Bar Navigation
             document.getElementById('fs-btn-time').onclick = () => { exitFull(); switchMode('home'); };
             document.getElementById('fs-btn-speed').onclick = () => { exitFull(); switchMode('speed'); };
             document.getElementById('fs-btn-loop').onclick = () => { exitFull(); switchMode('home'); };
             document.getElementById('fs-btn-exit').onclick = () => { exitFull(); switchMode(state.lastModeBeforeFull); };
 
             const handleInput = (e, type) => {
+                if(!state.isInitialized) return;
                 const track = document.getElementById(type === 'speed' ? 'speed-track' : 'main-track');
                 const rect = track.getBoundingClientRect();
                 const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
@@ -418,7 +451,8 @@
                     document.getElementById('local-video').style.display = 'none';
                     document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById(id);
-                    state.isLoop = false; switchMode('home');
+                    state.isLoop = false;
+                    activateApp();
                 }
             };
 
@@ -431,7 +465,8 @@
                     state.player.pauseVideo();
                     state.localVid.src = URL.createObjectURL(file);
                     state.localVid.play();
-                    state.isLoop = false; switchMode('home');
+                    state.isLoop = false;
+                    activateApp();
                 }
             };
         }
@@ -443,10 +478,14 @@
             document.getElementById('btn-web').classList.toggle('active', mode === 'web');
             document.getElementById('btn-fil').classList.toggle('active', mode === 'file');
             document.getElementById('btn-spd').classList.toggle('active', (mode === 'speed' || Math.abs(state.playbackRate - 1.0) > 0.01));
-            document.getElementById(`panel-${mode === 'home' ? 'home' : mode === 'speed' ? 'speed' : mode}`).classList.add('active');
+            
+            const panelId = `panel-${mode === 'home' ? 'home' : mode === 'speed' ? 'speed' : mode}`;
+            const panel = document.getElementById(panelId);
+            if(panel) panel.classList.add('active');
         }
 
         function enterFull() {
+            if(!state.isInitialized) return;
             state.lastModeBeforeFull = state.currentMode;
             const el = document.getElementById('center-area');
             if (el.requestFullscreen) el.requestFullscreen();
