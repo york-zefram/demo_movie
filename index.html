@@ -136,7 +136,7 @@
             padding: 12px; font-family: 'Michroma', sans-serif; font-size: 12px; outline: none; border-radius: 4px;
         }
         .btn-go { 
-            background: var(--neon-blue); color: #000; border: none; padding: 0 20px; 
+            background: var(--neon-blue); color: #000; border: none; padding: 0 15px; 
             font-family: 'Michroma', sans-serif; font-size: 12px; cursor: pointer; border-radius: 4px;
         }
 
@@ -248,6 +248,7 @@
                 <div class="input-box">
                     <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
                     <button class="btn-go" id="btn-url-go">GO</button>
+                    <button class="btn-go locked" id="btn-url-add">ADD</button>
                 </div>
             </div>
 
@@ -395,7 +396,6 @@
             document.getElementById('btn-web').onclick = () => switchMode('web');
             document.getElementById('btn-fil').onclick = () => switchMode('file');
             
-            // LST Button: Pause playback and show full screen overlay
             document.getElementById('btn-lst').onclick = () => {
                 if(!state.isInitialized) return;
                 pausePlayback();
@@ -448,7 +448,10 @@
                     document.getElementById('local-video').style.display = 'none';
                     document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById(id);
-                    state.isLoop = false; activateApp();
+                    state.isLoop = false; 
+                    activateApp();
+                    // Activate ADD button as well
+                    document.getElementById('btn-url-add').classList.remove('locked');
                 }
             };
 
@@ -461,7 +464,8 @@
                     state.player.pauseVideo();
                     state.localVid.src = URL.createObjectURL(file);
                     state.localVid.play();
-                    state.isLoop = false; activateApp();
+                    state.isLoop = false; 
+                    activateApp();
                 }
             };
         }
