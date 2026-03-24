@@ -91,7 +91,7 @@
         .mode-panel { display: none; width: 100%; flex-direction: column; gap: 5px; }
         .mode-panel.active { display: flex; }
 
-        /* Full Screen Title List Overlay - Compact Version */
+        /* Full Screen Title List Overlay - High Density & Sans-serif */
         #list-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: #000; z-index: 9999; flex-direction: column;
@@ -101,7 +101,7 @@
         #list-ad-area { height: var(--ad-h); width: 100%; background: #000; flex-shrink: 0; }
         
         #list-header {
-            padding: 1.5vh 4vw; border-bottom: 1px solid #333;
+            padding: 1.2vh 4vw; border-bottom: 1px solid #333;
             display: flex; flex-direction: column; gap: 0.2vh; flex-shrink: 0;
         }
         .list-top-row { display: flex; justify-content: space-between; align-items: center; }
@@ -122,16 +122,18 @@
 
         .list-item {
             display: flex; align-items: center; 
-            padding: 1vh 4vw;
+            padding: 0.8vh 4vw; /* 余白を極限までタイト化 */
             border-bottom: 1px solid #111; cursor: pointer; 
             gap: 3vw;
             position: relative;
+            /* リスト内のみ標準ゴシックに統一 */
+            font-family: sans-serif; 
+            text-transform: none; /* 日本語に合わせて大文字固定を解除 */
         }
         .list-item:hover { background: #0a0a0a; }
         
         .list-thumb {
-            /* サムネイルをさらに小型化し、縦幅を抑制 */
-            width: clamp(70px, 18vmin, 110px); 
+            width: clamp(65px, 16vmin, 100px); 
             aspect-ratio: 16/9; background: #222; 
             border: 1px solid #333; flex-shrink: 0; overflow: hidden;
         }
@@ -141,14 +143,14 @@
         
         .list-item-title { 
             color: #fff; font-weight: bold; 
-            font-size: clamp(11px, 3.5vmin, 14px); 
+            font-size: clamp(11px, 3.2vmin, 13px); 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
         }
         .list-item-channel { 
             color: var(--neon-blue); 
-            font-size: clamp(9px, 2.8vmin, 11px); 
+            font-size: clamp(9px, 2.5vmin, 10px); 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            opacity: 0.8;
+            opacity: 0.7;
         }
         
         .list-meta { 
@@ -157,20 +159,16 @@
         }
         .list-item-time { 
             color: #fff; 
-            font-size: clamp(9px, 2.8vmin, 12px); 
+            font-size: clamp(9px, 2.5vmin, 11px); 
+            opacity: 0.9;
         }
         .list-item-del {
             color: #444; 
-            font-size: clamp(18px, 5vmin, 24px); 
+            font-size: clamp(18px, 4.5vmin, 22px); 
             padding: 0 1vw; cursor: pointer;
         }
         
-        .list-item-icons { 
-            display: flex; gap: 2vw; color: var(--neon-blue); 
-            font-size: 10px; opacity: 0.4; 
-        }
-
-        /* 既存のコントロール系スタイル */
+        /* コントロール系スタイル */
         .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
         .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
         #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 1; box-shadow: var(--neon-glow); border-radius: 6px; pointer-events: none; }
