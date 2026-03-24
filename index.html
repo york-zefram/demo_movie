@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Universal Maximize)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Safe Zone Logic)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -14,6 +14,7 @@
             --sync-height: calc(var(--bottom-h) / 2);
             --icon-size: 8vh; 
             --icon-max: 55px;
+            --safe-margin: 80px; /* ボタンを収めるための最小余白幅 */
         }
 
         body { 
@@ -36,6 +37,7 @@
         #center-area:fullscreen { 
             background: #ff0000 !important; 
             width: 100vw; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
         }
 
         .side-lane {
@@ -50,20 +52,15 @@
             flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
         }
         
-        /* 映像コンテナ：アスペクト比を維持しつつ限界まで拡大 */
         #yt-player {
-            width: 100%; height: 100%;
-            max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
-            aspect-ratio: var(--center-ratio);
             background: #000;
+            transition: width 0.3s, height 0.3s; /* サイズ変更をスムーズに */
         }
 
-        /* 全画面時の限界拡大ロジック（タブレット/スマホ両対応） */
-        #center-area:fullscreen #yt-player {
-            max-width: 100vw;
-            max-height: 100vh;
-            width: min(100vw, calc(100vh * (16 / 9)));
-            height: min(100vh, calc(100vw * (9 / 16)));
+        /* 通常時のサイズ制限 */
+        #yt-player:not(:fullscreen) {
+            width: min(100%, calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9)));
+            aspect-ratio: var(--center-ratio);
         }
 
         #bottom-container {
@@ -88,7 +85,7 @@
             cursor: pointer; color: #000; font-size: 10px; font-weight: bold;
         }
 
-        /* ホーム復帰ボタン：JSで赤のセンターへ */
+        /* EXITボタン：絶対重ならないようにJSで制御 */
         #exit-fullscreen-btn-sync {
             display: none; position: absolute; z-index: 9999;
         }
@@ -131,6 +128,7 @@
     <script>
         let player;
         const centerArea = document.getElementById('center-area');
+        const ytContainer = document.getElementById('yt-player');
         const exitBtn = document.getElementById('exit-fullscreen-btn-sync');
 
         const tag = document.createElement('script');
@@ -154,31 +152,49 @@
             if(id) player.loadVideoById(id);
         }
 
-        function updateExitButtonPosition() {
-            if (!document.fullscreenElement) return;
-            const sw = window.innerWidth, sh = window.innerHeight;
-            const vw = Math.min(sw, sh * (16/9)), vh = Math.min(sh, sw * (9/16));
-            
-            // 垂直位置はホーム画面のBottom中央（sync-height）を継承
-            const bottomPx = (sh * 0.25) / 2; 
-            exitBtn.style.bottom = bottomPx + "px";
-
-            // 水平位置：右側の「赤の余白」のセンターを計算
-            const marginR = (sw - vw) / 2;
-            if (marginR > 40) {
-                exitBtn.style.right = (marginR / 2) + "px";
-                exitBtn.style.transform = "translate(50%, 50%)";
-            } else {
-                exitBtn.style.right = "20px";
-                exitBtn.style.transform = "translate(0, 50%)";
+        function updateLayout() {
+            if (!document.fullscreenElement) {
+                ytContainer.style.width = "";
+                ytContainer.style.height = "";
+                return;
             }
+
+            const sw = window.innerWidth;
+            const sh = window.innerHeight;
+            const safeMargin = 80; // ボタン用の最低確保幅(片側)
+
+            // 1. まず16:9の最大サイズを計算
+            let vw = Math.min(sw, sh * (16/9));
+            let vh = vw * (9/16);
+            if (vh > sh) {
+                vh = sh;
+                vw = vh * (16/9);
+            }
+
+            // 2. 「衝突判定」：左右の余白がsafeMarginより狭いか？
+            const currentMargin = (sw - vw) / 2;
+            if (currentMargin < safeMargin) {
+                // 映像を強制縮小して余白を作る
+                vw = sw - (safeMargin * 2);
+                vh = vw * (9/16);
+            }
+
+            // 映像サイズ適用
+            ytContainer.style.width = vw + "px";
+            ytContainer.style.height = vh + "px";
+
+            // EXITボタン配置（常に新しい余白のセンター）
+            const newMargin = (sw - vw) / 2;
+            exitBtn.style.bottom = ((sh * 0.25) / 2) + "px";
+            exitBtn.style.right = (newMargin / 2) + "px";
+            exitBtn.style.transform = "translate(50%, 50%)";
         }
 
-        function enterFull() { centerArea.requestFullscreen().then(updateExitButtonPosition); }
+        function enterFull() { centerArea.requestFullscreen().then(updateLayout); }
         function exitFull() { document.exitFullscreen(); }
 
-        window.addEventListener('resize', updateExitButtonPosition);
-        document.addEventListener('fullscreenchange', updateExitButtonPosition);
+        window.addEventListener('resize', updateLayout);
+        document.addEventListener('fullscreenchange', updateLayout);
 
         function tick() {
             if(player && player.getCurrentTime) {
