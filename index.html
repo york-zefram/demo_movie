@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Baseline Check - Fixed)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Base Logic)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -11,9 +11,6 @@
             --bottom-h: 25vh;
             --lane-w: 15vw;
             --center-ratio: 16 / 9;
-            --sync-height: calc(var(--bottom-h) / 2);
-            --icon-size: 8vh; 
-            --icon-max: 55px;
             --fs-status-h: 10vh;
         }
 
@@ -44,17 +41,15 @@
         #right-lane { background: rgba(139, 69, 19, 0.6); }
 
         #video-main {
-            flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
+            flex: 1; display: flex; align-items: center; justify-content: center; height: 100%;
         }
 
-        /* 修正：16:9を維持し、絶対に上下を切らせない設定 */
+        /* 2時間前の完璧な16:9ロジックを復元 */
         #yt-player {
             width: 100%;
-            max-width: calc((100vh - var(--top-h) - var(--bottom-h) - 4px) * (16 / 9));
-            max-height: calc(100% - 4px);
+            max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
             aspect-ratio: var(--center-ratio);
             background: #000;
-            object-fit: contain; /* 枠内に収める */
         }
 
         #center-area:fullscreen #video-main {
@@ -63,19 +58,20 @@
         }
 
         #center-area:fullscreen #yt-player {
-            max-width: calc((100vh - var(--fs-status-h) - 4px) * (16 / 9));
-            max-height: calc(100vh - var(--fs-status-h) - 4px);
+            max-width: calc((100vh - var(--fs-status-h)) * (16 / 9));
+            max-height: calc(100vh - var(--fs-status-h));
         }
 
+        /* URL入力パネル */
         #url-panel {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(10, 10, 10, 0.9); padding: 20px; border: 1px solid var(--neon-blue);
-            display: none; flex-direction: column; gap: 10px; z-index: 1000; width: 60%;
+            background: rgba(0, 0, 0, 0.95); padding: 20px; border: 2px solid var(--neon-blue);
+            display: none; flex-direction: column; gap: 15px; z-index: 1000; width: 70%;
         }
         #url-panel.active { display: flex; }
         input[type=text] {
-            background: #111; border: 1px solid #444; color: #fff; padding: 10px;
-            font-family: 'Michroma', sans-serif; font-size: 10px; outline: none;
+            background: #000; border: 1px solid var(--neon-blue); color: #fff; padding: 12px;
+            font-family: 'Michroma', sans-serif; font-size: 12px; outline: none;
         }
 
         #bottom-container {
@@ -84,8 +80,7 @@
         }
 
         .grid-icon-box {
-            width: var(--icon-size); height: var(--icon-size);
-            max-width: var(--icon-max); max-height: var(--icon-max);
+            width: 8vh; height: 8vh; max-width: 55px; max-height: 55px;
             background: #fff; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: #000; font-size: 10px; font-weight: bold;
@@ -113,8 +108,8 @@
         <div id="video-main">
             <div id="yt-player"></div>
             <div id="url-panel">
-                <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
-                <div class="grid-icon-box" id="btn-url-go" style="width:100%; max-width:none; height:40px;">GO</div>
+                <input type="text" id="input-url" placeholder="PASTE YOUTUBE URL...">
+                <div class="grid-icon-box" id="btn-url-go" style="width:100%; max-width:none; height:45px;">GO</div>
             </div>
         </div>
 
@@ -124,7 +119,7 @@
         </div>
 
         <div id="exit-fullscreen-btn-sync" onclick="exitFull()">
-            <div style="color: #fff; font-size: 12px; font-weight: bold; cursor: pointer;">EXIT</div>
+            <div style="color: #fff; font-size: 14px; font-weight: bold; cursor: pointer;">EXIT</div>
         </div>
     </div>
 
@@ -149,11 +144,10 @@
         window.onYouTubeIframeAPIReady = () => {
             player = new YT.Player('yt-player', {
                 videoId: 'ScXNbe_5Y0o',
-                playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1, 'origin': location.origin },
+                playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
                 events: {
                     'onStateChange': (e) => {
-                        const btn = document.getElementById('btn-play');
-                        btn.innerText = (e.data === 1) ? "PAUSE" : "PLAY";
+                        document.getElementById('btn-play').innerText = (e.data === 1) ? "PAUSE" : "PLAY";
                     }
                 }
             });
