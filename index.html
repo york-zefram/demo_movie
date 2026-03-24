@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM PLAYER NEO - Universal Bezel</title>
+    <title>ZEFRAM PLAYER NEO - Fixed Bezel</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -10,9 +10,7 @@
             --top-h: 50px;
             --bottom-h: 25vh;
             --lane-w: 15vw;
-            /* 全画面モード用の変数 */
-            --fs-status-h: 10vh; 
-            --fs-side-vazel: 5vw; 
+            --status-h: 10vh;
         }
 
         body { 
@@ -21,7 +19,7 @@
             display: flex; flex-direction: column;
         }
 
-        /* --- HOME LAYOUT --- */
+        /* --- HOME LAYOUT (Stable) --- */
         #top-container {
             flex: 0 0 var(--top-h); background: #000; z-index: 300;
             display: flex; align-items: center; justify-content: center;
@@ -39,15 +37,11 @@
         }
 
         #video-main {
-            flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
+            flex: 1; display: flex; align-items: center; justify-content: center; height: 100%;
         }
         
         #yt-player {
             background: #000;
-            transition: all 0.3s ease;
-        }
-
-        #yt-player:not(:fullscreen) {
             width: 100%; height: 100%;
             max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
             aspect-ratio: 16 / 9;
@@ -58,34 +52,47 @@
             display: flex; align-items: center;
         }
 
-        /* --- FULLSCREEN BEZEL SYSTEM --- */
+        /* --- FULLSCREEN SYSTEM --- */
         #center-area:fullscreen {
             background: #ff0000 !important;
-            display: flex; flex-direction: column;
-            justify-content: flex-start; /* 上寄せ */
-            align-items: center;
+            width: 100vw; height: 100vh;
         }
 
-        /* 全画面時のステータスエリア (10vh) */
+        /* 全画面時の映像コンテナを上寄せ */
+        #center-area:fullscreen #video-main {
+            align-items: flex-start;
+            height: calc(100vh - var(--status-h));
+        }
+
+        /* 全画面時の映像サイズ固定（左右ベゼル確保） */
+        #center-area:fullscreen #yt-player {
+            width: 90vw; /* 左右に5vwずつのベゼル */
+            height: auto;
+            max-height: calc(100vh - var(--status-h));
+            aspect-ratio: 16 / 9;
+            margin-top: 0;
+        }
+
+        /* 10vh ステータスエリア */
         #fs-status-bar {
             display: none;
             position: absolute; bottom: 0; left: 0;
-            width: 100vw; height: var(--fs-status-h);
-            background: #ff0000; /* 赤のベゼル */
+            width: 100vw; height: var(--status-h);
+            background: #ff0000;
             z-index: 9999;
             align-items: center;
             padding: 0 5vw;
             box-sizing: border-box;
         }
 
-        #center-area:fullscreen #fs-status-bar { display: flex; justify-content: flex-end; }
-        #center-area:fullscreen .side-lane { display: none; }
+        #center-area:fullscreen #fs-status-bar {
+            display: flex;
+            justify-content: flex-end; /* EXITを右端へ */
+        }
 
-        /* EXITテキストボタン */
         .fs-exit-txt {
-            color: #fff; font-size: 3vw; cursor: pointer;
-            letter-spacing: 2px; font-weight: bold;
-            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+            color: #fff; font-size: 4vw; cursor: pointer;
+            font-weight: bold; letter-spacing: 1px;
         }
 
         .grid-icon-box {
@@ -135,7 +142,6 @@
     <script>
         let player;
         const centerArea = document.getElementById('center-area');
-        const yt = document.getElementById('yt-player');
 
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -151,35 +157,14 @@
             });
         };
 
-        function togglePlay() { player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); }
-
-        function updateFullscreenLayout() {
-            if (!document.fullscreenElement) {
-                yt.style.width = ""; yt.style.height = "";
-                return;
+        function togglePlay() { 
+            if(player && player.getPlayerState) {
+                player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); 
             }
-
-            const sw = window.innerWidth;
-            const sh = window.innerHeight;
-            const statusBarH = sh * 0.1; // 10vh
-
-            // 映像利用可能エリア（高さは10vhを引いた残り）
-            const availableH = sh - statusBarH;
-            const bezelW = sw * 0.1; // 左右に合計10vwのベゼル（片側5vwずつ）を想定
-
-            let vw = Math.min(sw - (bezelW * 2), availableH * (16/9));
-            let vh = vw * (9/16);
-
-            yt.style.width = vw + "px";
-            yt.style.height = vh + "px";
-            // 上寄せ配置はCSSのjustify-content: flex-startで担保
         }
 
-        function enterFull() { centerArea.requestFullscreen().then(updateFullscreenLayout); }
+        function enterFull() { centerArea.requestFullscreen(); }
         function exitFull() { document.exitFullscreen(); }
-
-        window.addEventListener('resize', updateFullscreenLayout);
-        document.addEventListener('fullscreenchange', updateFullscreenLayout);
 
         function tick() {
             if(player && player.getCurrentTime) {
