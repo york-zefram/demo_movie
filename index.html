@@ -298,7 +298,7 @@
                 playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1, 'vq': 'highres' },
                 events: {
                     'onReady': onPlayerReady,
-                    'onStateChange': () => updatePlayIcon()
+                    'onStateChange': onPlayerStateChange
                 }
             });
         };
@@ -318,6 +318,23 @@
             } else {
                 btnLst.classList.add('locked');
                 btnLst.classList.remove('breathe');
+            }
+        }
+
+        // 新設：YouTubeの状態変化に合わせてADDボタンの状態を管理
+        function onPlayerStateChange(event) {
+            updatePlayIcon();
+            
+            const btnAdd = document.getElementById('btn-url-add');
+            // 動画のメタデータ（タイトル等）が取得可能な状態をチェック
+            const videoData = state.player.getVideoData();
+            
+            if (event.data === YT.PlayerState.PLAYING || (videoData && videoData.title)) {
+                btnAdd.classList.remove('locked');
+                btnAdd.classList.add('breathe'); // WEB/FILEと同じ点滅
+            } else if (event.data === YT.PlayerState.ENDED || event.data === -1) {
+                btnAdd.classList.add('locked');
+                btnAdd.classList.remove('breathe');
             }
         }
 
@@ -466,7 +483,9 @@
                     state.player.loadVideoById(id);
                     state.isLoop = false; 
                     activateApp();
-                    document.getElementById('btn-url-add').classList.remove('locked');
+                    // GO押下直後は読み込み中のため一旦リセット（onPlayerStateChangeで判定）
+                    document.getElementById('btn-url-add').classList.add('locked');
+                    document.getElementById('btn-url-add').classList.remove('breathe');
                 }
             };
 
