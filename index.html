@@ -2,17 +2,19 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (H-Sync Alignment)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Grid Fixed)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
             --neon-blue: #00f3ff; 
             --top-h: 50px;
             --bottom-h: 25vh;
-            --lane-w: 12vw;
+            --lane-w: 15vw; /* タッチエリアを考慮し少し広めに設定 */
             --center-ratio: 16 / 9;
-            /* ホームボタンの垂直位置を同期（下からBottomの半分） */
             --sync-height: calc(var(--bottom-h) / 2);
+            /* アイコン枠の共通サイズ */
+            --icon-size: 8vh; 
+            --icon-max: 55px;
         }
 
         body { 
@@ -21,7 +23,6 @@
             display: flex; flex-direction: column;
         }
 
-        /* 1. TOPコンテナ */
         #top-container {
             flex: 0 0 var(--top-h);
             background: #000; z-index: 300;
@@ -29,21 +30,13 @@
             border-bottom: 1px solid #333; font-size: 12px;
         }
 
-        /* 2. CENTERエリア (全画面対象) */
         #center-area {
-            flex: 1;
-            position: relative;
-            display: flex;
-            background: #111;
-            z-index: 50;
-            overflow: hidden;
+            flex: 1; position: relative; display: flex; background: #111; z-index: 50; overflow: hidden;
         }
 
-        /* 全画面時のデモ背景 */
-        #center-area:fullscreen {
-            background: #ff0000; /* デモ用：余白を赤 */
-        }
+        #center-area:fullscreen { background: #ff0000; }
 
+        /* 垂直レーンのグリッド固定 */
         .side-lane {
             width: var(--lane-w); height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
@@ -65,40 +58,40 @@
             max-width: calc(100vh * (16 / 9));
         }
 
-        /* 3. BOTTOMコンテナ */
         #bottom-container {
             flex: 0 0 var(--bottom-h);
             background: #000080; z-index: 100;
-            display: flex; flex-direction: column; justify-content: center;
+            display: flex; align-items: center;
         }
 
-        .bottom-controls { display: flex; width: 100%; height: 100%; align-items: center; }
-        .bottom-lane-sync { width: var(--lane-w); display: flex; justify-content: center; align-items: center; }
+        /* ボトムの左右ボタンをレーンの軸に合わせる */
+        .bottom-lane-sync { 
+            width: var(--lane-w); height: 100%; 
+            display: flex; justify-content: center; align-items: center; 
+        }
 
-        /* アイコン共通設定 */
-        .dummy-icon {
-            width: 8vh; height: 8vh; max-width: 50px; max-height: 50px;
-            background: #fff; border-radius: 50%; cursor: pointer;
+        .seekbar-area { flex: 1; padding: 0 20px; }
+
+        /* 統一された角丸正方形（将来の透明タッチエリア） */
+        .grid-icon-box {
+            width: var(--icon-size); height: var(--icon-size);
+            max-width: var(--icon-max); max-height: var(--icon-max);
+            background: #fff; border-radius: 12px; /* 角丸固定 */
             display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: opacity 0.2s;
+            color: #000; font-size: 10px; font-weight: bold;
         }
 
-        /* 【重要】全画面復帰用ホームアイコン：右レーンのセンターかつ、元のボタンと同じ高さ */
+        /* 全画面復帰ボタン（右下ボタンと高さを同期） */
         #exit-fullscreen-btn-sync {
             display: none;
             position: absolute;
-            /* 垂直位置：画面下端からBottomコンテナの半分（ホーム画面のボタン位置と同期） */
             bottom: var(--sync-height);
-            /* 水平位置：右レーンの中心 */
             right: calc(var(--lane-w) / 2);
             transform: translate(50%, 50%);
             z-index: 9999;
         }
-
-        #center-area:fullscreen #exit-fullscreen-btn-sync {
-            display: block;
-        }
-
-        /* 通常時はサイドレーンを表示、全画面時は非表示（デモ用） */
+        #center-area:fullscreen #exit-fullscreen-btn-sync { display: block; }
         #center-area:fullscreen .side-lane { display: none; }
     </style>
 </head>
@@ -108,8 +101,12 @@
 
     <div id="center-area">
         <div id="left-lane" class="side-lane">
-            <div class="dummy-icon" style="opacity:0.5;"></div>
-            <div class="dummy-icon" style="opacity:0.5;"></div>
+            <div class="grid-icon-box">SPD</div>
+            <div class="grid-icon-box">LOP</div>
+            <div class="grid-icon-box">MIR</div>
+            <div class="grid-icon-box">HOM</div>
+            <div class="grid-icon-box">A</div>
+            <div class="grid-icon-box">TOP</div>
         </div>
 
         <div id="video-main">
@@ -117,42 +114,42 @@
         </div>
 
         <div id="right-lane" class="side-lane">
-            <div class="dummy-icon" style="opacity:0.5;"></div>
-            <div class="dummy-icon" style="opacity:0.5;"></div>
+            <div class="grid-icon-box">BAG</div>
+            <div class="grid-icon-box">LST</div>
+            <div class="grid-icon-box">FIL</div>
+            <div class="grid-icon-box">WEB</div>
+            <div class="grid-icon-box">B</div>
+            <div class="grid-icon-box">--</div>
         </div>
 
         <div id="exit-fullscreen-btn-sync" onclick="exitFull()">
-            <div class="dummy-icon" style="background: var(--neon-blue); border: 3px solid #fff;">H</div>
+            <div class="grid-icon-box" style="background: var(--neon-blue);">EXIT</div>
         </div>
     </div>
 
     <div id="bottom-container">
-        <div class="bottom-controls">
-            <div class="bottom-lane-sync"></div>
-            <div style="flex:1;"></div>
-            <div class="bottom-lane-sync">
-                <div class="dummy-icon" onclick="enterFull()" style="background: #fff; border: 2px solid var(--neon-blue);">F</div>
-            </div>
+        <div class="bottom-lane-sync">
+            <div class="grid-icon-box">PLAY</div>
+        </div>
+
+        <div class="seekbar-area">
+            <div style="width:100%; height:4px; background:var(--neon-blue); opacity:0.3;"></div>
+        </div>
+
+        <div class="bottom-lane-sync">
+            <div class="grid-icon-box" onclick="enterFull()">FULL</div>
         </div>
     </div>
 
     <script>
         const centerArea = document.getElementById('center-area');
-
         function enterFull() {
-            if (centerArea.requestFullscreen) {
-                centerArea.requestFullscreen();
-            } else if (centerArea.webkitRequestFullscreen) {
-                centerArea.webkitRequestFullscreen();
-            }
+            if (centerArea.requestFullscreen) centerArea.requestFullscreen();
+            else if (centerArea.webkitRequestFullscreen) centerArea.webkitRequestFullscreen();
         }
-
         function exitFull() {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-            }
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
     </script>
 </body>
