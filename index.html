@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Safe Zone Logic)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Safe Scale Optimized)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -14,7 +14,6 @@
             --sync-height: calc(var(--bottom-h) / 2);
             --icon-size: 8vh; 
             --icon-max: 55px;
-            --safe-margin: 80px; /* ボタンを収めるための最小余白幅 */
         }
 
         body { 
@@ -33,7 +32,7 @@
             flex: 1; position: relative; display: flex; background: #111; z-index: 50; overflow: hidden;
         }
 
-        /* 全画面時は赤の余白を強制維持 */
+        /* 全画面時は赤の判定色 */
         #center-area:fullscreen { 
             background: #ff0000 !important; 
             width: 100vw; height: 100vh;
@@ -54,12 +53,14 @@
         
         #yt-player {
             background: #000;
-            transition: width 0.3s, height 0.3s; /* サイズ変更をスムーズに */
+            transition: width 0.2s, height 0.2s;
         }
 
-        /* 通常時のサイズ制限 */
+        /* 通常時はサイドレーンの内側にフィット */
         #yt-player:not(:fullscreen) {
-            width: min(100%, calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9)));
+            width: 100%;
+            height: 100%;
+            max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
             aspect-ratio: var(--center-ratio);
         }
 
@@ -85,7 +86,6 @@
             cursor: pointer; color: #000; font-size: 10px; font-weight: bold;
         }
 
-        /* EXITボタン：絶対重ならないようにJSで制御 */
         #exit-fullscreen-btn-sync {
             display: none; position: absolute; z-index: 9999;
         }
@@ -153,40 +153,35 @@
         }
 
         function updateLayout() {
+            const sw = window.innerWidth;
+            const sh = window.innerHeight;
+
             if (!document.fullscreenElement) {
+                // ホーム画面：CSSの制限に従うためJSでの強制上書きを解除
                 ytContainer.style.width = "";
                 ytContainer.style.height = "";
                 return;
             }
 
-            const sw = window.innerWidth;
-            const sh = window.innerHeight;
-            const safeMargin = 80; // ボタン用の最低確保幅(片側)
-
-            // 1. まず16:9の最大サイズを計算
+            // 全画面時
+            const minSafeWidth = 70; // EXITボタン用の最小ガード（片側）
             let vw = Math.min(sw, sh * (16/9));
             let vh = vw * (9/16);
-            if (vh > sh) {
-                vh = sh;
-                vw = vh * (16/9);
-            }
 
-            // 2. 「衝突判定」：左右の余白がsafeMarginより狭いか？
-            const currentMargin = (sw - vw) / 2;
-            if (currentMargin < safeMargin) {
-                // 映像を強制縮小して余白を作る
-                vw = sw - (safeMargin * 2);
+            // 衝突判定：16:9スマホなどで余白がminSafeWidthより狭い場合のみ縮小
+            const margin = (sw - vw) / 2;
+            if (margin < minSafeWidth) {
+                vw = sw - (minSafeWidth * 2);
                 vh = vw * (9/16);
             }
 
-            // 映像サイズ適用
             ytContainer.style.width = vw + "px";
             ytContainer.style.height = vh + "px";
 
-            // EXITボタン配置（常に新しい余白のセンター）
-            const newMargin = (sw - vw) / 2;
+            // ボタン配置
+            const currentMargin = (sw - vw) / 2;
             exitBtn.style.bottom = ((sh * 0.25) / 2) + "px";
-            exitBtn.style.right = (newMargin / 2) + "px";
+            exitBtn.style.right = (currentMargin / 2) + "px";
             exitBtn.style.transform = "translate(50%, 50%)";
         }
 
