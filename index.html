@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Layout Optimized)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Mirror Sync)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -40,19 +40,28 @@
             display: flex; align-items: center; border-top: 1px solid #333;
         }
 
+        /* 映像エリア */
         #video-main {
             flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
         }
 
-        #yt-player {
+        /* ミラー反転の対象となるラッパー */
+        #video-viewport-wrapper {
             width: 100%;
             height: 100%;
             max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
             max-height: 100%;
             aspect-ratio: var(--center-ratio);
             background: #000;
+            transition: transform 0.3s ease;
         }
 
+        #yt-player {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* サイドレーン */
         .side-lane {
             width: var(--lane-w); height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
@@ -67,8 +76,9 @@
             cursor: pointer; color: #fff; font-size: 10px; transition: 0.2s;
         }
         .grid-icon-box.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
-        .grid-icon-box.blank { border: 1px solid #222; cursor: default; }
+        .grid-icon-box.blank { border: 1px solid #222; cursor: default; color: #444; }
 
+        /* ボトムスロット */
         #dynamic-slot {
             flex: 1; height: 100%; padding: 0 20px; display: flex; align-items: center; justify-content: center;
         }
@@ -90,8 +100,12 @@
             font-family: 'Michroma', sans-serif; font-size: 12px; cursor: pointer; border-radius: 4px;
         }
 
+        /* 全画面時 */
         #center-area:fullscreen #video-main { height: calc(100vh - var(--fs-status-h)); align-items: flex-start; }
-        #center-area:fullscreen #yt-player { max-width: calc((100vh - var(--fs-status-h)) * (16 / 9)); max-height: calc(100vh - var(--fs-status-h)); }
+        #center-area:fullscreen #video-viewport-wrapper { 
+            max-width: calc((100vh - var(--fs-status-h)) * (16 / 9)); 
+            max-height: calc(100vh - var(--fs-status-h)); 
+        }
         #center-area:fullscreen .side-lane { display: none; }
 
         #exit-fs {
@@ -107,25 +121,28 @@
 
     <div id="center-area">
         <div id="left-lane" class="side-lane">
-            <div class="grid-icon-box" id="btn-spd">SPD</div>
-            <div class="grid-icon-box" id="btn-lop">LOP</div>
+            <div class="grid-icon-box blank">SPD</div>
+            <div class="grid-icon-box blank">LOP</div>
             <div class="grid-icon-box" id="btn-mir">MIR</div>
             <div class="grid-icon-box active" id="btn-hom">HOM</div>
-            <div class="grid-icon-box" id="btn-a">A</div>
-            <div class="grid-icon-box" id="btn-top">TOP</div>
+            <div class="grid-icon-box blank">A</div>
+            <div class="grid-icon-box blank">TOP</div>
         </div>
 
         <div id="video-main">
-            <div id="yt-player"></div>
+            <div id="video-viewport-wrapper">
+                <div id="yt-player"></div>
+            </div>
         </div>
 
         <div id="right-lane" class="side-lane">
-            <div class="grid-icon-box" id="btn-bag">BAG</div>
-            <div class="grid-icon-box" id="btn-lst">LST</div>
-            <div class="grid-icon-box" id="btn-fil">FIL</div>
+            <div class="grid-icon-box blank">BAG</div>
+            <div class="grid-icon-box blank">LST</div>
+            <div class="grid-icon-box blank">FIL</div>
             <div class="grid-icon-box" id="btn-web">WEB</div>
-            <div class="grid-icon-box" id="btn-b">B</div>
-            <div class="grid-icon-box blank">--</div> </div>
+            <div class="grid-icon-box blank">B</div>
+            <div class="grid-icon-box blank">--</div>
+        </div>
 
         <div id="exit-fs" onclick="exitFull()">
             <div style="color: #fff; font-size: 12px; font-weight: bold; cursor: pointer;">EXIT</div>
@@ -165,6 +182,7 @@
         const state = {
             player: null,
             currentMode: 'home',
+            isMirror: false,
             isDragging: false
         };
 
@@ -213,14 +231,27 @@
         }
 
         function initEvents() {
+            // 再生・一時停止
             document.getElementById('btn-play-pause').onclick = () => {
                 const s = state.player.getPlayerState();
                 s === YT.PlayerState.PLAYING ? state.player.pauseVideo() : state.player.playVideo();
             };
 
+            // MIRROR トグル
+            document.getElementById('btn-mir').onclick = () => {
+                state.isMirror = !state.isMirror;
+                const wrapper = document.getElementById('video-viewport-wrapper');
+                const btn = document.getElementById('btn-mir');
+                
+                wrapper.style.transform = state.isMirror ? "scaleX(-1)" : "none";
+                btn.classList.toggle('active', state.isMirror);
+            };
+
+            // モード切り替え
             document.getElementById('btn-hom').onclick = () => switchMode('home');
             document.getElementById('btn-web').onclick = () => switchMode('web');
 
+            // シーク操作
             const track = document.getElementById('main-track');
             const handleSeek = (e) => {
                 const rect = track.getBoundingClientRect();
@@ -235,6 +266,7 @@
             track.ontouchstart = (e) => { state.isDragging = true; handleSeek(e); };
             window.ontouchend = () => { state.isDragging = false; };
 
+            // URL読み込み
             document.getElementById('btn-url-go').onclick = () => {
                 const v = document.getElementById('input-url').value;
                 const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
@@ -248,15 +280,12 @@
         function switchMode(mode) {
             state.currentMode = mode;
             document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.side-lane .grid-icon-box').forEach(b => b.classList.remove('active'));
+            // サイドレーンのアクティブ表示切り替え（MIR以外）
+            document.getElementById('btn-hom').classList.toggle('active', mode === 'home');
+            document.getElementById('btn-web').classList.toggle('active', mode === 'web');
             
-            if(mode === 'home') {
-                document.getElementById('panel-home').classList.add('active');
-                document.getElementById('btn-hom').classList.add('active');
-            } else if(mode === 'web') {
-                document.getElementById('panel-web').classList.add('active');
-                document.getElementById('btn-web').classList.add('active');
-            }
+            if(mode === 'home') document.getElementById('panel-home').classList.add('active');
+            else if(mode === 'web') document.getElementById('panel-web').classList.add('active');
         }
 
         function enterFull() {
