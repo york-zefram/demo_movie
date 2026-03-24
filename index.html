@@ -2,17 +2,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Layout Alpha)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
             --neon-blue: #00f3ff; 
-            --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); 
-            --panel-bg: rgba(10, 10, 10, 0.85);
-            
-            /* レイアウト定義数値 */
             --top-h: 50px;
-            --bottom-w-ratio: 20vw;
+            --bottom-h-ratio: 20vw; /* 下部コンテナの高さ */
             --center-ratio: 16 / 9;
         }
 
@@ -24,96 +20,83 @@
         /* 1. TOPコンテナ (黒) */
         #top-container {
             position: fixed; top: 0; left: 0; width: 100%; height: var(--top-h);
-            background: #000; z-index: 100;
+            background: #000; z-index: 300;
             display: flex; align-items: center; justify-content: center;
-            letter-spacing: 0.15em; font-size: 14px; border-bottom: 1px solid #333;
+            border-bottom: 1px solid #333; font-size: 12px;
         }
 
         /* 2. BOTTOMコンテナ (紺) */
         #bottom-container {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: var(--bottom-w-ratio);
-            background: #000080; z-index: 100; /* 左右よりは下のレイヤー */
+            position: fixed; bottom: 0; left: 0; width: 100%; height: var(--bottom-h-ratio);
+            background: #000080; z-index: 100;
+            display: flex; align-items: center; padding: 0 2vw; box-sizing: border-box;
         }
 
-        /* 3. CENTERコンテナ (16:9固定 / UI一時集約) */
+        /* 3. CENTERコンテナ (16:9固定) */
         #center-container {
             position: absolute;
             top: var(--top-h);
             left: 50%;
             transform: translateX(-50%);
-            /* 上下制約の中で16:9を維持する最大幅を計算 */
-            height: calc(100vh - var(--top-h) - var(--bottom-w-ratio));
+            height: calc(100vh - var(--top-h) - var(--bottom-h-ratio));
             aspect-ratio: var(--center-ratio);
-            background: #111; /* 映像読み込み前 */
-            z-index: 50; /* 最背面 */
-            overflow: hidden;
+            background: #111;
+            z-index: 50;
         }
 
         /* 4. LEFTコンテナ (濃い緑) */
         #left-container {
             position: fixed; top: var(--top-h); bottom: 0; left: 0;
-            /* 画面左端からCenterの左端までをカバー */
-            width: calc((100vw - (calc(100vh - var(--top-h) - var(--bottom-w-ratio)) * 16 / 9)) / 2);
-            background: #006400; z-index: 200; /* 最前面 */
+            width: calc((100vw - (calc(100vh - var(--top-h) - var(--bottom-h-ratio)) * 16 / 9)) / 2);
+            background: #006400; z-index: 200;
+            display: flex; flex-direction: column; align-items: center; justify-content: space-around;
+            padding: 2vh 0; box-sizing: border-box;
         }
 
         /* 5. RIGHTコンテナ (濃いオレンジ) */
         #right-container {
             position: fixed; top: var(--top-h); bottom: 0; right: 0;
-            /* 画面右端からCenterの右端までをカバー */
-            width: calc((100vw - (calc(100vh - var(--top-h) - var(--bottom-w-ratio)) * 16 / 9)) / 2);
-            background: #8B4513; z-index: 200; /* 最前面 */
+            width: calc((100vw - (calc(100vh - var(--top-h) - var(--bottom-h-ratio)) * 16 / 9)) / 2);
+            background: #8B4513; z-index: 200;
+            display: flex; flex-direction: column; align-items: center; justify-content: space-around;
+            padding: 2vh 0; box-sizing: border-box;
         }
 
-        /* 既存機能のCenter内配置用（いじらない） */
-        #video-wrapper { width: 100%; height: 100%; position: relative; }
-        iframe, video { width: 100%; height: 100%; border: none; }
-
-        /* 前スレッドで60%に変更された既存UIのラッパー */
-        #home-overlay {
-            position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%);
-            width: 60%; /* 指示通り60%に設定 */
-            z-index: 1000; display: flex; flex-direction: column; gap: 30px; 
-            pointer-events: none; transition: opacity 0.5s ease;
+        /* 白いアイコン（プレースホルダー）の共通スタイル */
+        .dummy-icon {
+            width: 6vw; height: 6vw; max-width: 50px; max-height: 50px;
+            background: #fff; border-radius: 10%; /* 任意で四角に近い形 */
+            opacity: 0.8;
         }
-        
-        /* ボタン等の既存スタイル（省略せず維持） */
-        .nav-row, .transport-container, .btn-nav, .btn-transport { pointer-events: auto; }
-        /* ...その他の既存スタイルはそのまま継続... */
+        .circle-icon { border-radius: 50%; } /* 再生ボタン等は丸 */
+
+        /* 下部シークバーのプレースホルダー */
+        .dummy-seekbar {
+            flex: 1; height: 10px; background: #fff; margin: 0 2vw; border-radius: 5px;
+        }
+
+        /* 既存機能の仮置きエリア（index6.htmlの移植先） */
+        #home-overlay-temporary {
+            position: absolute; width: 100%; height: 100%; pointer-events: none;
+        }
     </style>
 </head>
 <body>
 
-    <div id="top-container">AD AREA (50px FIXED)</div>
+    <div id="top-container">GOOGLE ADS AREA</div>
 
-    <div id="left-container"></div>
-    <div id="right-container"></div>
+    <div id="left-container">
+        <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon circle-icon"></div> <div class="dummy-icon"></div> </div>
+
+    <div id="right-container">
+        <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon circle-icon"></div> </div>
 
     <div id="center-container">
-        <div id="video-wrapper">
-            <div id="yt-player"></div>
-            <video id="local-video" style="display:none;" controls></video>
-        </div>
-
-        <div id="home-overlay">
-            <div class="nav-row">
-                <button class="btn-nav" data-mode="list">LIST</button>
-                <button class="btn-nav active" data-mode="loop">LOOP</button>
-                <button class="btn-nav" data-mode="setting">SETTING</button>
-            </div>
-
-            <div id="dynamic-content">
-                </div>
-
-            <div class="transport-container">
-                </div>
-        </div>
+        <div id="home-overlay-temporary"></div>
     </div>
 
-    <div id="bottom-container"></div>
+    <div id="bottom-container">
+        <div class="dummy-icon circle-icon" style="width:8vw; height:8vw;"></div> <div class="dummy-seekbar"></div> <div class="dummy-icon"></div> </div>
 
-    <script>
-        /* 既存の再生ロジック・A/Bループ・ミラー処理（そのまま維持） */
-    </script>
 </body>
 </html>
