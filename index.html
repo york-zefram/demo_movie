@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Full Integration)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Draggable AB)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -86,9 +86,15 @@
         #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 1; box-shadow: var(--neon-glow); border-radius: 6px; pointer-events: none; }
         .knob-ab {
             position: absolute; top: 50%; transform: translate(-50%, -50%);
-            width: 20px; height: 20px; background: #000; border: 1px solid var(--neon-blue);
+            width: 30px; height: 30px; background: #000; border: 1px solid var(--neon-blue);
             color: var(--neon-blue); display: none; align-items: center; justify-content: center;
-            font-size: 8px; border-radius: 4px; z-index: 5; pointer-events: none;
+            font-size: 10px; border-radius: 4px; z-index: 10; cursor: pointer;
+        }
+        /* 現在地を示す白い点 */
+        #now-knob {
+            position: absolute; top: 50%; transform: translate(-50%, -50%);
+            width: 12px; height: 12px; background: #fff; border-radius: 50%;
+            box-shadow: 0 0 10px #fff; z-index: 5; pointer-events: none;
         }
 
         .speed-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--neon-blue); margin-bottom: 4px; opacity: 0.7; }
@@ -163,6 +169,7 @@
                 <div class="bar-track" id="main-track">
                     <div id="ab-range"></div>
                     <div class="bar-fill" id="main-fill"></div>
+                    <div id="now-knob"></div>
                     <div class="knob-ab" id="knob-a">A</div>
                     <div class="knob-ab" id="knob-b">B</div>
                 </div>
@@ -199,8 +206,7 @@
             currentMode: 'home',
             isMirror: false,
             isLoop: false,
-            isDragging: false,
-            activeTrack: null,
+            activeDrag: null, // 'now', 'a', 'b', 'speed'
             playbackRate: 1.0,
             startT: 0,
             endT: 0
@@ -234,9 +240,6 @@
         function onPlayerStateChange(event) {
             const btn = document.getElementById('btn-play-pause');
             btn.innerText = (event.data === YT.PlayerState.PLAYING) ? "Ⅱ" : "▶";
-            if (event.data === YT.PlayerState.PLAYING && state.player.setPlaybackQuality) {
-                state.player.setPlaybackQuality('hd1080');
-            }
         }
 
         function render() {
@@ -250,20 +253,23 @@
                 }
 
                 if (dur > 0) {
-                    // 通常シークバー
-                    if (!state.isDragging) {
-                        const p = (now / dur) * 100;
-                        document.getElementById('main-fill').style.width = p + "%";
-                        document.getElementById('txt-cur').innerText = formatTime(now);
-                        document.getElementById('txt-total').innerText = formatTime(dur);
-                    }
-
-                    // LOP視覚要素の更新
+                    const fill = document.getElementById('main-fill');
+                    const nowKnob = document.getElementById('now-knob');
                     const range = document.getElementById('ab-range');
                     const ka = document.getElementById('knob-a');
                     const kb = document.getElementById('knob-b');
                     const btnLop = document.getElementById('btn-lop');
 
+                    // 再生位置の更新
+                    if (state.activeDrag !== 'now') {
+                        const p = (now / dur) * 100;
+                        fill.style.width = p + "%";
+                        nowKnob.style.left = p + "%";
+                        document.getElementById('txt-cur').innerText = formatTime(now);
+                    }
+                    document.getElementById('txt-total').innerText = formatTime(dur);
+
+                    // LOP視覚要素の更新
                     if (state.isLoop) {
                         range.style.display = ka.style.display = kb.style.display = 'flex';
                         btnLop.classList.add('active');
@@ -306,7 +312,6 @@
                 document.getElementById('video-viewport-wrapper').style.transform = state.isMirror ? "scaleX(-1)" : "none";
             };
 
-            // ループ関連イベント
             document.getElementById('btn-lop').onclick = () => {
                 state.isLoop = !state.isLoop;
                 if(state.isLoop && state.endT === 0) state.endT = state.player.getDuration();
@@ -336,8 +341,15 @@
                 const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
                 const p = Math.max(0, Math.min(1, x / rect.width));
 
-                if (type === 'seek') {
-                    state.player.seekTo(p * state.player.getDuration(), true);
+                if (type === 'now') {
+                    const time = p * state.player.getDuration();
+                    state.player.seekTo(time, true);
+                    document.getElementById('main-fill').style.width = (p * 100) + "%";
+                    document.getElementById('now-knob').style.left = (p * 100) + "%";
+                } else if (type === 'a') {
+                    state.startT = p * state.player.getDuration();
+                } else if (type === 'b') {
+                    state.endT = p * state.player.getDuration();
                 } else if (type === 'speed') {
                     const rate = 0.5 + p; 
                     state.playbackRate = rate;
@@ -348,18 +360,23 @@
                 }
             };
 
-            const setupTrack = (id, type) => {
-                const el = document.getElementById(id);
-                el.onmousedown = (e) => { state.isDragging = true; state.activeTrack = type; handleInput(e, type); };
-                el.ontouchstart = (e) => { state.isDragging = true; state.activeTrack = type; handleInput(e, type); };
-            };
+            // ドラッグ開始
+            document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+            document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+            
+            document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
+            document.getElementById('knob-a').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
+            
+            document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
+            document.getElementById('knob-b').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
 
-            setupTrack('main-track', 'seek');
-            setupTrack('speed-track', 'speed');
+            document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
+            document.getElementById('speed-track').ontouchstart = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
 
-            window.onmousemove = (e) => { if(state.isDragging) handleInput(e, state.activeTrack); };
-            window.ontouchmove = (e) => { if(state.isDragging) handleInput(e, state.activeTrack); };
-            window.onmouseup = window.ontouchend = () => { state.isDragging = false; state.activeTrack = null; };
+            // ドラッグ中・終了
+            window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
+            window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
+            window.onmouseup = window.ontouchend = () => { state.activeDrag = null; };
 
             document.getElementById('btn-url-go').onclick = () => {
                 const v = document.getElementById('input-url').value;
