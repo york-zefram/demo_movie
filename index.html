@@ -47,14 +47,14 @@
             flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
         }
 
-        /* 16:9を維持しつつ、上下の切れを防止するために2pxの遊びを追加 */
+        /* 修正：16:9を維持し、絶対に上下を切らせない設定 */
         #yt-player {
             width: 100%;
-            max-width: calc((100vh - var(--top-h) - var(--bottom-h) - 2px) * (16 / 9));
-            max-height: calc(100% - 2px);
+            max-width: calc((100vh - var(--top-h) - var(--bottom-h) - 4px) * (16 / 9));
+            max-height: calc(100% - 4px);
             aspect-ratio: var(--center-ratio);
             background: #000;
-            object-fit: contain; /* 映像を枠内に収める */
+            object-fit: contain; /* 枠内に収める */
         }
 
         #center-area:fullscreen #video-main {
@@ -63,11 +63,10 @@
         }
 
         #center-area:fullscreen #yt-player {
-            max-width: calc((100vh - var(--fs-status-h) - 2px) * (16 / 9));
-            max-height: calc(100vh - var(--fs-status-h) - 2px);
+            max-width: calc((100vh - var(--fs-status-h) - 4px) * (16 / 9));
+            max-height: calc(100vh - var(--fs-status-h) - 4px);
         }
 
-        /* URL入力オーバーレイ */
         #url-panel {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(10, 10, 10, 0.9); padding: 20px; border: 1px solid var(--neon-blue);
@@ -150,7 +149,7 @@
         window.onYouTubeIframeAPIReady = () => {
             player = new YT.Player('yt-player', {
                 videoId: 'ScXNbe_5Y0o',
-                playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1 },
+                playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1, 'origin': location.origin },
                 events: {
                     'onStateChange': (e) => {
                         const btn = document.getElementById('btn-play');
