@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Aligned Layout)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Grid Aligned)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
             --neon-blue: #00f3ff; 
             --top-h: 50px;
             --bottom-h: 25vh;
-            --side-w: 10vw; /* 左右コンテナの幅 兼 下部の余白基準 */
+            --lane-w: 12vw; /* 左右操作レーンの幅（ここを軸にする） */
             --center-ratio: 16 / 9;
         }
 
@@ -19,6 +19,7 @@
             display: flex; flex-direction: column;
         }
 
+        /* 1. TOPコンテナ */
         #top-container {
             flex: 0 0 var(--top-h);
             background: #000; z-index: 300;
@@ -26,72 +27,98 @@
             border-bottom: 1px solid #333; font-size: 12px;
         }
 
-        #center-container {
+        /* 2. CENTERエリア（動画 + 左右レーン） */
+        #center-area {
             flex: 1;
             position: relative;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
             background: #111;
             z-index: 50;
+            overflow: hidden;
         }
 
-        /* 動画枠：左右のサイドレーン(side-w)を確保した最大幅に制限 */
-        #video-viewport-mock {
-            width: calc(100vw - (var(--side-w) * 2));
+        /* 左右の垂直レーン（ここを基準にアイコンを並べる） */
+        .side-lane {
+            width: var(--lane-w);
             height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            padding: 2vh 0;
+            box-sizing: border-box;
+            z-index: 200;
+        }
+        #left-lane { background: rgba(0, 100, 0, 0.6); }
+        #right-lane { background: rgba(139, 69, 19, 0.6); }
+
+        /* 中央の動画本体：レーンの間にぴったり収まる */
+        #video-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+        #video-viewport-mock {
+            width: 100%;
             max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
             aspect-ratio: var(--center-ratio);
             background: #222;
-            position: relative;
         }
 
+        /* 3. BOTTOMコンテナ */
         #bottom-container {
             flex: 0 0 var(--bottom-h);
             background: #000080; z-index: 100;
-            display: flex; flex-direction: column; justify-content: center;
-            /* 下部コンテナ自体のパディングをside-wの半分程度に設定し、アイコンのセンターを合わせる */
-            padding: 0 calc(var(--side-w) / 2); 
-            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* 左右コンテナの幅をside-wに固定し、アイコンを中央配置 */
-        #left-container, #right-container {
-            position: absolute; top: 0; bottom: 0;
-            width: var(--side-w);
-            z-index: 200;
-            display: flex; flex-direction: column; align-items: center; justify-content: space-around;
-            padding: 1vh 0;
-        }
-        #left-container { left: calc(var(--side-w) * -1); background: rgba(0, 100, 0, 0.6); }
-        #right-container { right: calc(var(--side-w) * -1); background: rgba(139, 69, 19, 0.6); }
-
-        .dummy-icon {
-            width: 6vh; height: 6vh; max-width: 40px; max-height: 40px;
-            background: #fff; border-radius: 4px; opacity: 0.9;
-        }
-        .circle-icon { border-radius: 50%; }
-
-        /* 下部ボタンのコンテナ：左右のアイコンと軸を合わせるための配置 */
+        /* ボトムの操作パーツ：上のレーンと幅を完全に同期 */
         .bottom-controls {
-            display: flex; align-items: center; justify-content: space-between; width: 100%;
+            display: flex;
+            width: 100%;
+            height: 60%;
+            align-items: center;
         }
-        
-        /* 再生ボタンと全画面ボタンの親：side-wの中で中央に来るように幅を調整 */
-        .side-btn-wrapper {
-            width: var(--side-w);
+
+        /* 下部ボタンも「lane-w」と同じ幅の箱に入れることで、垂直軸を強制的に一致させる */
+        .bottom-lane-sync {
+            width: var(--lane-w);
             display: flex;
             justify-content: center;
+            align-items: center;
         }
 
+        .dummy-seekbar-container {
+            flex: 1;
+            padding: 0 10px;
+        }
         .dummy-seekbar {
-            flex: 1; height: 6px; background: var(--neon-blue); border-radius: 3px; position: relative;
+            width: 100%;
+            height: 6px;
+            background: var(--neon-blue);
+            border-radius: 3px;
+            position: relative;
         }
         .dummy-knob {
             position: absolute; top: 50%; left: 30%; transform: translate(-50%, -50%);
             width: 16px; height: 16px; background: #fff; border-radius: 50%;
         }
+
+        /* 共通アイコンスタイル */
+        .dummy-icon {
+            width: 6vh; height: 6vh; max-width: 44px; max-height: 44px;
+            background: #fff; border-radius: 4px; opacity: 0.9;
+        }
+        .circle-icon { border-radius: 50%; }
+
         .time-row {
             display: flex; justify-content: space-between; width: 100%; 
-            margin-top: 8px; font-size: 12px; padding: 0 15%; box-sizing: border-box;
+            font-size: 12px; padding: 0 var(--lane-w); box-sizing: border-box;
         }
     </style>
 </head>
@@ -99,34 +126,40 @@
 
     <div id="top-container">GOOGLE ADS AREA (50px)</div>
 
-    <div id="center-container">
-        <div id="video-viewport-mock">
-            <div id="left-container">
-                <div class="dummy-icon"></div>
-                <div class="dummy-icon"></div>
-                <div class="dummy-icon"></div>
-                <div class="dummy-icon"></div>
-                <div class="dummy-icon circle-icon"></div>
-                <div class="dummy-icon"></div>
-            </div>
-            
-            <div id="right-container">
-                <div class="dummy-icon"></div>
-                <div class="dummy-icon"></div>
-                <div class="dummy-icon"></div>
-                <div class="dummy-icon"></div>
-                <div class="dummy-icon circle-icon"></div>
-            </div>
+    <div id="center-area">
+        <div id="left-lane" class="side-lane">
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon circle-icon"></div>
+            <div class="dummy-icon"></div>
+        </div>
+
+        <div id="video-main">
+            <div id="video-viewport-mock"></div>
+        </div>
+
+        <div id="right-lane" class="side-lane">
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon circle-icon"></div>
         </div>
     </div>
 
     <div id="bottom-container">
         <div class="bottom-controls">
-            <div class="side-btn-wrapper">
+            <div class="bottom-lane-sync">
                 <div class="dummy-icon circle-icon" style="width:10vh; height:10vh; max-width:55px; max-height:55px; background: var(--neon-blue);"></div>
             </div>
-            <div class="dummy-seekbar"><div class="dummy-knob"></div></div>
-            <div class="side-btn-wrapper">
+
+            <div class="dummy-seekbar-container">
+                <div class="dummy-seekbar"><div class="dummy-knob"></div></div>
+            </div>
+
+            <div class="bottom-lane-sync">
                 <div class="dummy-icon" style="width:8vh; height:8vh; max-width:45px; max-height:45px;"></div>
             </div>
         </div>
