@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Base Logic)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Base Sync)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -30,6 +30,7 @@
             flex: 1; position: relative; display: flex; background: #111; z-index: 50; overflow: hidden;
         }
 
+        /* 全画面：赤いベゼル */
         #center-area:fullscreen { background: #ff0000; display: flex; flex-direction: column; }
 
         .side-lane {
@@ -44,7 +45,7 @@
             flex: 1; display: flex; align-items: center; justify-content: center; height: 100%;
         }
 
-        /* 2時間前の完璧な16:9ロジックを復元 */
+        /* 理論値100%の16:9ロジック */
         #yt-player {
             width: 100%;
             max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
@@ -52,6 +53,7 @@
             background: #000;
         }
 
+        /* 全画面：上寄せ配置 */
         #center-area:fullscreen #video-main {
             height: calc(100vh - var(--fs-status-h));
             align-items: flex-start; flex: none;
@@ -137,6 +139,7 @@
         let player;
         const centerArea = document.getElementById('center-area');
 
+        // YouTube API 読み込み
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
