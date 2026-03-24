@@ -2,82 +2,86 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Layout Alpha)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Layout Beta)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
             --neon-blue: #00f3ff; 
             --top-h: 50px;
-            --bottom-h-ratio: 20vw; /* 下部コンテナの高さ */
             --center-ratio: 16 / 9;
         }
 
         body { 
             background: #000; color: var(--neon-blue); font-family: 'Michroma', sans-serif; 
             margin: 0; overflow: hidden; height: 100vh; width: 100vw; text-transform: uppercase;
+            display: flex; flex-direction: column;
         }
 
-        /* 1. TOPコンテナ (黒) */
+        /* 1. TOPコンテナ (黒) - 固定 */
         #top-container {
-            position: fixed; top: 0; left: 0; width: 100%; height: var(--top-h);
+            flex: 0 0 var(--top-h);
             background: #000; z-index: 300;
             display: flex; align-items: center; justify-content: center;
             border-bottom: 1px solid #333; font-size: 12px;
         }
 
-        /* 2. BOTTOMコンテナ (紺) */
-        #bottom-container {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: var(--bottom-h-ratio);
-            background: #000080; z-index: 100;
-            display: flex; align-items: center; padding: 0 2vw; box-sizing: border-box;
-        }
-
-        /* 3. CENTERコンテナ (16:9固定) */
+        /* 2. CENTERコンテナ (16:9 / 左右いっぱい優先) */
         #center-container {
-            position: absolute;
-            top: var(--top-h);
-            left: 50%;
-            transform: translateX(-50%);
-            height: calc(100vh - var(--top-h) - var(--bottom-h-ratio));
+            position: relative;
+            width: 100vw;
             aspect-ratio: var(--center-ratio);
             background: #111;
             z-index: 50;
+            flex-shrink: 0;
         }
 
-        /* 4. LEFTコンテナ (濃い緑) */
+        /* 3. BOTTOMコンテナ (紺) - 残りの高さをすべて吸収 */
+        #bottom-container {
+            flex: 1; /* 動画の下の余白をすべてこのコンテナが埋める */
+            background: #000080; z-index: 100;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 2vw; box-sizing: border-box; min-height: 80px;
+        }
+
+        /* 4. LEFTコンテナ (濃い緑) - 動画の左右端に配置 */
         #left-container {
-            position: fixed; top: var(--top-h); bottom: 0; left: 0;
-            width: calc((100vw - (calc(100vh - var(--top-h) - var(--bottom-h-ratio)) * 16 / 9)) / 2);
-            background: #006400; z-index: 200;
+            position: absolute; top: 0; bottom: 0; left: 0;
+            width: 8vw; max-width: 80px;
+            background: rgba(0, 100, 0, 0.8); z-index: 200;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
-            padding: 2vh 0; box-sizing: border-box;
+            padding: 2vh 0;
         }
 
-        /* 5. RIGHTコンテナ (濃いオレンジ) */
+        /* 5. RIGHTコンテナ (濃いオレンジ) - 動画の左右端に配置 */
         #right-container {
-            position: fixed; top: var(--top-h); bottom: 0; right: 0;
-            width: calc((100vw - (calc(100vh - var(--top-h) - var(--bottom-h-ratio)) * 16 / 9)) / 2);
-            background: #8B4513; z-index: 200;
+            position: absolute; top: 0; bottom: 0; right: 0;
+            width: 8vw; max-width: 80px;
+            background: rgba(139, 69, 19, 0.8); z-index: 200;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
-            padding: 2vh 0; box-sizing: border-box;
+            padding: 2vh 0;
         }
 
-        /* 白いアイコン（プレースホルダー）の共通スタイル */
+        /* アイコン プレースホルダー */
         .dummy-icon {
-            width: 6vw; height: 6vw; max-width: 50px; max-height: 50px;
-            background: #fff; border-radius: 10%; /* 任意で四角に近い形 */
-            opacity: 0.8;
+            width: 5vw; height: 5vw; max-width: 44px; max-height: 44px;
+            background: #fff; border-radius: 8px; opacity: 0.9;
         }
-        .circle-icon { border-radius: 50%; } /* 再生ボタン等は丸 */
+        .circle-icon { border-radius: 50%; }
 
-        /* 下部シークバーのプレースホルダー */
+        /* ボトムエリア内のレイアウト */
+        .bottom-controls {
+            display: flex; align-items: center; width: 100%; gap: 2vw;
+        }
         .dummy-seekbar {
-            flex: 1; height: 10px; background: #fff; margin: 0 2vw; border-radius: 5px;
+            flex: 1; height: 8px; background: var(--neon-blue); border-radius: 4px; position: relative;
         }
-
-        /* 既存機能の仮置きエリア（index6.htmlの移植先） */
-        #home-overlay-temporary {
-            position: absolute; width: 100%; height: 100%; pointer-events: none;
+        .dummy-knob {
+            position: absolute; top: 50%; left: 30%; transform: translate(-50%, -50%);
+            width: 20px; height: 20px; background: #fff; border-radius: 50%;
+        }
+        .time-row {
+            display: flex; justify-content: space-between; width: 100%; 
+            margin-top: 10px; font-size: 14px; padding: 0 10vw; box-sizing: border-box;
         }
     </style>
 </head>
@@ -85,18 +89,36 @@
 
     <div id="top-container">GOOGLE ADS AREA</div>
 
-    <div id="left-container">
-        <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon circle-icon"></div> <div class="dummy-icon"></div> </div>
-
-    <div id="right-container">
-        <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon"></div> <div class="dummy-icon circle-icon"></div> </div>
-
     <div id="center-container">
-        <div id="home-overlay-temporary"></div>
+        <div id="left-container">
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon circle-icon"></div>
+            <div class="dummy-icon"></div>
+        </div>
+        
+        <div id="right-container">
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon"></div>
+            <div class="dummy-icon circle-icon"></div>
+        </div>
     </div>
 
     <div id="bottom-container">
-        <div class="dummy-icon circle-icon" style="width:8vw; height:8vw;"></div> <div class="dummy-seekbar"></div> <div class="dummy-icon"></div> </div>
+        <div class="bottom-controls">
+            <div class="dummy-icon circle-icon" style="width:7vw; height:7vw; background: var(--neon-blue);"></div>
+            <div class="dummy-seekbar"><div class="dummy-knob"></div></div>
+            <div class="dummy-icon"></div>
+        </div>
+        <div class="time-row">
+            <span>01:00</span>
+            <span>03:00</span>
+        </div>
+    </div>
 
 </body>
 </html>
