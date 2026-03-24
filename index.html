@@ -2,15 +2,20 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Fixed Baseline)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Preserved Edition)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
+        /* 既存の :root とスタイルは 100% 維持 */
         :root { 
             --neon-blue: #00f3ff; 
             --top-h: 50px;
             --bottom-h: 25vh;
             --lane-w: 15vw;
-            --fs-status-h: 10vh; /* 新設：全画面時の操作エリア */
+            --center-ratio: 16 / 9;
+            --sync-height: calc(var(--bottom-h) / 2);
+            --icon-size: 8vh; 
+            --icon-max: 55px;
+            --fs-status-h: 10vh; /* 追加：全画面時の下の空き */
         }
 
         body { 
@@ -19,9 +24,9 @@
             display: flex; flex-direction: column;
         }
 
-        /* --- HOME LAYOUT --- */
         #top-container {
-            flex: 0 0 var(--top-h); background: #000; z-index: 300;
+            flex: 0 0 var(--top-h);
+            background: #000; z-index: 300;
             display: flex; align-items: center; justify-content: center;
             border-bottom: 1px solid #333; font-size: 12px;
         }
@@ -30,64 +35,80 @@
             flex: 1; position: relative; display: flex; background: #111; z-index: 50; overflow: hidden;
         }
 
+        /* 全画面設定：元の赤背景を維持 */
+        #center-area:fullscreen { background: #ff0000; display: flex; flex-direction: column; }
+
         .side-lane {
             width: var(--lane-w); height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
             padding: 2vh 0; box-sizing: border-box; z-index: 200;
         }
+        #left-lane { background: rgba(0, 100, 0, 0.6); }
+        #right-lane { background: rgba(139, 69, 19, 0.6); }
 
         #video-main {
             flex: 1; display: flex; align-items: center; justify-content: center; height: 100%;
         }
 
+        /* 【修正：全画面時の上寄せ設定】既存の計算式を壊さず、配置だけ調整 */
+        #center-area:fullscreen #video-main {
+            height: calc(100vh - var(--fs-status-h));
+            align-items: flex-start; /* 上に寄せる */
+            flex: none;
+        }
+
         #video-viewport-mock {
             width: 100%;
             max-width: calc((100vh - var(--top-h) - var(--bottom-h)) * (16 / 9));
-            aspect-ratio: 16 / 9; background: #222;
-        }
-
-        /* --- FULLSCREEN LAYOUT (10vh Baseline) --- */
-        #center-area:fullscreen { 
-            background: #ff0000; /* 赤いベゼル */
-            display: flex; flex-direction: column; 
-        }
-
-        /* 全画面時：映像を上に寄せる（残りの90vhを使用） */
-        #center-area:fullscreen #video-main {
-            height: calc(100vh - var(--fs-status-h));
-            flex: none; align-items: flex-start; /* 上寄せ */
+            aspect-ratio: var(--center-ratio);
+            background: #222;
         }
 
         #center-area:fullscreen #video-viewport-mock {
-            width: 100vw; max-height: calc(100vh - var(--fs-status-h));
             max-width: calc((100vh - var(--fs-status-h)) * (16 / 9));
+            max-height: calc(100vh - var(--fs-status-h));
         }
 
-        /* 全画面時：下部10vhステータスエリア */
-        #fs-status-bar {
-            display: none; height: var(--fs-status-h); width: 100%;
-            align-items: center; justify-content: flex-end; padding: 0 5vw;
-        }
-
-        #center-area:fullscreen #fs-status-bar { display: flex; }
-        #center-area:fullscreen .side-lane { display: none; }
-
-        .fs-exit-txt {
-            color: #fff; font-size: 4vw; cursor: pointer; font-weight: bold;
-        }
-
-        /* --- UI COMPONENTS --- */
         #bottom-container {
-            flex: 0 0 var(--bottom-h); background: #000080; z-index: 100;
+            flex: 0 0 var(--bottom-h);
+            background: #000080; z-index: 100;
             display: flex; align-items: center;
         }
 
+        .bottom-lane-sync { 
+            width: var(--lane-w); height: 100%; 
+            display: flex; justify-content: center; align-items: center; 
+        }
+
+        .seekbar-area { flex: 1; padding: 0 20px; }
+
         .grid-icon-box {
-            width: 8vh; height: 8vh; max-width: 55px; max-height: 55px;
+            width: var(--icon-size); height: var(--icon-size);
+            max-width: var(--icon-max); max-height: var(--icon-max);
             background: #fff; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: #000; font-size: 10px; font-weight: bold;
         }
+
+        /* 【EXITボタン：既存のEXIT定義を上書きして、右端に固定】 */
+        #exit-fullscreen-btn-sync {
+            display: none;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: var(--lane-w);
+            height: var(--fs-status-h);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        #center-area:fullscreen #exit-fullscreen-btn-sync {
+            display: flex;
+        }
+
+        #center-area:fullscreen .side-lane { display: none; }
     </style>
 </head>
 <body>
@@ -97,6 +118,7 @@
     <div id="center-area">
         <div id="left-lane" class="side-lane">
             <div class="grid-icon-box">SPD</div><div class="grid-icon-box">LOP</div><div class="grid-icon-box">MIR</div>
+            <div class="grid-icon-box">HOM</div><div class="grid-icon-box">A</div><div class="grid-icon-box">TOP</div>
         </div>
 
         <div id="video-main">
@@ -104,21 +126,23 @@
         </div>
 
         <div id="right-lane" class="side-lane">
-            <div class="grid-icon-box">FIL</div><div class="grid-icon-box">WEB</div><div class="grid-icon-box">--</div>
+            <div class="grid-icon-box">BAG</div><div class="grid-icon-box">LST</div><div class="grid-icon-box">FIL</div>
+            <div class="grid-icon-box">WEB</div><div class="grid-icon-box">B</div><div class="grid-icon-box">--</div>
         </div>
 
-        <div id="fs-status-bar">
-            <div class="fs-exit-txt" onclick="exitFull()">EXIT</div>
+        <div id="exit-fullscreen-btn-sync" onclick="exitFull()">
+            <div class="fs-exit-label" style="color: #fff; font-size: 12px; font-weight: bold; cursor: pointer;">EXIT</div>
         </div>
     </div>
 
     <div id="bottom-container">
-        <div style="width:var(--lane-w); display:flex; justify-content:center;"><div class="grid-icon-box">PLAY</div></div>
-        <div style="flex:1; padding:0 20px;"><div style="width:100%; height:4px; background:var(--neon-blue); opacity:0.3;"></div></div>
-        <div style="width:var(--lane-w); display:flex; justify-content:center;"><div class="grid-icon-box" onclick="enterFull()">FULL</div></div>
+        <div class="bottom-lane-sync"><div class="grid-icon-box">PLAY</div></div>
+        <div class="seekbar-area"><div style="width:100%; height:4px; background:var(--neon-blue); opacity:0.3;"></div></div>
+        <div class="bottom-lane-sync"><div class="grid-icon-box" onclick="enterFull()">FULL</div></div>
     </div>
 
     <script>
+        /* JavaScriptは「2時間前」のものを完全に維持 */
         const centerArea = document.getElementById('center-area');
 
         function enterFull() {
