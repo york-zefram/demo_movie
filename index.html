@@ -60,7 +60,7 @@
         #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         #local-video { display: none; object-fit: contain; }
 
-        /* 追加：ロゴレイヤーのスタイル */
+        /* ロゴレイヤー：初期は透明 */
         #video-splash {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 999;
@@ -320,7 +320,7 @@
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
 
-        /* 追加：ロゴ表示/非表示関数 */
+        /* ロゴのフェード制御用関数 */
         function toggleSplash(show) {
             const splash = document.getElementById('video-splash');
             splash.style.opacity = show ? "1" : "0";
@@ -336,7 +336,7 @@
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': (e) => {
-                        /* 修正：再生が実際に始まったらロゴを消す */
+                        /* 再生が始まったらフェードアウトして消す */
                         if (e.data === YT.PlayerState.PLAYING) toggleSplash(false);
                         updatePlayIcon();
                     }
@@ -346,7 +346,7 @@
 
         function onPlayerReady() {
             state.localVid = document.getElementById('local-video');
-            /* 追加：ローカル再生開始時もロゴを消す設定 */
+            /* ローカル動画も再生開始で消す */
             state.localVid.onplaying = () => toggleSplash(false);
             initEvents();
             updateLSTButtonState();
@@ -399,7 +399,7 @@
                     </div>
                 `;
                 div.onclick = () => {
-                    /* 追加：曲選択時にロゴを表示 */
+                    /* リストから選んだ時もロゴを出す */
                     toggleSplash(true);
                     state.player.loadVideoById(item.id);
                     document.getElementById('list-overlay').classList.remove('active');
@@ -537,7 +537,7 @@
                 const v = document.getElementById('input-url').value;
                 const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
                 if(id) {
-                    /* 追加：URL確定時にロゴを表示 */
+                    /* GOボタン押下時にロゴをフェードイン */
                     toggleSplash(true);
                     state.isYoutube = true;
                     document.getElementById('local-video').style.display = 'none';
@@ -574,7 +574,7 @@
             document.getElementById('file-input').onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    /* 追加：ファイル選択時にロゴを表示 */
+                    /* ファイル選択時もロゴを出す */
                     toggleSplash(true);
                     state.isYoutube = false;
                     document.getElementById('yt-player').style.display = 'none';
