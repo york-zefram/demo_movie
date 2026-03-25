@@ -20,13 +20,18 @@
             --ad-h: 40px;
         }
 
-        /* ZEFRAM CHASSIS DESIGN: 
-           縦横どちらに持ち替えても、16:9の「物理液晶」を歪ませない絶対的なロック
+        /* ZEFRAM CHASSIS DESIGN (齊藤仕様)
+           ブラウザの自由奔放なリサイズを抑え込み、16:9の物理液晶を中央に固定する。
         */
         body { 
-            background: #000; color: var(--neon-blue); font-family: 'Michroma', sans-serif; 
-            margin: 0; overflow: hidden; height: 100vh; width: 100vw; text-transform: uppercase;
-            display: flex; align-items: center; justify-content: center;
+            background: #000; 
+            margin: 0; 
+            overflow: hidden; 
+            height: 100vh; 
+            width: 100vw; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
         }
 
         #zefram-chassis {
@@ -36,28 +41,33 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
         }
 
-        /* エミュレーターで縦にした際にもアイコンを細くさせない「鉄の掟」
-           - 横が広い時は高さを基準に16:9を作る
-           - 縦が長い時は幅を基準に16:9を作る
+        /* PSP液晶シミュレーション:
+           縦持ちだろうが横長だろうが、常に16:9を保ち中央に鎮座する。
+           max-width/max-heightの数学的制限により、アイコンの「伸び」を物理的に排除。
         */
         #zefram-screen {
             position: relative;
             background: #000;
+            color: var(--neon-blue);
+            font-family: 'Michroma', sans-serif;
+            text-transform: uppercase;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 0 50px rgba(0, 243, 255, 0.05);
-
-            /* 高さを基準にした16:9 */
-            width: calc(100vh * (16 / 9));
-            height: 100vh;
-            max-width: 100vw;
-            max-height: calc(100vw * (9 / 16));
+            
+            /* 16:9の黄金比を維持する数式 */
+            width: 100vw;
+            height: calc(100vw * (9 / 16));
+            max-height: 100vh;
+            max-width: calc(100vh * (16 / 9));
+            
+            box-shadow: 0 0 100px rgba(0, 243, 255, 0.1);
         }
 
-        /* フルスクリーン時は現場モードとして全画面を解禁 */
+        /* 全画面表示（現場モード）の時だけ、この「鎖」を解き放つ */
         #zefram-chassis:fullscreen #zefram-screen,
         #zefram-chassis:webkit-full-screen #zefram-screen {
             width: 100vw !important;
@@ -66,7 +76,7 @@
             max-height: none !important;
         }
 
-        /* --- 以下、内部レイアウト（既存維持） --- */
+        /* --- 以下、既存の内部UIレイアウト --- */
         #top-container {
             flex: 0 0 var(--top-h);
             background: #000; z-index: 300;
@@ -277,22 +287,7 @@
                 </div>
             </div>
 
-        </div>
-    </div>
-
-    <div id="list-overlay">
-        <div id="list-ad-area"></div>
-        <div id="list-header">
-            <div class="list-top-row">
-                <div class="list-title">PLAYLIST</div>
-                <div class="list-close" id="list-btn-close">CLOSE</div>
-            </div>
-            <div class="list-breadcrumb">ROOT / </div>
-        </div>
-        <div id="list-content"></div>
-    </div>
-
-    <script>
+        </div> </div> <script>
         const state = {
             player: null,
             localVid: null,
@@ -364,6 +359,7 @@
 
         function renderPlaylist() {
             const container = document.getElementById('list-content');
+            if(!container) return;
             container.innerHTML = '';
             state.playlist.forEach(item => {
                 const div = document.createElement('div');
@@ -476,10 +472,6 @@
                 document.getElementById('list-overlay').classList.add('active');
             };
 
-            document.getElementById('list-btn-close').onclick = () => {
-                document.getElementById('list-overlay').classList.remove('active');
-            };
-
             document.getElementById('fs-btn-time').onclick = () => { exitFull(); switchMode('home'); };
             document.getElementById('fs-btn-speed').onclick = () => { exitFull(); switchMode('speed'); };
             document.getElementById('fs-btn-loop').onclick = () => { exitFull(); switchMode('home'); };
@@ -574,6 +566,7 @@
         function enterFull() {
             if(!state.isInitialized) return;
             state.lastModeBeforeFull = state.currentMode;
+            // フルスクリーンの対象をシャシー全体に設定。これでCSSのfullscreen擬似クラスが発動します。
             const el = document.getElementById('zefram-chassis');
             if (el.requestFullscreen) el.requestFullscreen();
             else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
