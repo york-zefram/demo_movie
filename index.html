@@ -80,6 +80,7 @@
             background: none; border: 1px solid var(--neon-blue); border-radius: 8px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: #fff; font-size: 10px; transition: 0.2s;
+            user-select: none; -webkit-user-select: none;
         }
         .grid-icon-box.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
         .grid-icon-box.blank { border: 1px solid #222; cursor: default; color: #444; }
@@ -306,7 +307,8 @@
             playbackRate: 1.0,
             startT: 0,
             endT: 0,
-            playlist: JSON.parse(localStorage.getItem('zefram_playlist') || '[]')
+            playlist: JSON.parse(localStorage.getItem('zefram_playlist') || '[]'),
+            lopPressTimer: null // 長押し用タイマー
         };
 
         const getT = () => state.isYoutube ? (state.player?.getCurrentTime?.() || 0) : state.localVid.currentTime;
@@ -330,19 +332,19 @@
             document.querySelectorAll('.grid-icon-box').forEach(el => { el.classList.remove('locked'); el.classList.remove('breathe'); });
             document.getElementById('btn-play-pause').classList.remove('locked');
             document.getElementById('btn-full').classList.remove('locked');
-            updateRSTStatus(); // 覚醒時にRSTの状態もチェック
+            updateRSTStatus();
             updateLSTButtonState();
             switchMode('home');
         }
 
-        /* 第3の定義：RSTボタンの動的状態管理 */
         function updateRSTStatus() {
             const rstBtn = document.getElementById('btn-rst');
             if (!state.isInitialized) return;
-            const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop;
+            // AB点が初期値(0,0)以外、またはミラー、速度変更のいずれかがあれば点灯
+            const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop || (state.startT !== 0 || state.endT !== 0);
             if (isChanged) {
                 rstBtn.classList.remove('locked');
-                rstBtn.classList.add('active'); // 変更がある時は点灯
+                rstBtn.classList.add('active');
             } else {
                 rstBtn.classList.add('locked');
                 rstBtn.classList.remove('active');
@@ -445,6 +447,8 @@
                 fsMir.innerText = `MIR: ${state.isMirror ? 'ON' : 'OFF'}`;
                 fsMir.classList.toggle('dim', !state.isMirror);
                 const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
+                
+                // ループONの時のみシークバーにAB表示
                 if (state.isLoop) {
                     range.style.display = ka.style.display = kb.style.display = 'flex';
                     const sP = (state.startT / dur) * 100, eP = (state.endT / dur) * 100;
@@ -478,18 +482,40 @@
             document.getElementById('btn-mir').onclick = toggleMirror;
             document.getElementById('fs-btn-mir').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
 
-            document.getElementById('btn-lop').onclick = () => {
-                if(!state.isInitialized) return;
-                state.isLoop = !state.isLoop; if(state.isLoop && state.endT === 0) state.endT = getD();
-                document.getElementById('btn-lop').classList.toggle('active', state.isLoop);
+            /* LOPボタンの修正：タップと長押し */
+            const lopBtn = document.getElementById('btn-lop');
+            const clearLOPMemory = () => {
+                state.isLoop = false;
+                state.startT = 0;
+                state.endT = 0;
+                lopBtn.classList.remove('active');
                 updateRSTStatus();
+            };
+
+            lopBtn.onmousedown = lopBtn.ontouchstart = (e) => {
+                if(!state.isInitialized) return;
+                state.lopPressTimer = setTimeout(() => {
+                    clearLOPMemory();
+                    state.lopPressTimer = null;
+                }, 1000); // 1秒長押しでクリア
+            };
+
+            lopBtn.onmouseup = lopBtn.ontouchend = (e) => {
+                if(state.lopPressTimer) {
+                    clearTimeout(state.lopPressTimer);
+                    state.lopPressTimer = null;
+                    // 短いタップの場合はトグルのみ
+                    state.isLoop = !state.isLoop;
+                    if(state.isLoop && state.endT === 0) state.endT = getD();
+                    lopBtn.classList.toggle('active', state.isLoop);
+                    updateRSTStatus();
+                }
             };
 
             document.getElementById('btn-a').onclick = () => { if(!state.isInitialized) return; state.startT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
             document.getElementById('btn-b').onclick = () => { if(!state.isInitialized) return; state.endT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
             document.getElementById('btn-top').onclick = () => { if(!state.isInitialized) return; setT(state.isLoop ? state.startT : 0); };
 
-            /* 第3の定義：RSTボタンの実行ロジック */
             document.getElementById('btn-rst').onclick = () => {
                 if (!state.isInitialized) return;
                 state.playbackRate = 1.0; setR(1.0);
@@ -498,9 +524,7 @@
                 state.isMirror = false;
                 document.getElementById('video-viewport-wrapper').style.transform = "none";
                 document.getElementById('btn-mir').classList.remove('active');
-                state.isLoop = false;
-                document.getElementById('btn-lop').classList.remove('active');
-                updateRSTStatus();
+                clearLOPMemory(); // ループ設定も初期化
             };
 
             document.getElementById('btn-hom').onclick = () => switchMode('home');
@@ -562,7 +586,7 @@
                     document.getElementById('local-video').style.display = 'none';
                     document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById(id);
-                    state.isLoop = false; 
+                    clearLOPMemory(); // 新しい動画を読み込むときはリセット
                     wakeUpUI();
                     document.getElementById('btn-url-add').classList.remove('locked');
                 }
@@ -591,7 +615,7 @@
                     state.player.pauseVideo();
                     state.localVid.src = URL.createObjectURL(file);
                     state.localVid.play();
-                    state.isLoop = false; 
+                    clearLOPMemory();
                     wakeUpUI();
                 }
             };
