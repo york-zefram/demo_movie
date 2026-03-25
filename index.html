@@ -60,14 +60,13 @@
         #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         #local-video { display: none; object-fit: contain; }
 
-        /* 第1の定義：待機時の純粋なロゴレイヤー */
         #video-splash {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; /* 潔い黒背景 */
+            background: #000;
             z-index: 999;
             display: flex; align-items: center; justify-content: center;
             opacity: 1;
-            transition: opacity 0.4s ease; /* スッと消える演出 */
+            transition: opacity 0.4s ease;
         }
         #video-splash img { width: 45%; max-width: 280px; height: auto; }
 
@@ -86,7 +85,7 @@
         }
         .grid-icon-box.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
         .grid-icon-box.blank { border: 1px solid #222; cursor: default; color: #444; }
-        .grid-icon-box.locked { border-color: var(--disabled-color); color: var(--disabled-color); cursor: default; pointer-events: none; }
+        .grid-icon-box.locked { border-color: var(--disabled-color); color: var(--disabled-color); cursor: default; pointer-events: none; box-shadow: none; }
 
         @keyframes breathe {
             0% { opacity: 0.3; box-shadow: none; }
@@ -274,7 +273,7 @@
                 <div class="speed-display" id="txt-speed">1.00X</div>
             </div>
 
-            <div id="panel-web" class="mode-panel active">
+            <div id="panel-web" class="mode-panel">
                 <div class="input-box">
                     <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
                     <button class="btn-go" id="btn-url-go">GO</button>
@@ -301,7 +300,7 @@
             localVid: null,
             isYoutube: true,
             isInitialized: false,
-            currentMode: 'web',
+            currentMode: null, // 初期はパネル非表示
             lastModeBeforeFull: 'home',
             isMirror: false,
             isLoop: false,
@@ -321,11 +320,21 @@
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
 
-        /* 第1の定義：ロゴの明示的なフェードアウト */
         function hideSplash() {
             const splash = document.getElementById('video-splash');
             splash.style.opacity = "0";
-            setTimeout(() => { splash.style.display = "none"; }, 400); // 完全に消えたら非表示に
+            setTimeout(() => { splash.style.display = "none"; }, 400);
+        }
+
+        /* 第2の定義：動画確定時に道具を覚醒させる */
+        function wakeUpUI() {
+            hideSplash();
+            state.isInitialized = true;
+            document.querySelectorAll('.grid-icon-box').forEach(el => { el.classList.remove('locked'); el.classList.remove('breathe'); });
+            document.getElementById('btn-play-pause').classList.remove('locked');
+            document.getElementById('btn-full').classList.remove('locked');
+            updateLSTButtonState();
+            switchMode('home'); // 自動でHOME（練習モード）へ
         }
 
         window.onYouTubeIframeAPIReady = () => {
@@ -337,9 +346,7 @@
                 playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1, 'vq': 'highres' },
                 events: {
                     'onReady': onPlayerReady,
-                    'onStateChange': (e) => {
-                        updatePlayIcon();
-                    }
+                    'onStateChange': (e) => { updatePlayIcon(); }
                 }
             });
         };
@@ -350,14 +357,6 @@
             updateLSTButtonState();
             renderPlaylist();
             render();
-        }
-
-        function activateApp() {
-            if (state.isInitialized) return;
-            state.isInitialized = true;
-            document.querySelectorAll('.grid-icon-box').forEach(el => { el.classList.remove('locked'); el.classList.remove('breathe'); });
-            updateLSTButtonState();
-            switchMode('home');
         }
 
         function updateLSTButtonState() {
@@ -392,10 +391,9 @@
                     </div>
                 `;
                 div.onclick = () => {
-                    hideSplash(); // 第1の定義：選択時に消去
                     state.player.loadVideoById(item.id);
                     document.getElementById('list-overlay').classList.remove('active');
-                    activateApp();
+                    wakeUpUI();
                 };
                 container.appendChild(div);
             });
@@ -459,6 +457,7 @@
             };
 
             const toggleMirror = () => {
+                if(!state.isInitialized) return;
                 state.isMirror = !state.isMirror;
                 document.getElementById('btn-mir').classList.toggle('active', state.isMirror);
                 document.getElementById('video-viewport-wrapper').style.transform = state.isMirror ? "scaleX(-1)" : "none";
@@ -467,13 +466,14 @@
             document.getElementById('fs-btn-mir').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
 
             document.getElementById('btn-lop').onclick = () => {
+                if(!state.isInitialized) return;
                 state.isLoop = !state.isLoop; if(state.isLoop && state.endT === 0) state.endT = getD();
                 document.getElementById('btn-lop').classList.toggle('active', state.isLoop);
             };
 
-            document.getElementById('btn-a').onclick = () => { state.startT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); };
-            document.getElementById('btn-b').onclick = () => { state.endT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); };
-            document.getElementById('btn-top').onclick = () => setT(state.isLoop ? state.startT : 0);
+            document.getElementById('btn-a').onclick = () => { if(!state.isInitialized) return; state.startT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); };
+            document.getElementById('btn-b').onclick = () => { if(!state.isInitialized) return; state.endT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); };
+            document.getElementById('btn-top').onclick = () => { if(!state.isInitialized) return; setT(state.isLoop ? state.startT : 0); };
 
             document.getElementById('btn-hom').onclick = () => switchMode('home');
             document.getElementById('btn-spd').onclick = () => switchMode('speed');
@@ -481,7 +481,7 @@
             document.getElementById('btn-fil').onclick = () => switchMode('file');
             
             document.getElementById('btn-lst').onclick = () => {
-                if(!state.isInitialized || state.playlist.length === 0) return;
+                if(state.playlist.length === 0) return;
                 pausePlayback();
                 renderPlaylist();
                 document.getElementById('list-overlay').classList.add('active');
@@ -513,14 +513,14 @@
                 }
             };
 
-            document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
-            document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+            document.getElementById('main-track').onmousedown = (e) => handleInput(e, 'now');
+            document.getElementById('main-track').ontouchstart = (e) => handleInput(e, 'now');
             document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-a').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
             document.getElementById('knob-b').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
-            document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
-            document.getElementById('speed-track').ontouchstart = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
+            document.getElementById('speed-track').onmousedown = (e) => handleInput(e, 'speed');
+            document.getElementById('speed-track').ontouchstart = (e) => handleInput(e, 'speed');
             window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.onmouseup = window.ontouchend = () => { state.activeDrag = null; };
@@ -529,13 +529,12 @@
                 const v = document.getElementById('input-url').value;
                 const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
                 if(id) {
-                    hideSplash(); // 第1の定義：GOボタン押下時に消去
                     state.isYoutube = true;
                     document.getElementById('local-video').style.display = 'none';
                     document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById(id);
                     state.isLoop = false; 
-                    activateApp();
+                    wakeUpUI(); // 第2の定義：確定時に覚醒
                     document.getElementById('btn-url-add').classList.remove('locked');
                 }
             };
@@ -544,10 +543,9 @@
                 if (!state.isYoutube || !state.player) return;
                 const videoData = state.player.getVideoData();
                 const videoId = videoData.video_id;
-                const title = videoData.title;
-                if (videoId && title && title !== "Unknown") {
+                if (videoId && videoData.title !== "Unknown") {
                     if (!state.playlist.some(item => item.id === videoId)) {
-                        state.playlist.push({ id: videoId, title: title, author: videoData.author, duration: formatTime(getD()) });
+                        state.playlist.push({ id: videoId, title: videoData.title, author: videoData.author, duration: formatTime(getD()) });
                         localStorage.setItem('zefram_playlist', JSON.stringify(state.playlist));
                         updateLSTButtonState();
                         renderPlaylist();
@@ -558,7 +556,6 @@
             document.getElementById('file-input').onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    hideSplash(); // 第1の定義：ファイル選択時に消去
                     state.isYoutube = false;
                     document.getElementById('yt-player').style.display = 'none';
                     document.getElementById('local-video').style.display = 'block';
@@ -566,7 +563,7 @@
                     state.localVid.src = URL.createObjectURL(file);
                     state.localVid.play();
                     state.isLoop = false; 
-                    activateApp();
+                    wakeUpUI(); // 第2の定義：確定時に覚醒
                 }
             };
         }
