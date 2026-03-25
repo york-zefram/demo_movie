@@ -60,12 +60,15 @@
         #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         #local-video { display: none; object-fit: contain; }
 
-        /* ロゴレイヤー：初期状態で表示(opacity: 1) */
+        /* ロゴレイヤー：右下を透過させつつ、クリックを下に通す設定 */
         #video-splash {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 999;
+            /* 右下に向けて透明になるグラデーション（スキップボタン視認用） */
+            background: radial-gradient(circle at 90% 85%, transparent 0%, #000 60%);
+            z-index: 999;
             display: flex; align-items: center; justify-content: center;
-            opacity: 1; pointer-events: none;
+            opacity: 1;
+            pointer-events: none; /* 下のYouTubeレイヤーをクリック可能にする */
             transition: opacity 0.6s ease;
         }
         #video-splash img { width: 45%; max-width: 280px; height: auto; }
@@ -320,7 +323,6 @@
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
 
-        /* ロゴのフェード制御用関数 */
         function toggleSplash(show) {
             const splash = document.getElementById('video-splash');
             splash.style.opacity = show ? "1" : "0";
@@ -336,7 +338,7 @@
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': (e) => {
-                        /* 動画が再生開始（PLAYING）されたらロゴを消す */
+                        /* 本編の再生が始まったらロゴをフェードアウト */
                         if (e.data === YT.PlayerState.PLAYING) toggleSplash(false);
                         updatePlayIcon();
                     }
@@ -346,7 +348,6 @@
 
         function onPlayerReady() {
             state.localVid = document.getElementById('local-video');
-            /* ローカル動画も再生開始でロゴを消す */
             state.localVid.onplaying = () => toggleSplash(false);
             initEvents();
             updateLSTButtonState();
@@ -399,7 +400,6 @@
                     </div>
                 `;
                 div.onclick = () => {
-                    /* リスト選択時にロゴを表示 */
                     toggleSplash(true);
                     state.player.loadVideoById(item.id);
                     document.getElementById('list-overlay').classList.remove('active');
@@ -537,7 +537,6 @@
                 const v = document.getElementById('input-url').value;
                 const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
                 if(id) {
-                    /* GOボタン押下時もロゴを確実に表示 */
                     toggleSplash(true);
                     state.isYoutube = true;
                     document.getElementById('local-video').style.display = 'none';
@@ -574,7 +573,6 @@
             document.getElementById('file-input').onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    /* ファイル選択時もロゴを表示 */
                     toggleSplash(true);
                     state.isYoutube = false;
                     document.getElementById('yt-player').style.display = 'none';
