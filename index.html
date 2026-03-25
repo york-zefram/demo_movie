@@ -62,11 +62,9 @@
 
         #video-splash {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000;
-            z-index: 999;
+            background: #000; z-index: 999;
             display: flex; align-items: center; justify-content: center;
-            opacity: 1;
-            transition: opacity 0.4s ease;
+            opacity: 1; transition: opacity 0.4s ease;
         }
         #video-splash img { width: 45%; max-width: 280px; height: auto; }
 
@@ -217,7 +215,7 @@
             <div class="grid-icon-box breathe" id="btn-fil">FIL</div>
             <div class="grid-icon-box breathe" id="btn-web">WEB</div>
             <div class="grid-icon-box locked" id="btn-b">B</div>
-            <div class="grid-icon-box blank">--</div>
+            <div class="grid-icon-box locked" id="btn-rst">RST</div>
         </div>
 
         <div id="fs-status-bar">
@@ -300,7 +298,7 @@
             localVid: null,
             isYoutube: true,
             isInitialized: false,
-            currentMode: null, // 初期はパネル非表示
+            currentMode: null,
             lastModeBeforeFull: 'home',
             isMirror: false,
             isLoop: false,
@@ -326,15 +324,29 @@
             setTimeout(() => { splash.style.display = "none"; }, 400);
         }
 
-        /* 第2の定義：動画確定時に道具を覚醒させる */
         function wakeUpUI() {
             hideSplash();
             state.isInitialized = true;
             document.querySelectorAll('.grid-icon-box').forEach(el => { el.classList.remove('locked'); el.classList.remove('breathe'); });
             document.getElementById('btn-play-pause').classList.remove('locked');
             document.getElementById('btn-full').classList.remove('locked');
+            updateRSTStatus(); // 覚醒時にRSTの状態もチェック
             updateLSTButtonState();
-            switchMode('home'); // 自動でHOME（練習モード）へ
+            switchMode('home');
+        }
+
+        /* 第3の定義：RSTボタンの動的状態管理 */
+        function updateRSTStatus() {
+            const rstBtn = document.getElementById('btn-rst');
+            if (!state.isInitialized) return;
+            const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop;
+            if (isChanged) {
+                rstBtn.classList.remove('locked');
+                rstBtn.classList.add('active'); // 変更がある時は点灯
+            } else {
+                rstBtn.classList.add('locked');
+                rstBtn.classList.remove('active');
+            }
         }
 
         window.onYouTubeIframeAPIReady = () => {
@@ -461,6 +473,7 @@
                 state.isMirror = !state.isMirror;
                 document.getElementById('btn-mir').classList.toggle('active', state.isMirror);
                 document.getElementById('video-viewport-wrapper').style.transform = state.isMirror ? "scaleX(-1)" : "none";
+                updateRSTStatus();
             };
             document.getElementById('btn-mir').onclick = toggleMirror;
             document.getElementById('fs-btn-mir').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
@@ -469,11 +482,26 @@
                 if(!state.isInitialized) return;
                 state.isLoop = !state.isLoop; if(state.isLoop && state.endT === 0) state.endT = getD();
                 document.getElementById('btn-lop').classList.toggle('active', state.isLoop);
+                updateRSTStatus();
             };
 
-            document.getElementById('btn-a').onclick = () => { if(!state.isInitialized) return; state.startT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); };
-            document.getElementById('btn-b').onclick = () => { if(!state.isInitialized) return; state.endT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); };
+            document.getElementById('btn-a').onclick = () => { if(!state.isInitialized) return; state.startT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
+            document.getElementById('btn-b').onclick = () => { if(!state.isInitialized) return; state.endT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
             document.getElementById('btn-top').onclick = () => { if(!state.isInitialized) return; setT(state.isLoop ? state.startT : 0); };
+
+            /* 第3の定義：RSTボタンの実行ロジック */
+            document.getElementById('btn-rst').onclick = () => {
+                if (!state.isInitialized) return;
+                state.playbackRate = 1.0; setR(1.0);
+                document.getElementById('speed-fill').style.width = "50%";
+                document.getElementById('txt-speed').innerText = "1.00X";
+                state.isMirror = false;
+                document.getElementById('video-viewport-wrapper').style.transform = "none";
+                document.getElementById('btn-mir').classList.remove('active');
+                state.isLoop = false;
+                document.getElementById('btn-lop').classList.remove('active');
+                updateRSTStatus();
+            };
 
             document.getElementById('btn-hom').onclick = () => switchMode('home');
             document.getElementById('btn-spd').onclick = () => switchMode('speed');
@@ -503,13 +531,14 @@
                 const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
                 const p = Math.max(0, Math.min(1, x / rect.width));
                 if (type === 'now') setT(p * getD());
-                else if (type === 'a') state.startT = p * getD();
-                else if (type === 'b') state.endT = p * getD();
+                else if (type === 'a') { state.startT = p * getD(); updateRSTStatus(); }
+                else if (type === 'b') { state.endT = p * getD(); updateRSTStatus(); }
                 else if (type === 'speed') {
                     state.playbackRate = 0.5 + p; setR(state.playbackRate);
                     document.getElementById('speed-fill').style.width = (p * 100) + "%";
                     document.getElementById('txt-speed').innerText = state.playbackRate.toFixed(2) + "X";
                     document.getElementById('btn-spd').classList.toggle('active', Math.abs(state.playbackRate - 1.0) > 0.01);
+                    updateRSTStatus();
                 }
             };
 
@@ -534,7 +563,7 @@
                     document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById(id);
                     state.isLoop = false; 
-                    wakeUpUI(); // 第2の定義：確定時に覚醒
+                    wakeUpUI();
                     document.getElementById('btn-url-add').classList.remove('locked');
                 }
             };
@@ -563,7 +592,7 @@
                     state.localVid.src = URL.createObjectURL(file);
                     state.localVid.play();
                     state.isLoop = false; 
-                    wakeUpUI(); // 第2の定義：確定時に覚醒
+                    wakeUpUI();
                 }
             };
         }
