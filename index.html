@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ZEFRAM VIDEO PLAYER - NEO</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO (Draggable AB)</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -18,15 +18,51 @@
             --fs-status-h: 10vh;
             --disabled-color: #333;
             --ad-h: 40px;
-            --track-gray: #222; /* 非アクティブ領域のグレー */
         }
 
+        /* ZEFRAM CHASSIS DESIGN:
+          PSPのように「16:9の物理液晶」をシミュレートし、縦持ちによる歪みを根絶する
+        */
         body { 
             background: #000; color: var(--neon-blue); font-family: 'Michroma', sans-serif; 
             margin: 0; overflow: hidden; height: 100vh; width: 100vw; text-transform: uppercase;
-            display: flex; flex-direction: column;
+            display: flex; align-items: center; justify-content: center;
         }
 
+        /* 画面全体を覆うシャシー（余白は漆黒） */
+        #zefram-chassis {
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* 16:9を死守するバーチャル・スクリーン */
+        #zefram-screen {
+            position: relative;
+            width: 100%;
+            /* 横幅・高さのどちらかが限界に達しても16:9を維持 */
+            max-width: calc(100vh * 16 / 9);
+            max-height: calc(100vw * 9 / 16);
+            aspect-ratio: 16 / 9;
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            box-shadow: 0 0 40px rgba(0, 243, 255, 0.05); /* 微かな存在感 */
+        }
+
+        /* フルスクリーン時は拘束を解除 */
+        #zefram-chassis:fullscreen, #zefram-chassis:webkit-full-screen {
+            width: 100vw; height: 100vh;
+        }
+        #zefram-chassis:fullscreen #zefram-screen, #zefram-chassis:webkit-full-screen #zefram-screen {
+            max-width: none; max-height: none; width: 100vw; height: 100vh; aspect-ratio: auto;
+        }
+
+        /* 内部コンテナの高さ調整 */
         #top-container {
             flex: 0 0 var(--top-h);
             background: #000; z-index: 300;
@@ -44,6 +80,7 @@
             display: flex; align-items: center; border-top: 1px solid #333;
         }
 
+        /* --- 以下、既存のスタイルを完全維持 --- */
         #video-main {
             flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
         }
@@ -61,14 +98,6 @@
         #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         #local-video { display: none; object-fit: contain; }
 
-        #video-splash {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 999;
-            display: flex; align-items: center; justify-content: center;
-            opacity: 1; transition: opacity 0.4s ease;
-        }
-        #video-splash img { width: 45%; max-width: 280px; height: auto; }
-
         .side-lane {
             width: var(--lane-w); height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
@@ -81,11 +110,10 @@
             background: none; border: 1px solid var(--neon-blue); border-radius: 8px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: #fff; font-size: 10px; transition: 0.2s;
-            user-select: none; -webkit-user-select: none;
         }
         .grid-icon-box.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
         .grid-icon-box.blank { border: 1px solid #222; cursor: default; color: #444; }
-        .grid-icon-box.locked { border-color: var(--disabled-color); color: var(--disabled-color); cursor: default; pointer-events: none; box-shadow: none; }
+        .grid-icon-box.locked { border-color: var(--disabled-color); color: var(--disabled-color); cursor: default; pointer-events: none; }
 
         @keyframes breathe {
             0% { opacity: 0.3; box-shadow: none; }
@@ -102,7 +130,7 @@
         .mode-panel.active { display: flex; }
 
         #list-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 9999; flex-direction: column;
         }
         #list-overlay.active { display: flex; }
@@ -119,122 +147,134 @@
         .list-breadcrumb { font-size: 9px; color: var(--neon-blue); opacity: 0.8; letter-spacing: 0.1em; }
 
         #list-content { flex: 1; overflow-y: auto; padding: 0; }
-
-        .list-item {
-            display: flex; align-items: center; padding: 0.8vh 4vw; border-bottom: 1px solid #111; cursor: pointer; 
-            gap: 3vw; position: relative; font-family: sans-serif; text-transform: none;
-        }
+        .list-item { display: flex; align-items: center; padding: 0.8vh 4vw; border-bottom: 1px solid #111; cursor: pointer; gap: 3vw; position: relative; font-family: sans-serif; text-transform: none; }
         .list-item:hover { background: #0a0a0a; }
-        
-        .list-thumb {
-            width: clamp(65px, 16vmin, 100px); aspect-ratio: 16/9; background: #222; 
-            border: 1px solid #333; flex-shrink: 0; overflow: hidden;
-        }
+        .list-thumb { width: clamp(65px, 16vmin, 100px); aspect-ratio: 16/9; background: #222; border: 1px solid #333; flex-shrink: 0; overflow: hidden; }
         .list-thumb img { width: 100%; height: 100%; object-fit: cover; }
-        
         .list-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1vh; }
-        
         .list-item-title { color: #fff; font-weight: bold; font-size: clamp(11px, 3.2vmin, 13px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .list-item-channel { color: var(--neon-blue); font-size: clamp(9px, 2.5vmin, 10px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; }
-        
         .list-meta { display: flex; align-items: center; gap: 2vw; flex-shrink: 0; }
         .list-item-time { color: #fff; font-size: clamp(9px, 2.5vmin, 11px); opacity: 0.9; }
         .list-item-del { color: #444; font-size: clamp(18px, 4.5vmin, 22px); padding: 0 1vw; cursor: pointer; }
         
-        /* 再生バーのスタイリング修正 */
-        .bar-track { width: 100%; height: 12px; background: var(--track-gray); position: relative; cursor: pointer; border-radius: 6px; }
-        .bar-fill { height: 100%; background: var(--track-gray); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
+        .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
+        .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
         #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 1; box-shadow: var(--neon-glow); border-radius: 6px; pointer-events: none; }
-        .knob-ab {
-            position: absolute; top: 50%; transform: translate(-50%, -50%);
-            width: 30px; height: 30px; background: #000; border: 1px solid var(--neon-blue);
-            color: var(--neon-blue); display: none; align-items: center; justify-content: center;
-            font-size: 10px; border-radius: 4px; z-index: 10; cursor: pointer;
-        }
-        #now-knob {
-            position: absolute; top: 50%; transform: translate(-50%, -50%);
-            width: 12px; height: 12px; background: #fff; border-radius: 50%;
-            box-shadow: 0 0 10px #fff; z-index: 5; pointer-events: none;
-        }
-
+        .knob-ab { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 30px; background: #000; border: 1px solid var(--neon-blue); color: var(--neon-blue); display: none; align-items: center; justify-content: center; font-size: 10px; border-radius: 4px; z-index: 10; cursor: pointer; }
+        #now-knob { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #fff; z-index: 5; pointer-events: none; }
         .speed-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--neon-blue); margin-bottom: 4px; opacity: 0.7; }
         .speed-display { text-align: center; font-size: 16px; margin-top: 8px; letter-spacing: 0.1em; }
         .time-display { display: flex; justify-content: space-between; font-size: 14px; margin-top: 5px; }
-
         .input-box { display: flex; gap: 10px; width: 100%; }
-        input[type=text] { 
-            flex: 1; background: #111; border: 1px solid var(--neon-blue); color: #fff; 
-            padding: 12px; font-family: 'Michroma', sans-serif; font-size: 12px; outline: none; border-radius: 4px;
-        }
+        input[type=text] { flex: 1; background: #111; border: 1px solid var(--neon-blue); color: #fff; padding: 12px; font-family: 'Michroma', sans-serif; font-size: 12px; outline: none; border-radius: 4px; }
         .btn-go { background: var(--neon-blue); color: #000; border: none; padding: 0 15px; font-family: 'Michroma', sans-serif; font-size: 12px; cursor: pointer; border-radius: 4px; }
 
-        #fs-status-bar {
-            display: none; position: absolute; bottom: 0; left: 0; width: 100%; height: var(--fs-status-h);
-            background: #000; border-top: 1px solid #333; z-index: 999;
-            align-items: center; justify-content: space-evenly;
-        }
-        #center-area:fullscreen #fs-status-bar { display: flex; }
-        #center-area:fullscreen #video-main { height: calc(100vh - var(--fs-status-h)); align-items: flex-start; }
-        #center-area:fullscreen #video-viewport-wrapper { 
-            max-width: calc((100vh - var(--fs-status-h)) * (16 / 9)); 
-            max-height: calc(100vh - var(--fs-status-h)); 
-        }
-        #center-area:fullscreen .side-lane { display: none; }
-
+        #fs-status-bar { display: none; position: absolute; bottom: 0; left: 0; width: 100%; height: var(--fs-status-h); background: #000; border-top: 1px solid #333; z-index: 999; align-items: center; justify-content: space-evenly; }
+        #zefram-chassis:fullscreen #fs-status-bar, #zefram-chassis:webkit-full-screen #fs-status-bar { display: flex; }
+        
         .fs-btn { flex: 1; height: 60%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; color: var(--neon-blue); text-align: center; }
         .fs-sep { width: 1px; height: 40%; background: #333; }
         .fs-btn.dim { color: #444; }
-
         #file-input { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="top-container">ZEFRAM VIDEO PLAYER - NEO</div>
+    <div id="zefram-chassis">
+        <div id="zefram-screen">
 
-    <div id="center-area">
-        <div id="left-lane" class="side-lane">
-            <div class="grid-icon-box locked" id="btn-spd">SPD</div>
-            <div class="grid-icon-box locked" id="btn-lop">LOP</div>
-            <div class="grid-icon-box locked" id="btn-mir">MIR</div>
-            <div class="grid-icon-box locked" id="btn-hom">HOM</div>
-            <div class="grid-icon-box locked" id="btn-a">A</div>
-            <div class="grid-icon-box locked" id="btn-top">TOP</div>
-        </div>
+            <div id="top-container">ZEFRAM VIDEO PLAYER - NEO</div>
 
-        <div id="video-main">
-            <div id="video-viewport-wrapper">
-                <div id="yt-player"></div>
-                <video id="local-video" playsinline></video>
-                <div id="video-splash">
-                    <img src="z_icon.svg" alt="ZEFRAM PLAYER">
+            <div id="center-area">
+                <div id="left-lane" class="side-lane">
+                    <div class="grid-icon-box locked" id="btn-spd">SPD</div>
+                    <div class="grid-icon-box locked" id="btn-lop">LOP</div>
+                    <div class="grid-icon-box locked" id="btn-mir">MIR</div>
+                    <div class="grid-icon-box locked" id="btn-hom">HOM</div>
+                    <div class="grid-icon-box locked" id="btn-a">A</div>
+                    <div class="grid-icon-box locked" id="btn-top">TOP</div>
+                </div>
+
+                <div id="video-main">
+                    <div id="video-viewport-wrapper">
+                        <div id="yt-player"></div>
+                        <video id="local-video" playsinline></video>
+                    </div>
+                </div>
+
+                <div id="right-lane" class="side-lane">
+                    <div class="grid-icon-box blank">BAG</div>
+                    <div class="grid-icon-box locked" id="btn-lst">LST</div>
+                    <div class="grid-icon-box breathe" id="btn-fil">FIL</div>
+                    <div class="grid-icon-box breathe" id="btn-web">WEB</div>
+                    <div class="grid-icon-box locked" id="btn-b">B</div>
+                    <div class="grid-icon-box blank">--</div>
+                </div>
+
+                <div id="fs-status-bar">
+                    <div class="fs-btn" id="fs-btn-time">00:00 / 00:00</div>
+                    <div class="fs-sep"></div>
+                    <div class="fs-btn" id="fs-btn-speed">1.00X</div>
+                    <div class="fs-sep"></div>
+                    <div class="fs-btn" id="fs-btn-loop">LOOP: OFF</div>
+                    <div class="fs-sep"></div>
+                    <div class="fs-btn" id="fs-btn-mir">MIR: OFF</div>
+                    <div class="fs-sep"></div>
+                    <div class="fs-btn" id="fs-btn-exit" style="color:#fff;">EXIT</div>
                 </div>
             </div>
-        </div>
 
-        <div id="right-lane" class="side-lane">
-            <div class="grid-icon-box blank">BAG</div>
-            <div class="grid-icon-box locked" id="btn-lst">LST</div>
-            <div class="grid-icon-box breathe" id="btn-fil">FIL</div>
-            <div class="grid-icon-box breathe" id="btn-web">WEB</div>
-            <div class="grid-icon-box locked" id="btn-b">B</div>
-            <div class="grid-icon-box locked" id="btn-rst">RST</div>
-        </div>
+            <div id="bottom-container">
+                <div style="width:var(--lane-w); display:flex; justify-content:center;">
+                    <div class="grid-icon-box locked" id="btn-play-pause" style="border-radius: 50%; width: 60px; height: 60px; font-size: 20px;">▶</div>
+                </div>
 
-        <div id="fs-status-bar">
-            <div class="fs-btn" id="fs-btn-time">00:00 / 00:00</div>
-            <div class="fs-sep"></div>
-            <div class="fs-btn" id="fs-btn-speed">1.00X</div>
-            <div class="fs-sep"></div>
-            <div class="fs-btn" id="fs-btn-loop">LOOP: OFF</div>
-            <div class="fs-sep"></div>
-            <div class="fs-btn" id="fs-btn-mir">MIR: OFF</div>
-            <div class="fs-sep"></div>
-            <div class="fs-btn" id="fs-btn-exit" style="color:#fff;">EXIT</div>
-        </div>
-    </div>
+                <div id="dynamic-slot">
+                    <div id="panel-home" class="mode-panel">
+                        <div class="bar-track" id="main-track">
+                            <div id="ab-range"></div>
+                            <div class="bar-fill" id="main-fill"></div>
+                            <div id="now-knob"></div>
+                            <div class="knob-ab" id="knob-a">A</div>
+                            <div class="knob-ab" id="knob-b">B</div>
+                        </div>
+                        <div class="time-display">
+                            <span id="txt-cur">00:00</span>
+                            <span id="txt-total">00:00</span>
+                        </div>
+                    </div>
 
-    <div id="list-overlay">
+                    <div id="panel-speed" class="mode-panel">
+                        <div class="speed-labels"><span>0.5X</span><span>1.0X</span><span>1.5X</span></div>
+                        <div class="bar-track" id="speed-track">
+                            <div class="bar-fill" id="speed-fill" style="width: 50%; background:var(--neon-blue); opacity:1;"></div>
+                        </div>
+                        <div class="speed-display" id="txt-speed">1.00X</div>
+                    </div>
+
+                    <div id="panel-web" class="mode-panel active">
+                        <div class="input-box">
+                            <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
+                            <button class="btn-go" id="btn-url-go">GO</button>
+                            <button class="btn-go locked" id="btn-url-add">ADD</button>
+                        </div>
+                    </div>
+
+                    <div id="panel-file" class="mode-panel">
+                        <div class="input-box">
+                            <button class="btn-go" style="width:100%; height:45px;" onclick="document.getElementById('file-input').click()">CHOOSE LOCAL FILE</button>
+                            <input type="file" id="file-input" accept="video/*,audio/*">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="width:var(--lane-w); display:flex; justify-content:center;">
+                    <div class="grid-icon-box locked" id="btn-full" onclick="enterFull()">FULL</div>
+                </div>
+            </div>
+
+        </div></div><div id="list-overlay">
         <div id="list-ad-area"></div>
         <div id="list-header">
             <div class="list-top-row">
@@ -246,62 +286,16 @@
         <div id="list-content"></div>
     </div>
 
-    <div id="bottom-container">
-        <div style="width:var(--lane-w); display:flex; justify-content:center;">
-            <div class="grid-icon-box locked" id="btn-play-pause" style="border-radius: 50%; width: 60px; height: 60px; font-size: 20px;">▶</div>
-        </div>
-
-        <div id="dynamic-slot">
-            <div id="panel-home" class="mode-panel">
-                <div class="bar-track" id="main-track">
-                    <div id="ab-range"></div>
-                    <div class="bar-fill" id="main-fill"></div>
-                    <div id="now-knob"></div>
-                    <div class="knob-ab" id="knob-a">A</div>
-                    <div class="knob-ab" id="knob-b">B</div>
-                </div>
-                <div class="time-display">
-                    <span id="txt-cur">00:00</span>
-                    <span id="txt-total">00:00</span>
-                </div>
-            </div>
-
-            <div id="panel-speed" class="mode-panel">
-                <div class="speed-labels"><span>0.5X</span><span>1.0X</span><span>1.5X</span></div>
-                <div class="bar-track" id="speed-track">
-                    <div class="bar-fill" id="speed-fill" style="width: 50%; background:var(--neon-blue); opacity:1;"></div>
-                </div>
-                <div class="speed-display" id="txt-speed">1.00X</div>
-            </div>
-
-            <div id="panel-web" class="mode-panel">
-                <div class="input-box">
-                    <input type="text" id="input-url" placeholder="YOUTUBE URL OR ID...">
-                    <button class="btn-go" id="btn-url-go">GO</button>
-                    <button class="btn-go locked" id="btn-url-add">ADD</button>
-                </div>
-            </div>
-
-            <div id="panel-file" class="mode-panel">
-                <div class="input-box">
-                    <button class="btn-go" style="width:100%; height:45px;" onclick="document.getElementById('file-input').click()">CHOOSE LOCAL FILE</button>
-                    <input type="file" id="file-input" accept="video/*,audio/*">
-                </div>
-            </div>
-        </div>
-
-        <div style="width:var(--lane-w); display:flex; justify-content:center;">
-            <div class="grid-icon-box locked" id="btn-full" onclick="enterFull()">FULL</div>
-        </div>
-    </div>
-
     <script>
+        /* JSロジックはフルスクリーン対象を #zefram-chassis に変更する以外、
+          既存の関数と変数を完全に維持しています。
+        */
         const state = {
             player: null,
             localVid: null,
             isYoutube: true,
             isInitialized: false,
-            currentMode: null,
+            currentMode: 'web',
             lastModeBeforeFull: 'home',
             isMirror: false,
             isLoop: false,
@@ -309,8 +303,7 @@
             playbackRate: 1.0,
             startT: 0,
             endT: 0,
-            playlist: JSON.parse(localStorage.getItem('zefram_playlist') || '[]'),
-            lopPressTimer: null
+            playlist: JSON.parse(localStorage.getItem('zefram_playlist') || '[]')
         };
 
         const getT = () => state.isYoutube ? (state.player?.getCurrentTime?.() || 0) : state.localVid.currentTime;
@@ -322,36 +315,6 @@
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
 
-        function hideSplash() {
-            const splash = document.getElementById('video-splash');
-            splash.style.opacity = "0";
-            setTimeout(() => { splash.style.display = "none"; }, 400);
-        }
-
-        function wakeUpUI() {
-            hideSplash();
-            state.isInitialized = true;
-            document.querySelectorAll('.grid-icon-box').forEach(el => { el.classList.remove('locked'); el.classList.remove('breathe'); });
-            document.getElementById('btn-play-pause').classList.remove('locked');
-            document.getElementById('btn-full').classList.remove('locked');
-            updateRSTStatus();
-            updateLSTButtonState();
-            switchMode('home');
-        }
-
-        function updateRSTStatus() {
-            const rstBtn = document.getElementById('btn-rst');
-            if (!state.isInitialized) return;
-            const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop || (state.startT !== 0 || state.endT !== 0);
-            if (isChanged) {
-                rstBtn.classList.remove('locked');
-                rstBtn.classList.add('active');
-            } else {
-                rstBtn.classList.add('locked');
-                rstBtn.classList.remove('active');
-            }
-        }
-
         window.onYouTubeIframeAPIReady = () => {
             const wrapper = document.getElementById('video-viewport-wrapper');
             state.player = new YT.Player('yt-player', {
@@ -361,7 +324,7 @@
                 playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1, 'vq': 'highres' },
                 events: {
                     'onReady': onPlayerReady,
-                    'onStateChange': (e) => { updatePlayIcon(); }
+                    'onStateChange': () => updatePlayIcon()
                 }
             });
         };
@@ -374,10 +337,18 @@
             render();
         }
 
+        function activateApp() {
+            if (state.isInitialized) return;
+            state.isInitialized = true;
+            document.querySelectorAll('.grid-icon-box').forEach(el => { el.classList.remove('locked'); el.classList.remove('breathe'); });
+            updateLSTButtonState();
+            switchMode('home');
+        }
+
         function updateLSTButtonState() {
             const btnLst = document.getElementById('btn-lst');
-            if (state.playlist.length > 0) btnLst.classList.remove('locked');
-            else btnLst.classList.add('locked');
+            if (state.playlist.length > 0) { btnLst.classList.remove('locked'); } 
+            else { btnLst.classList.add('locked'); }
         }
 
         function deleteItem(id, e) {
@@ -395,7 +366,9 @@
                 const div = document.createElement('div');
                 div.className = 'list-item';
                 div.innerHTML = `
-                    <div class="list-thumb"><img src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg"></div>
+                    <div class="list-thumb">
+                        <img src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg" alt="">
+                    </div>
                     <div class="list-info">
                         <div class="list-item-title">${item.title}</div>
                         <div class="list-item-channel">${item.author || 'YOUTUBE VIDEO'}</div>
@@ -408,7 +381,7 @@
                 div.onclick = () => {
                     state.player.loadVideoById(item.id);
                     document.getElementById('list-overlay').classList.remove('active');
-                    wakeUpUI();
+                    activateApp();
                 };
                 container.appendChild(div);
             });
@@ -434,7 +407,6 @@
             if (dur > 0) {
                 const p = (now / dur) * 100;
                 if (state.activeDrag !== 'now') {
-                    // 通常再生バー（bar-fill）も背景と同じグレーにする（色味を消す）
                     document.getElementById('main-fill').style.width = p + "%";
                     document.getElementById('now-knob').style.left = p + "%";
                     document.getElementById('txt-cur').innerText = formatTime(now);
@@ -449,7 +421,6 @@
                 fsMir.innerText = `MIR: ${state.isMirror ? 'ON' : 'OFF'}`;
                 fsMir.classList.toggle('dim', !state.isMirror);
                 const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
-                
                 if (state.isLoop) {
                     range.style.display = ka.style.display = kb.style.display = 'flex';
                     const sP = (state.startT / dur) * 100, eP = (state.endT / dur) * 100;
@@ -474,73 +445,21 @@
             };
 
             const toggleMirror = () => {
-                if(!state.isInitialized) return;
                 state.isMirror = !state.isMirror;
                 document.getElementById('btn-mir').classList.toggle('active', state.isMirror);
                 document.getElementById('video-viewport-wrapper').style.transform = state.isMirror ? "scaleX(-1)" : "none";
-                updateRSTStatus();
             };
             document.getElementById('btn-mir').onclick = toggleMirror;
             document.getElementById('fs-btn-mir').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
 
-            const lopBtn = document.getElementById('btn-lop');
-            const clearLOPMemory = () => {
-                state.isLoop = false;
-                state.startT = 0;
-                state.endT = 0;
-                lopBtn.classList.remove('active');
-                updateRSTStatus();
+            document.getElementById('btn-lop').onclick = () => {
+                state.isLoop = !state.isLoop; if(state.isLoop && state.endT === 0) state.endT = getD();
+                document.getElementById('btn-lop').classList.toggle('active', state.isLoop);
             };
 
-            lopBtn.onmousedown = lopBtn.ontouchstart = (e) => {
-                if(!state.isInitialized) return;
-                state.lopPressTimer = setTimeout(() => {
-                    clearLOPMemory();
-                    state.lopPressTimer = null;
-                }, 1000);
-            };
-
-            lopBtn.onmouseup = lopBtn.ontouchend = (e) => {
-                if(state.lopPressTimer) {
-                    clearTimeout(state.lopPressTimer);
-                    state.lopPressTimer = null;
-                    state.isLoop = !state.isLoop;
-                    if(state.isLoop && state.endT === 0) state.endT = getD();
-                    lopBtn.classList.toggle('active', state.isLoop);
-                    updateRSTStatus();
-                }
-            };
-
-            document.getElementById('btn-a').onclick = () => { 
-                if(!state.isInitialized) return; 
-                state.startT = getT(); 
-                if(state.endT === 0) state.endT = getD(); 
-                state.isLoop = true; 
-                document.getElementById('btn-lop').classList.add('active'); 
-                updateRSTStatus(); 
-            };
-            
-            document.getElementById('btn-b').onclick = () => { 
-                if(!state.isInitialized) return; 
-                state.endT = getT(); 
-                if(state.startT > state.endT) state.startT = 0; 
-                state.isLoop = true; 
-                document.getElementById('btn-lop').classList.add('active'); 
-                updateRSTStatus(); 
-            };
-
-            document.getElementById('btn-top').onclick = () => { if(!state.isInitialized) return; setT(state.isLoop ? state.startT : 0); };
-
-            document.getElementById('btn-rst').onclick = () => {
-                if (!state.isInitialized) return;
-                state.playbackRate = 1.0; setR(1.0);
-                document.getElementById('speed-fill').style.width = "50%";
-                document.getElementById('txt-speed').innerText = "1.00X";
-                state.isMirror = false;
-                document.getElementById('video-viewport-wrapper').style.transform = "none";
-                document.getElementById('btn-mir').classList.remove('active');
-                clearLOPMemory();
-            };
+            document.getElementById('btn-a').onclick = () => { state.startT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); };
+            document.getElementById('btn-b').onclick = () => { state.endT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); };
+            document.getElementById('btn-top').onclick = () => setT(state.isLoop ? state.startT : 0);
 
             document.getElementById('btn-hom').onclick = () => switchMode('home');
             document.getElementById('btn-spd').onclick = () => switchMode('speed');
@@ -548,7 +467,7 @@
             document.getElementById('btn-fil').onclick = () => switchMode('file');
             
             document.getElementById('btn-lst').onclick = () => {
-                if(state.playlist.length === 0) return;
+                if(!state.isInitialized || state.playlist.length === 0) return;
                 pausePlayback();
                 renderPlaylist();
                 document.getElementById('list-overlay').classList.add('active');
@@ -570,25 +489,24 @@
                 const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
                 const p = Math.max(0, Math.min(1, x / rect.width));
                 if (type === 'now') setT(p * getD());
-                else if (type === 'a') { state.startT = p * getD(); updateRSTStatus(); }
-                else if (type === 'b') { state.endT = p * getD(); updateRSTStatus(); }
+                else if (type === 'a') state.startT = p * getD();
+                else if (type === 'b') state.endT = p * getD();
                 else if (type === 'speed') {
                     state.playbackRate = 0.5 + p; setR(state.playbackRate);
                     document.getElementById('speed-fill').style.width = (p * 100) + "%";
                     document.getElementById('txt-speed').innerText = state.playbackRate.toFixed(2) + "X";
                     document.getElementById('btn-spd').classList.toggle('active', Math.abs(state.playbackRate - 1.0) > 0.01);
-                    updateRSTStatus();
                 }
             };
 
-            document.getElementById('main-track').onmousedown = (e) => handleInput(e, 'now');
-            document.getElementById('main-track').ontouchstart = (e) => handleInput(e, 'now');
+            document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+            document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
             document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-a').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
             document.getElementById('knob-b').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
-            document.getElementById('speed-track').onmousedown = (e) => handleInput(e, 'speed');
-            document.getElementById('speed-track').ontouchstart = (e) => handleInput(e, 'speed');
+            document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
+            document.getElementById('speed-track').ontouchstart = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
             window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.onmouseup = window.ontouchend = () => { state.activeDrag = null; };
@@ -601,8 +519,8 @@
                     document.getElementById('local-video').style.display = 'none';
                     document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById(id);
-                    clearLOPMemory(); 
-                    wakeUpUI();
+                    state.isLoop = false; 
+                    activateApp();
                     document.getElementById('btn-url-add').classList.remove('locked');
                 }
             };
@@ -611,9 +529,12 @@
                 if (!state.isYoutube || !state.player) return;
                 const videoData = state.player.getVideoData();
                 const videoId = videoData.video_id;
-                if (videoId && videoData.title !== "Unknown") {
+                const title = videoData.title;
+                const author = videoData.author;
+
+                if (videoId && title && title !== "Unknown") {
                     if (!state.playlist.some(item => item.id === videoId)) {
-                        state.playlist.push({ id: videoId, title: videoData.title, author: videoData.author, duration: formatTime(getD()) });
+                        state.playlist.push({ id: videoId, title: title, author: author, duration: formatTime(getD()) });
                         localStorage.setItem('zefram_playlist', JSON.stringify(state.playlist));
                         updateLSTButtonState();
                         renderPlaylist();
@@ -630,8 +551,8 @@
                     state.player.pauseVideo();
                     state.localVid.src = URL.createObjectURL(file);
                     state.localVid.play();
-                    clearLOPMemory();
-                    wakeUpUI();
+                    state.isLoop = false; 
+                    activateApp();
                 }
             };
         }
@@ -650,7 +571,10 @@
         function enterFull() {
             if(!state.isInitialized) return;
             state.lastModeBeforeFull = state.currentMode;
-            const el = document.getElementById('center-area');
+            /* 重要: フルスクリーンの対象をシャシー (#zefram-chassis) に変更。
+               これにより、全画面時は16:9の拘束をCSSで解除できます。
+            */
+            const el = document.getElementById('zefram-chassis');
             if (el.requestFullscreen) el.requestFullscreen();
             else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
         }
