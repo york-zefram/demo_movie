@@ -308,7 +308,7 @@
             startT: 0,
             endT: 0,
             playlist: JSON.parse(localStorage.getItem('zefram_playlist') || '[]'),
-            lopPressTimer: null // 長押し用タイマー
+            lopPressTimer: null
         };
 
         const getT = () => state.isYoutube ? (state.player?.getCurrentTime?.() || 0) : state.localVid.currentTime;
@@ -340,7 +340,7 @@
         function updateRSTStatus() {
             const rstBtn = document.getElementById('btn-rst');
             if (!state.isInitialized) return;
-            // AB点が初期値(0,0)以外、またはミラー、速度変更のいずれかがあれば点灯
+            // 変更があれば点灯、標準なら消灯
             const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop || (state.startT !== 0 || state.endT !== 0);
             if (isChanged) {
                 rstBtn.classList.remove('locked');
@@ -448,7 +448,6 @@
                 fsMir.classList.toggle('dim', !state.isMirror);
                 const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
                 
-                // ループONの時のみシークバーにAB表示
                 if (state.isLoop) {
                     range.style.display = ka.style.display = kb.style.display = 'flex';
                     const sP = (state.startT / dur) * 100, eP = (state.endT / dur) * 100;
@@ -482,7 +481,6 @@
             document.getElementById('btn-mir').onclick = toggleMirror;
             document.getElementById('fs-btn-mir').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
 
-            /* LOPボタンの修正：タップと長押し */
             const lopBtn = document.getElementById('btn-lop');
             const clearLOPMemory = () => {
                 state.isLoop = false;
@@ -497,14 +495,13 @@
                 state.lopPressTimer = setTimeout(() => {
                     clearLOPMemory();
                     state.lopPressTimer = null;
-                }, 1000); // 1秒長押しでクリア
+                }, 1000);
             };
 
             lopBtn.onmouseup = lopBtn.ontouchend = (e) => {
                 if(state.lopPressTimer) {
                     clearTimeout(state.lopPressTimer);
                     state.lopPressTimer = null;
-                    // 短いタップの場合はトグルのみ
                     state.isLoop = !state.isLoop;
                     if(state.isLoop && state.endT === 0) state.endT = getD();
                     lopBtn.classList.toggle('active', state.isLoop);
@@ -512,8 +509,25 @@
                 }
             };
 
-            document.getElementById('btn-a').onclick = () => { if(!state.isInitialized) return; state.startT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
-            document.getElementById('btn-b').onclick = () => { if(!state.isInitialized) return; state.endT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
+            /* A点・B点ボタンの「オート・アクティベート」修正 */
+            document.getElementById('btn-a').onclick = () => { 
+                if(!state.isInitialized) return; 
+                state.startT = getT(); 
+                if(state.endT === 0) state.endT = getD(); // 修正点
+                state.isLoop = true; 
+                document.getElementById('btn-lop').classList.add('active'); 
+                updateRSTStatus(); 
+            };
+            
+            document.getElementById('btn-b').onclick = () => { 
+                if(!state.isInitialized) return; 
+                state.endT = getT(); 
+                if(state.startT > state.endT) state.startT = 0; // 逆転防止
+                state.isLoop = true; 
+                document.getElementById('btn-lop').classList.add('active'); 
+                updateRSTStatus(); 
+            };
+
             document.getElementById('btn-top').onclick = () => { if(!state.isInitialized) return; setT(state.isLoop ? state.startT : 0); };
 
             document.getElementById('btn-rst').onclick = () => {
@@ -524,7 +538,7 @@
                 state.isMirror = false;
                 document.getElementById('video-viewport-wrapper').style.transform = "none";
                 document.getElementById('btn-mir').classList.remove('active');
-                clearLOPMemory(); // ループ設定も初期化
+                clearLOPMemory();
             };
 
             document.getElementById('btn-hom').onclick = () => switchMode('home');
@@ -586,7 +600,7 @@
                     document.getElementById('local-video').style.display = 'none';
                     document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById(id);
-                    clearLOPMemory(); // 新しい動画を読み込むときはリセット
+                    clearLOPMemory(); 
                     wakeUpUI();
                     document.getElementById('btn-url-add').classList.remove('locked');
                 }
