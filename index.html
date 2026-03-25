@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ZEFRAM VIDEO PLAYER - NEO (Draggable AB)</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -60,16 +60,14 @@
         #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         #local-video { display: none; object-fit: contain; }
 
-        /* ロゴレイヤー：右下を透過させつつ、クリックを下に通す設定 */
+        /* 第1の定義：待機時の純粋なロゴレイヤー */
         #video-splash {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            /* 右下に向けて透明になるグラデーション（スキップボタン視認用） */
-            background: radial-gradient(circle at 90% 85%, transparent 0%, #000 60%);
+            background: #000; /* 潔い黒背景 */
             z-index: 999;
             display: flex; align-items: center; justify-content: center;
             opacity: 1;
-            pointer-events: none; /* 下のYouTubeレイヤーをクリック可能にする */
-            transition: opacity 0.6s ease;
+            transition: opacity 0.4s ease; /* スッと消える演出 */
         }
         #video-splash img { width: 45%; max-width: 280px; height: auto; }
 
@@ -323,9 +321,11 @@
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
 
-        function toggleSplash(show) {
+        /* 第1の定義：ロゴの明示的なフェードアウト */
+        function hideSplash() {
             const splash = document.getElementById('video-splash');
-            splash.style.opacity = show ? "1" : "0";
+            splash.style.opacity = "0";
+            setTimeout(() => { splash.style.display = "none"; }, 400); // 完全に消えたら非表示に
         }
 
         window.onYouTubeIframeAPIReady = () => {
@@ -338,8 +338,6 @@
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': (e) => {
-                        /* 本編の再生が始まったらロゴをフェードアウト */
-                        if (e.data === YT.PlayerState.PLAYING) toggleSplash(false);
                         updatePlayIcon();
                     }
                 }
@@ -348,7 +346,6 @@
 
         function onPlayerReady() {
             state.localVid = document.getElementById('local-video');
-            state.localVid.onplaying = () => toggleSplash(false);
             initEvents();
             updateLSTButtonState();
             renderPlaylist();
@@ -365,11 +362,8 @@
 
         function updateLSTButtonState() {
             const btnLst = document.getElementById('btn-lst');
-            if (state.playlist.length > 0) {
-                btnLst.classList.remove('locked');
-            } else {
-                btnLst.classList.add('locked');
-            }
+            if (state.playlist.length > 0) btnLst.classList.remove('locked');
+            else btnLst.classList.add('locked');
         }
 
         function deleteItem(id, e) {
@@ -387,9 +381,7 @@
                 const div = document.createElement('div');
                 div.className = 'list-item';
                 div.innerHTML = `
-                    <div class="list-thumb">
-                        <img src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg" alt="">
-                    </div>
+                    <div class="list-thumb"><img src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg"></div>
                     <div class="list-info">
                         <div class="list-item-title">${item.title}</div>
                         <div class="list-item-channel">${item.author || 'YOUTUBE VIDEO'}</div>
@@ -400,7 +392,7 @@
                     </div>
                 `;
                 div.onclick = () => {
-                    toggleSplash(true);
+                    hideSplash(); // 第1の定義：選択時に消去
                     state.player.loadVideoById(item.id);
                     document.getElementById('list-overlay').classList.remove('active');
                     activateApp();
@@ -537,7 +529,7 @@
                 const v = document.getElementById('input-url').value;
                 const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
                 if(id) {
-                    toggleSplash(true);
+                    hideSplash(); // 第1の定義：GOボタン押下時に消去
                     state.isYoutube = true;
                     document.getElementById('local-video').style.display = 'none';
                     document.getElementById('yt-player').style.display = 'block';
@@ -553,16 +545,9 @@
                 const videoData = state.player.getVideoData();
                 const videoId = videoData.video_id;
                 const title = videoData.title;
-                const author = videoData.author;
-
                 if (videoId && title && title !== "Unknown") {
                     if (!state.playlist.some(item => item.id === videoId)) {
-                        state.playlist.push({
-                            id: videoId,
-                            title: title,
-                            author: author,
-                            duration: formatTime(getD())
-                        });
+                        state.playlist.push({ id: videoId, title: title, author: videoData.author, duration: formatTime(getD()) });
                         localStorage.setItem('zefram_playlist', JSON.stringify(state.playlist));
                         updateLSTButtonState();
                         renderPlaylist();
@@ -573,7 +558,7 @@
             document.getElementById('file-input').onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    toggleSplash(true);
+                    hideSplash(); // 第1の定義：ファイル選択時に消去
                     state.isYoutube = false;
                     document.getElementById('yt-player').style.display = 'none';
                     document.getElementById('local-video').style.display = 'block';
