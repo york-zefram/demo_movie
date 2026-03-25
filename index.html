@@ -60,24 +60,15 @@
         #yt-player, #local-video { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         #local-video { display: none; object-fit: contain; }
 
-        /* 強固なスプラッシュレイヤー */
+        /* 追加：ロゴレイヤーのスタイル */
         #video-splash {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; /* 透過SVGの下を真っ黒にしてYouTubeを隠す */
-            z-index: 999; /* YouTube(iframe)より確実に手前に配置 */
+            background: #000; z-index: 999;
             display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
             transition: opacity 0.6s ease;
-            pointer-events: none; /* 操作を邪魔しない */
         }
-        #video-splash img {
-            width: 45%; max-width: 280px; height: auto;
-            animation: logo-breathe 2.5s infinite ease-in-out;
-        }
-        @keyframes logo-breathe {
-            0% { opacity: 0.5; transform: scale(0.98); }
-            50% { opacity: 1; transform: scale(1); }
-            100% { opacity: 0.5; transform: scale(0.98); }
-        }
+        #video-splash img { width: 45%; max-width: 280px; height: auto; }
 
         .side-lane {
             width: var(--lane-w); height: 100%;
@@ -110,7 +101,6 @@
         .mode-panel { display: none; width: 100%; flex-direction: column; gap: 5px; }
         .mode-panel.active { display: flex; }
 
-        /* リストオーバーレイ */
         #list-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: #000; z-index: 9999; flex-direction: column;
@@ -151,7 +141,6 @@
         .list-item-time { color: #fff; font-size: clamp(9px, 2.5vmin, 11px); opacity: 0.9; }
         .list-item-del { color: #444; font-size: clamp(18px, 4.5vmin, 22px); padding: 0 1vw; cursor: pointer; }
         
-        /* コントロール系 */
         .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
         .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
         #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 1; box-shadow: var(--neon-glow); border-radius: 6px; pointer-events: none; }
@@ -167,6 +156,8 @@
             box-shadow: 0 0 10px #fff; z-index: 5; pointer-events: none;
         }
 
+        .speed-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--neon-blue); margin-bottom: 4px; opacity: 0.7; }
+        .speed-display { text-align: center; font-size: 16px; margin-top: 8px; letter-spacing: 0.1em; }
         .time-display { display: flex; justify-content: space-between; font-size: 14px; margin-top: 5px; }
 
         .input-box { display: flex; gap: 10px; width: 100%; }
@@ -182,7 +173,11 @@
             align-items: center; justify-content: space-evenly;
         }
         #center-area:fullscreen #fs-status-bar { display: flex; }
-        #center-area:fullscreen #video-main { height: calc(100vh - var(--fs-status-h)); }
+        #center-area:fullscreen #video-main { height: calc(100vh - var(--fs-status-h)); align-items: flex-start; }
+        #center-area:fullscreen #video-viewport-wrapper { 
+            max-width: calc((100vh - var(--fs-status-h)) * (16 / 9)); 
+            max-height: calc(100vh - var(--fs-status-h)); 
+        }
         #center-area:fullscreen .side-lane { display: none; }
 
         .fs-btn { flex: 1; height: 60%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; color: var(--neon-blue); text-align: center; }
@@ -271,6 +266,7 @@
             </div>
 
             <div id="panel-speed" class="mode-panel">
+                <div class="speed-labels"><span>0.5X</span><span>1.0X</span><span>1.5X</span></div>
                 <div class="bar-track" id="speed-track">
                     <div class="bar-fill" id="speed-fill" style="width: 50%; background:var(--neon-blue); opacity:1;"></div>
                 </div>
@@ -324,6 +320,12 @@
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
 
+        /* 追加：ロゴ表示/非表示関数 */
+        function toggleSplash(show) {
+            const splash = document.getElementById('video-splash');
+            splash.style.opacity = show ? "1" : "0";
+        }
+
         window.onYouTubeIframeAPIReady = () => {
             const wrapper = document.getElementById('video-viewport-wrapper');
             state.player = new YT.Player('yt-player', {
@@ -333,38 +335,23 @@
                 playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1, 'vq': 'highres' },
                 events: {
                     'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange
+                    'onStateChange': (e) => {
+                        /* 修正：再生が実際に始まったらロゴを消す */
+                        if (e.data === YT.PlayerState.PLAYING) toggleSplash(false);
+                        updatePlayIcon();
+                    }
                 }
             });
         };
 
-        function showSplash() { 
-            const s = document.getElementById('video-splash');
-            s.style.display = "flex";
-            s.style.opacity = "1"; 
-        }
-        function hideSplash() { 
-            const s = document.getElementById('video-splash');
-            s.style.opacity = "0"; 
-            setTimeout(() => { if(s.style.opacity === "0") s.style.display = "none"; }, 600); 
-        }
-
         function onPlayerReady() {
             state.localVid = document.getElementById('local-video');
+            /* 追加：ローカル再生開始時もロゴを消す設定 */
+            state.localVid.onplaying = () => toggleSplash(false);
             initEvents();
             updateLSTButtonState();
             renderPlaylist();
             render();
-        }
-
-        function onPlayerStateChange(event) {
-            // 再生開始(1)を検知して初めてスプラッシュを消去
-            if (event.data === YT.PlayerState.PLAYING) {
-                hideSplash();
-            } else if (event.data === YT.PlayerState.UNSTARTED || event.data === YT.PlayerState.BUFFERING) {
-                // ロード中は表示を維持
-            }
-            updatePlayIcon();
         }
 
         function activateApp() {
@@ -377,7 +364,11 @@
 
         function updateLSTButtonState() {
             const btnLst = document.getElementById('btn-lst');
-            btnLst.classList.toggle('locked', state.playlist.length === 0);
+            if (state.playlist.length > 0) {
+                btnLst.classList.remove('locked');
+            } else {
+                btnLst.classList.add('locked');
+            }
         }
 
         function deleteItem(id, e) {
@@ -395,7 +386,9 @@
                 const div = document.createElement('div');
                 div.className = 'list-item';
                 div.innerHTML = `
-                    <div class="list-thumb"><img src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg" alt=""></div>
+                    <div class="list-thumb">
+                        <img src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg" alt="">
+                    </div>
                     <div class="list-info">
                         <div class="list-item-title">${item.title}</div>
                         <div class="list-item-channel">${item.author || 'YOUTUBE VIDEO'}</div>
@@ -406,7 +399,8 @@
                     </div>
                 `;
                 div.onclick = () => {
-                    showSplash();
+                    /* 追加：曲選択時にロゴを表示 */
+                    toggleSplash(true);
                     state.player.loadVideoById(item.id);
                     document.getElementById('list-overlay').classList.remove('active');
                     activateApp();
@@ -415,7 +409,11 @@
             });
         }
 
-        function pausePlayback() { if(state.isInitialized) { if(state.isYoutube) state.player.pauseVideo(); else state.localVid.pause(); } }
+        function pausePlayback() {
+            if(!state.isInitialized) return;
+            if(state.isYoutube) state.player.pauseVideo();
+            else state.localVid.pause();
+        }
 
         function updatePlayIcon() {
             const btn = document.getElementById('btn-play-pause');
@@ -439,8 +437,8 @@
                 document.getElementById('fs-btn-time').innerText = `${formatTime(now)} / ${formatTime(dur)}`;
                 document.getElementById('fs-btn-speed').innerText = state.playbackRate.toFixed(2) + "X";
                 const fsLoop = document.getElementById('fs-btn-loop');
-                fsLoop.innerText = state.isLoop ? `${formatTime(state.startT)} - ${formatTime(state.endT)}` : "LOOP: OFF";
-                fsLoop.classList.toggle('dim', !state.isLoop);
+                if (state.isLoop) { fsLoop.innerText = `${formatTime(state.startT)} - ${formatTime(state.endT)}`; fsLoop.classList.remove('dim'); }
+                else { fsLoop.innerText = "LOOP: OFF"; fsLoop.classList.add('dim'); }
                 const fsMir = document.getElementById('fs-btn-mir');
                 fsMir.innerText = `MIR: ${state.isMirror ? 'ON' : 'OFF'}`;
                 fsMir.classList.toggle('dim', !state.isMirror);
@@ -455,7 +453,11 @@
             requestAnimationFrame(render);
         }
 
-        function formatTime(s) { if(!s || isNaN(s)) return "00:00"; const m = Math.floor(s/60), rs = Math.floor(s%60); return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`; }
+        function formatTime(s) {
+            if(!s || isNaN(s)) return "00:00";
+            const m = Math.floor(s/60), rs = Math.floor(s%60);
+            return `${m<10?'0'+m:m}:${rs<10?'0'+rs:rs}`;
+        }
 
         function initEvents() {
             document.getElementById('btn-play-pause').onclick = () => {
@@ -472,17 +474,35 @@
             document.getElementById('btn-mir').onclick = toggleMirror;
             document.getElementById('fs-btn-mir').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
 
-            document.getElementById('btn-lop').onclick = () => { state.isLoop = !state.isLoop; if(state.isLoop && state.endT === 0) state.endT = getD(); document.getElementById('btn-lop').classList.toggle('active', state.isLoop); };
+            document.getElementById('btn-lop').onclick = () => {
+                state.isLoop = !state.isLoop; if(state.isLoop && state.endT === 0) state.endT = getD();
+                document.getElementById('btn-lop').classList.toggle('active', state.isLoop);
+            };
+
             document.getElementById('btn-a').onclick = () => { state.startT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); };
             document.getElementById('btn-b').onclick = () => { state.endT = getT(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); };
             document.getElementById('btn-top').onclick = () => setT(state.isLoop ? state.startT : 0);
+
             document.getElementById('btn-hom').onclick = () => switchMode('home');
             document.getElementById('btn-spd').onclick = () => switchMode('speed');
             document.getElementById('btn-web').onclick = () => switchMode('web');
             document.getElementById('btn-fil').onclick = () => switchMode('file');
             
-            document.getElementById('btn-lst').onclick = () => { if(!state.isInitialized || state.playlist.length === 0) return; pausePlayback(); renderPlaylist(); document.getElementById('list-overlay').classList.add('active'); };
-            document.getElementById('list-btn-close').onclick = () => { document.getElementById('list-overlay').classList.remove('active'); };
+            document.getElementById('btn-lst').onclick = () => {
+                if(!state.isInitialized || state.playlist.length === 0) return;
+                pausePlayback();
+                renderPlaylist();
+                document.getElementById('list-overlay').classList.add('active');
+            };
+
+            document.getElementById('list-btn-close').onclick = () => {
+                document.getElementById('list-overlay').classList.remove('active');
+            };
+
+            document.getElementById('fs-btn-time').onclick = () => { exitFull(); switchMode('home'); };
+            document.getElementById('fs-btn-speed').onclick = () => { exitFull(); switchMode('speed'); };
+            document.getElementById('fs-btn-loop').onclick = () => { exitFull(); switchMode('home'); };
+            document.getElementById('fs-btn-exit').onclick = () => { exitFull(); switchMode(state.lastModeBeforeFull); };
 
             const handleInput = (e, type) => {
                 if(!state.isInitialized) return;
@@ -497,6 +517,7 @@
                     state.playbackRate = 0.5 + p; setR(state.playbackRate);
                     document.getElementById('speed-fill').style.width = (p * 100) + "%";
                     document.getElementById('txt-speed').innerText = state.playbackRate.toFixed(2) + "X";
+                    document.getElementById('btn-spd').classList.toggle('active', Math.abs(state.playbackRate - 1.0) > 0.01);
                 }
             };
 
@@ -516,24 +537,36 @@
                 const v = document.getElementById('input-url').value;
                 const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
                 if(id) {
-                    showSplash();
+                    /* 追加：URL確定時にロゴを表示 */
+                    toggleSplash(true);
                     state.isYoutube = true;
                     document.getElementById('local-video').style.display = 'none';
                     document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById(id);
-                    state.isLoop = false; activateApp();
+                    state.isLoop = false; 
+                    activateApp();
                     document.getElementById('btn-url-add').classList.remove('locked');
                 }
             };
 
             document.getElementById('btn-url-add').onclick = () => {
                 if (!state.isYoutube || !state.player) return;
-                const data = state.player.getVideoData();
-                if (data.video_id && data.title !== "Unknown") {
-                    if (!state.playlist.some(item => item.id === data.video_id)) {
-                        state.playlist.push({ id: data.video_id, title: data.title, author: data.author, duration: formatTime(getD()) });
+                const videoData = state.player.getVideoData();
+                const videoId = videoData.video_id;
+                const title = videoData.title;
+                const author = videoData.author;
+
+                if (videoId && title && title !== "Unknown") {
+                    if (!state.playlist.some(item => item.id === videoId)) {
+                        state.playlist.push({
+                            id: videoId,
+                            title: title,
+                            author: author,
+                            duration: formatTime(getD())
+                        });
                         localStorage.setItem('zefram_playlist', JSON.stringify(state.playlist));
-                        updateLSTButtonState(); renderPlaylist();
+                        updateLSTButtonState();
+                        renderPlaylist();
                     }
                 }
             };
@@ -541,15 +574,16 @@
             document.getElementById('file-input').onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    showSplash();
+                    /* 追加：ファイル選択時にロゴを表示 */
+                    toggleSplash(true);
                     state.isYoutube = false;
                     document.getElementById('yt-player').style.display = 'none';
                     document.getElementById('local-video').style.display = 'block';
                     state.player.pauseVideo();
                     state.localVid.src = URL.createObjectURL(file);
                     state.localVid.play();
-                    state.isLoop = false; activateApp();
-                    setTimeout(hideSplash, 1200); 
+                    state.isLoop = false; 
+                    activateApp();
                 }
             };
         }
@@ -560,11 +594,23 @@
             document.getElementById('btn-hom').classList.toggle('active', mode === 'home');
             document.getElementById('btn-web').classList.toggle('active', mode === 'web');
             document.getElementById('btn-fil').classList.toggle('active', mode === 'file');
-            document.getElementById(`panel-${mode === 'home' ? 'home' : mode === 'speed' ? 'speed' : mode}`).classList.add('active');
+            document.getElementById('btn-spd').classList.toggle('active', (mode === 'speed' || Math.abs(state.playbackRate - 1.0) > 0.01));
+            const panel = document.getElementById(`panel-${mode === 'home' ? 'home' : mode === 'speed' ? 'speed' : mode}`);
+            if(panel) panel.classList.add('active');
         }
 
-        function enterFull() { if(!state.isInitialized) return; state.lastModeBeforeFull = state.currentMode; const el = document.getElementById('center-area'); if (el.requestFullscreen) el.requestFullscreen(); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen(); }
-        function exitFull() { if (document.exitFullscreen) document.exitFullscreen(); else if (document.webkitExitFullscreen) document.webkitExitFullscreen(); }
+        function enterFull() {
+            if(!state.isInitialized) return;
+            state.lastModeBeforeFull = state.currentMode;
+            const el = document.getElementById('center-area');
+            if (el.requestFullscreen) el.requestFullscreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        }
+
+        function exitFull() {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        }
     </script>
 </body>
 </html>
