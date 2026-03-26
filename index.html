@@ -12,10 +12,10 @@
             --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); 
             --top-h: 50px;
             --bottom-h: 25vh;
-            --lane-w: 15vw;
+            --lane-w: 22vw; /* 2列化に伴い幅を拡張 */
             --center-ratio: 16 / 9;
             --icon-size: 8vh; 
-            --icon-max: 55px;
+            --icon-max: 75px; /* ボタンサイズを大型化 */
             --fs-status-h: 10vh;
             --disabled-color: #333;
             --ad-h: 40px;
@@ -71,10 +71,17 @@
         }
         #video-splash img { width: 45%; max-width: 280px; height: auto; }
 
+        /* サイドレーンを2列のグリッドに変更 */
         .side-lane {
             width: var(--lane-w); height: 100%;
-            display: flex; flex-direction: column; align-items: center; justify-content: space-around;
-            padding: 2vh 0; box-sizing: border-box; z-index: 200;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            padding: 15px 10px;
+            box-sizing: border-box; z-index: 200;
+            align-items: center;
+            justify-items: center;
         }
 
         #orientation-overlay {
@@ -85,7 +92,6 @@
         }
         #orientation-overlay img { width: 60%; max-width: 300px; height: auto; }
 
-        /* 全画面時以外の縦画面のみ、オーバーレイを表示して操作を制限する */
         @media (orientation: portrait) {
             #center-area:not(:fullscreen) ~ #orientation-overlay { display: flex; }
             #center-area:not(:fullscreen) ~ #top-container, 
@@ -94,15 +100,22 @@
             #center-area:not(:fullscreen) #video-main { display: none; }
         }
 
-        #center-area:fullscreen #orientation-overlay { display: none; }
-        #center-area:fullscreen #video-main { display: flex; }
+        #center-area:fullscreen #video-main { display: flex; width: 100%; height: 100%; }
+        #center-area:fullscreen #video-viewport-wrapper { 
+            max-width: 100vw; 
+            max-height: 100vh;
+            width: 100vw;
+            height: auto;
+            aspect-ratio: var(--center-ratio);
+        }
 
         .grid-icon-box {
-            width: var(--icon-size); height: var(--icon-size);
+            width: 100%; height: 100%;
             max-width: var(--icon-max); max-height: var(--icon-max);
+            aspect-ratio: 1/1;
             background: none; border: 1px solid var(--neon-blue); border-radius: 8px;
             display: flex; align-items: center; justify-content: center;
-            cursor: pointer; color: #fff; font-size: 10px; transition: 0.2s;
+            cursor: pointer; color: #fff; font-size: 11px; transition: 0.2s;
             user-select: none; -webkit-user-select: none;
         }
         .grid-icon-box.active { background: var(--neon-blue); color: #000; box-shadow: var(--neon-glow); }
@@ -196,11 +209,11 @@
         }
         #center-area:fullscreen #fs-status-bar { display: flex; }
         #center-area:fullscreen #video-main { height: calc(100vh - var(--fs-status-h)); align-items: flex-start; }
+        
         #center-area:fullscreen #video-viewport-wrapper { 
-            max-width: calc((100vh - var(--fs-status-h)) * (16 / 9)); 
+            max-width: 100vw; 
             max-height: calc(100vh - var(--fs-status-h)); 
         }
-        #center-area:fullscreen .side-lane { display: none; }
 
         .fs-btn { flex: 1; height: 60%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; color: var(--neon-blue); text-align: center; }
         .fs-sep { width: 1px; height: 40%; background: #333; }
@@ -238,10 +251,10 @@
         </div>
 
         <div id="right-lane" class="side-lane">
-            <div class="grid-icon-box blank">BAG</div>
             <div class="grid-icon-box locked" id="btn-lst">LST</div>
-            <div class="grid-icon-box breathe" id="btn-fil">FIL</div>
+            <div class="grid-icon-box blank">BAG</div>
             <div class="grid-icon-box breathe" id="btn-web">WEB</div>
+            <div class="grid-icon-box breathe" id="btn-fil">FIL</div>
             <div class="grid-icon-box locked" id="btn-b">B</div>
             <div class="grid-icon-box locked" id="btn-rst">RST</div>
         </div>
@@ -361,12 +374,9 @@
             setTimeout(() => { splash.style.display = "none"; }, 400);
         }
 
-        // 初期化完了時に横画面に固定する
         function lockOrientation() {
             if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('landscape').catch(err => {
-                    console.log("Orientation lock failed: ", err);
-                });
+                screen.orientation.lock('landscape').catch(e => console.log("Lock error:", e));
             }
         }
 
@@ -379,7 +389,7 @@
             updateRSTStatus();
             updateLSTButtonState();
             switchMode('home');
-            lockOrientation(); // 通常画面では横向きにロック
+            lockOrientation();
         }
 
         function updateRSTStatus() {
@@ -718,20 +728,15 @@
             if(!state.isInitialized) return;
             state.lastModeBeforeFull = state.currentMode;
             const el = document.getElementById('center-area');
-            
-            // 全画面時は回転を許可する
             if (screen.orientation && screen.orientation.unlock) {
                 screen.orientation.unlock();
             }
-
             if (el.requestFullscreen) el.requestFullscreen();
             else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
         }
 
         function exitFull() {
-            // 全画面から戻った際は横画面に再ロックする
             lockOrientation();
-
             if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
