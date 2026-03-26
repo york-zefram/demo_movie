@@ -82,6 +82,9 @@
             justify-items: center;
         }
 
+        /* 全画面時はサイドボタンを完全に隠す */
+        #center-area:fullscreen .side-lane { display: none !important; }
+
         #orientation-overlay {
             display: none;
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -99,12 +102,14 @@
         }
 
         #center-area:fullscreen #video-main { display: flex; width: 100%; height: 100%; }
+        
+        /* 全画面時はアスペクト比の縛りを解き、縦長動画を許容する */
         #center-area:fullscreen #video-viewport-wrapper { 
             max-width: 100vw; 
-            max-height: 100vh;
+            max-height: calc(100vh - var(--fs-status-h)); 
             width: 100vw;
-            height: auto;
-            aspect-ratio: var(--center-ratio);
+            height: calc(100vh - var(--fs-status-h));
+            aspect-ratio: auto; 
         }
 
         .grid-icon-box {
@@ -223,11 +228,6 @@
         }
         #center-area:fullscreen #fs-status-bar { display: flex; }
         #center-area:fullscreen #video-main { height: calc(100vh - var(--fs-status-h)); align-items: flex-start; }
-        
-        #center-area:fullscreen #video-viewport-wrapper { 
-            max-width: 100vw; 
-            max-height: calc(100vh - var(--fs-status-h)); 
-        }
 
         .fs-btn { flex: 1; height: 60%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; color: var(--neon-blue); text-align: center; }
         .fs-sep { width: 1px; height: 40%; background: #333; }
@@ -557,7 +557,6 @@
             document.getElementById('btn-mir').onclick = toggleMirror;
             document.getElementById('fs-btn-mir').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
 
-            // LOOPボタン高速レスポンス仕様
             const lopBtn = document.getElementById('btn-lop');
             const clearLOPMemory = () => {
                 state.isLoop = false; state.startT = 0; state.endT = getD();
@@ -567,12 +566,9 @@
 
             const handleLOPStart = (e) => {
                 if(!state.isInitialized) return;
-                if(e.cancelable) e.preventDefault(); // スマホの標準遅延を回避
-                
+                if(e.cancelable) e.preventDefault(); 
                 state.isLopHandled = false;
-
                 if (!state.isLoop) {
-                    // 触れた瞬間に即時ON
                     state.isLoop = true;
                     if (state.startT === 0 && (state.endT === 0 || state.endT === getD())) {
                         state.startT = 0; state.endT = getD();
@@ -581,7 +577,6 @@
                     updateRSTStatus();
                     state.isLopHandled = true; 
                 } else {
-                    // 長押し判定用タイマー
                     state.lopPressTimer = setTimeout(() => {
                         clearLOPMemory();
                         state.isLopHandled = true;
@@ -593,7 +588,6 @@
             const handleLOPEnd = (e) => {
                 if(state.lopPressTimer) { clearTimeout(state.lopPressTimer); state.lopPressTimer = null; }
                 if(!state.isInitialized || state.isLopHandled) return;
-
                 if (state.isLoop) {
                     state.isLoop = false;
                     lopBtn.classList.remove('active');
@@ -601,13 +595,11 @@
                 }
             };
 
-            // passive: false にしてブラウザの判定待ちをスキップ
             lopBtn.addEventListener('touchstart', handleLOPStart, {passive: false});
             lopBtn.addEventListener('touchend', handleLOPEnd, {passive: false});
             lopBtn.onmousedown = handleLOPStart;
             lopBtn.onmouseup = handleLOPEnd;
 
-            // 全画面ステータス復帰動線
             const exitToMode = (mode, e) => {
                 if(e) e.stopPropagation();
                 exitFull();
