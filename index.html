@@ -82,7 +82,6 @@
             justify-items: center;
         }
 
-        /* 全画面時はサイドボタンを完全に隠す */
         #center-area:fullscreen .side-lane { display: none !important; }
 
         #orientation-overlay {
@@ -103,7 +102,6 @@
 
         #center-area:fullscreen #video-main { display: flex; width: 100%; height: 100%; }
         
-        /* 全画面時はアスペクト比の縛りを解き、縦長動画を許容する */
         #center-area:fullscreen #video-viewport-wrapper { 
             max-width: 100vw; 
             max-height: calc(100vh - var(--fs-status-h)); 
@@ -141,15 +139,16 @@
         .mode-panel { display: none; width: 100%; flex-direction: column; gap: 5px; }
         .mode-panel.active { display: flex; }
 
-        #list-overlay {
+        /* LSTとBAG共用のオーバーレイベース */
+        .list-overlay-style {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: #000; z-index: 9999; flex-direction: column;
         }
-        #list-overlay.active { display: flex; }
+        .list-overlay-style.active { display: flex; }
 
-        #list-ad-area { height: var(--ad-h); width: 100%; background: #000; flex-shrink: 0; }
+        #list-ad-area, #setting-ad-area { height: var(--ad-h); width: 100%; background: #000; flex-shrink: 0; }
         
-        #list-header {
+        .list-header-style {
             padding: 1.2vh 4vw; border-bottom: 1px solid #333;
             display: flex; flex-direction: column; gap: 0.2vh; flex-shrink: 0;
         }
@@ -158,7 +157,7 @@
         .list-close { font-size: clamp(13px, 4vmin, 16px); cursor: pointer; color: var(--neon-blue); padding: 5px; }
         .list-breadcrumb { font-size: 9px; color: var(--neon-blue); opacity: 0.8; letter-spacing: 0.1em; }
 
-        #list-content { flex: 1; overflow-y: auto; padding: 0; }
+        .list-content-style { flex: 1; overflow-y: auto; padding: 0; }
 
         .list-item {
             display: flex; align-items: center; padding: 0.8vh 4vw; border-bottom: 1px solid #111; cursor: pointer; 
@@ -266,7 +265,7 @@
 
         <div id="right-lane" class="side-lane">
             <div class="grid-icon-box locked" id="btn-lst">LST</div>
-            <div class="grid-icon-box blank">BAG</div>
+            <div class="grid-icon-box locked" id="btn-bag">BAG</div>
             <div class="grid-icon-box breathe" id="btn-web">WEB</div>
             <div class="grid-icon-box breathe" id="btn-fil">FIL</div>
             <div class="grid-icon-box locked" id="btn-b">B</div>
@@ -286,16 +285,29 @@
         </div>
     </div>
 
-    <div id="list-overlay">
+    <div id="list-overlay" class="list-overlay-style">
         <div id="list-ad-area"></div>
-        <div id="list-header">
+        <div id="list-header" class="list-header-style">
             <div class="list-top-row">
                 <div class="list-title">PLAYLIST</div>
                 <div class="list-close" id="list-btn-close">CLOSE</div>
             </div>
             <div class="list-breadcrumb">ROOT / </div>
         </div>
-        <div id="list-content"></div>
+        <div id="list-content" class="list-content-style"></div>
+    </div>
+
+    <div id="setting-overlay" class="list-overlay-style">
+        <div id="setting-ad-area"></div>
+        <div id="setting-header" class="list-header-style">
+            <div class="list-top-row">
+                <div class="list-title">SETTING</div>
+                <div class="list-close" id="setting-btn-close">CLOSE</div>
+            </div>
+            <div class="list-breadcrumb">ROOT / SETTING</div>
+        </div>
+        <div id="setting-content" class="list-content-style">
+            </div>
     </div>
 
     <div id="bottom-container">
@@ -398,7 +410,10 @@
         function wakeUpUI() {
             hideSplash();
             state.isInitialized = true;
-            document.querySelectorAll('.grid-icon-box').forEach(el => { el.classList.remove('locked'); el.classList.remove('breathe'); });
+            document.querySelectorAll('.grid-icon-box').forEach(el => { 
+                if(!el.classList.contains('blank')) el.classList.remove('locked'); 
+                el.classList.remove('breathe'); 
+            });
             document.getElementById('btn-play-pause').classList.remove('locked');
             document.getElementById('btn-full').classList.remove('locked');
             updateRSTStatus();
@@ -633,6 +648,16 @@
             
             document.getElementById('btn-lst').onclick = () => { if(state.playlist.length === 0) return; pausePlayback(); renderPlaylist(); document.getElementById('list-overlay').classList.add('active'); };
             document.getElementById('list-btn-close').onclick = () => { document.getElementById('list-overlay').classList.remove('active'); };
+
+            // BAG (SETTING) イベント追加
+            document.getElementById('btn-bag').onclick = () => { 
+                if(!state.isInitialized) return;
+                pausePlayback(); 
+                document.getElementById('setting-overlay').classList.add('active'); 
+            };
+            document.getElementById('setting-btn-close').onclick = () => { 
+                document.getElementById('setting-overlay').classList.remove('active'); 
+            };
 
             const handleInput = (e, type) => {
                 if(!state.isInitialized) return;
