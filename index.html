@@ -371,7 +371,7 @@
             endT: 0,
             playlist: JSON.parse(localStorage.getItem('zefram_playlist') || '[]'),
             lopPressTimer: null,
-            lopLongPressFlag: false
+            isLopInterrupted: false
         };
 
         const getT = () => state.isYoutube ? (state.player?.getCurrentTime?.() || 0) : state.localVid.currentTime;
@@ -410,7 +410,7 @@
         function updateRSTStatus() {
             const rstBtn = document.getElementById('btn-rst');
             if (!state.isInitialized) return;
-            const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop || (state.startT !== 0 || state.endT !== 0);
+            const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop || (state.startT !== 0 || (state.endT !== 0 && state.endT !== getD()));
             if (isChanged) { rstBtn.classList.remove('locked'); rstBtn.classList.add('active'); }
             else { rstBtn.classList.add('locked'); rstBtn.classList.remove('active'); }
         }
@@ -559,36 +559,43 @@
 
             const lopBtn = document.getElementById('btn-lop');
             const clearLOPMemory = () => {
-                state.isLoop = false; state.startT = 0; state.endT = 0;
+                state.isLoop = false; state.startT = 0; state.endT = getD();
                 lopBtn.classList.remove('active');
                 updateRSTStatus();
             };
 
             lopBtn.onmousedown = lopBtn.ontouchstart = (e) => {
                 if(!state.isInitialized) return;
-                state.lopLongPressFlag = false;
-                // ONの時だけ長押しリセットを有効化
-                if(state.isLoop) {
-                    state.lopPressTimer = setTimeout(() => { 
-                        clearLOPMemory(); 
-                        state.lopLongPressFlag = true; 
-                        state.lopPressTimer = null; 
+                state.isLopInterrupted = false;
+
+                if (!state.isLoop) {
+                    // OFFの時は触れた瞬間に即ON
+                    state.isLoop = true;
+                    if (state.startT === 0 && (state.endT === 0 || state.endT === getD())) {
+                        state.startT = 0; state.endT = getD();
+                    }
+                    lopBtn.classList.add('active');
+                    updateRSTStatus();
+                } else {
+                    // ONの時は長押しタイマー開始
+                    state.lopPressTimer = setTimeout(() => {
+                        clearLOPMemory();
+                        state.isLopInterrupted = true; // 長押し成功
+                        state.lopPressTimer = null;
                     }, 1000);
                 }
             };
 
             lopBtn.onmouseup = lopBtn.ontouchend = (e) => {
                 if(state.lopPressTimer) { clearTimeout(state.lopPressTimer); state.lopPressTimer = null; }
-                if(!state.isInitialized || state.lopLongPressFlag) return;
-                
-                // 短押し：即座にON/OFF切り替え
-                state.isLoop = !state.isLoop;
-                // 初めてONにする場合は全範囲セット
-                if(state.isLoop && state.startT === 0 && state.endT === 0) {
-                    state.startT = 0; state.endT = getD();
+                if(!state.isInitialized || state.isLopInterrupted) return;
+
+                // ONの時に短く離した場合のみOFFにする
+                if (state.isLoop) {
+                    state.isLoop = false;
+                    lopBtn.classList.remove('active');
+                    updateRSTStatus();
                 }
-                lopBtn.classList.toggle('active', state.isLoop);
-                updateRSTStatus();
             };
 
             document.getElementById('btn-a').onclick = () => { if(!state.isInitialized) return; state.startT = getT(); if(state.endT === 0) state.endT = getD(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
@@ -613,11 +620,6 @@
             
             document.getElementById('btn-lst').onclick = () => { if(state.playlist.length === 0) return; pausePlayback(); renderPlaylist(); document.getElementById('list-overlay').classList.add('active'); };
             document.getElementById('list-btn-close').onclick = () => { document.getElementById('list-overlay').classList.remove('active'); };
-
-            document.getElementById('fs-btn-time').onclick = () => { exitFull(); switchMode('home'); };
-            document.getElementById('fs-btn-speed').onclick = () => { exitFull(); switchMode('speed'); };
-            document.getElementById('fs-btn-loop').onclick = () => { exitFull(); switchMode('home'); };
-            document.getElementById('fs-btn-exit').onclick = () => { exitFull(); switchMode(state.lastModeBeforeFull); };
 
             const handleInput = (e, type) => {
                 if(!state.isInitialized) return;
@@ -644,29 +646,29 @@
                 }
             };
 
-            // スライド感度の向上：イベントの重複を防ぎ、ノブの判定を優先
-            const preventDefault = (e) => { if (e.cancelable) e.preventDefault(); };
+            const stopDefault = (e) => { if (e.cancelable) e.preventDefault(); };
 
             document.getElementById('main-track').addEventListener('touchstart', (e) => { 
                 if (e.target.id === 'knob-a') { state.activeDrag = 'a'; }
                 else if (e.target.id === 'knob-b') { state.activeDrag = 'b'; }
                 else { state.activeDrag = 'now'; handleInput(e, 'now'); }
-                preventDefault(e);
+                stopDefault(e);
             }, {passive: false});
 
-            document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
-            
-            document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
-            document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
+            document.getElementById('main-track').onmousedown = (e) => {
+                if (e.target.id === 'knob-a') { state.activeDrag = 'a'; }
+                else if (e.target.id === 'knob-b') { state.activeDrag = 'b'; }
+                else { state.activeDrag = 'now'; handleInput(e, 'now'); }
+            };
 
             document.getElementById('speed-track').addEventListener('touchstart', (e) => { 
-                state.activeDrag = 'speed'; handleInput(e, 'speed'); preventDefault(e);
+                state.activeDrag = 'speed'; handleInput(e, 'speed'); stopDefault(e);
             }, {passive: false});
 
             document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
 
             window.addEventListener('touchmove', (e) => { 
-                if(state.activeDrag) { handleInput(e, state.activeDrag); preventDefault(e); }
+                if(state.activeDrag) { handleInput(e, state.activeDrag); stopDefault(e); }
             }, {passive: false});
 
             window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
