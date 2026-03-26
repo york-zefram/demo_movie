@@ -18,7 +18,6 @@
             --fs-status-h: 10vh;
             --disabled-color: #333;
             --ad-h: 40px;
-            --track-gray: #222; /* 非アクティブ領域のグレー */
         }
 
         body { 
@@ -141,9 +140,8 @@
         .list-item-time { color: #fff; font-size: clamp(9px, 2.5vmin, 11px); opacity: 0.9; }
         .list-item-del { color: #444; font-size: clamp(18px, 4.5vmin, 22px); padding: 0 1vw; cursor: pointer; }
         
-        /* 再生バーのスタイリング修正 */
-        .bar-track { width: 100%; height: 12px; background: var(--track-gray); position: relative; cursor: pointer; border-radius: 6px; }
-        .bar-fill { height: 100%; background: var(--track-gray); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
+        .bar-track { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); position: relative; cursor: pointer; border-radius: 6px; }
+        .bar-fill { height: 100%; background: rgba(0, 243, 255, 0.3); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
         #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 1; box-shadow: var(--neon-glow); border-radius: 6px; pointer-events: none; }
         .knob-ab {
             position: absolute; top: 50%; transform: translate(-50%, -50%);
@@ -342,6 +340,7 @@
         function updateRSTStatus() {
             const rstBtn = document.getElementById('btn-rst');
             if (!state.isInitialized) return;
+            // 変更があれば点灯、標準なら消灯
             const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop || (state.startT !== 0 || state.endT !== 0);
             if (isChanged) {
                 rstBtn.classList.remove('locked');
@@ -434,7 +433,6 @@
             if (dur > 0) {
                 const p = (now / dur) * 100;
                 if (state.activeDrag !== 'now') {
-                    // 通常再生バー（bar-fill）も背景と同じグレーにする（色味を消す）
                     document.getElementById('main-fill').style.width = p + "%";
                     document.getElementById('now-knob').style.left = p + "%";
                     document.getElementById('txt-cur').innerText = formatTime(now);
@@ -511,10 +509,11 @@
                 }
             };
 
+            /* A点・B点ボタンの「オート・アクティベート」修正 */
             document.getElementById('btn-a').onclick = () => { 
                 if(!state.isInitialized) return; 
                 state.startT = getT(); 
-                if(state.endT === 0) state.endT = getD(); 
+                if(state.endT === 0) state.endT = getD(); // 修正点
                 state.isLoop = true; 
                 document.getElementById('btn-lop').classList.add('active'); 
                 updateRSTStatus(); 
@@ -523,7 +522,7 @@
             document.getElementById('btn-b').onclick = () => { 
                 if(!state.isInitialized) return; 
                 state.endT = getT(); 
-                if(state.startT > state.endT) state.startT = 0; 
+                if(state.startT > state.endT) state.startT = 0; // 逆転防止
                 state.isLoop = true; 
                 document.getElementById('btn-lop').classList.add('active'); 
                 updateRSTStatus(); 
