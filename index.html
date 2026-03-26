@@ -457,7 +457,6 @@
             if (!state.isInitialized) { requestAnimationFrame(render); return; }
             const now = getT();
             const dur = getD();
-            // ver3.3準拠: ループ走行ロジック
             if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) setT(state.startT);
             
             if (dur > 0) {
@@ -483,7 +482,6 @@
                 fsMir.classList.toggle('dim', !state.isMirror);
                 const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
                 
-                // ver3.3準拠: ループ時のみ範囲表示
                 if (state.isLoop) {
                     range.style.display = ka.style.display = kb.style.display = 'flex';
                     const sP = (state.startT / dur) * 100, eP = (state.endT / dur) * 100;
@@ -526,7 +524,6 @@
                 updateRSTStatus();
             };
 
-            // ver3.3準拠: LOP長押しリセット
             lopBtn.onmousedown = lopBtn.ontouchstart = (e) => {
                 if(!state.isInitialized) return;
                 state.lopPressTimer = setTimeout(() => {
@@ -546,7 +543,6 @@
                 }
             };
 
-            // ver3.3準拠: A/Bボタンでの即時ループ開始
             document.getElementById('btn-a').onclick = () => { 
                 if(!state.isInitialized) return; 
                 state.startT = getT(); 
@@ -606,11 +602,16 @@
                 const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
                 let p = Math.max(0, Math.min(1, x / rect.width));
 
-                if (type === 'now') setT(p * getD());
+                if (type === 'now') {
+                    // シーク操作の修復
+                    const targetTime = p * getD();
+                    setT(targetTime);
+                    document.getElementById('main-fill').style.width = (p * 100) + "%";
+                    document.getElementById('now-knob').style.left = (p * 100) + "%";
+                }
                 else if (type === 'a') { state.startT = p * getD(); updateRSTStatus(); }
                 else if (type === 'b') { state.endT = p * getD(); updateRSTStatus(); }
                 else if (type === 'speed') {
-                    // 最新仕様: スナップ機能
                     if (p > 0.47 && p < 0.53) p = 0.5;
                     state.playbackRate = 0.5 + p; setR(state.playbackRate);
                     document.getElementById('speed-knob').style.left = (p * 100) + "%";
@@ -620,14 +621,17 @@
                 }
             };
 
-            document.getElementById('main-track').onmousedown = (e) => handleInput(e, 'now');
-            document.getElementById('main-track').ontouchstart = (e) => handleInput(e, 'now');
+            // 現在位置（白点）のドラッグを有効化するための修正
+            document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+            document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+            
             document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-a').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
             document.getElementById('knob-b').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
             document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
             document.getElementById('speed-track').ontouchstart = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
+            
             window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.onmouseup = window.ontouchend = () => { state.activeDrag = null; };
