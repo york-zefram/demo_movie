@@ -319,6 +319,14 @@
     </div>
 
     <script>
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+              .then(reg => console.log('SW registered.', reg))
+              .catch(err => console.log('SW registration failed.', err));
+          });
+        }
+
         const state = {
             player: null,
             localVid: null,
@@ -604,7 +612,6 @@
                 let p = Math.max(0, Math.min(1, x / rect.width));
 
                 if (type === 'now') {
-                    // シーク操作の修復
                     const targetTime = p * getD();
                     setT(targetTime);
                     document.getElementById('main-fill').style.width = (p * 100) + "%";
@@ -622,7 +629,6 @@
                 }
             };
 
-            // 現在位置（白点）のドラッグを有効化するための修正
             document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
             document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
             
@@ -638,8 +644,11 @@
             window.onmouseup = window.ontouchend = () => { state.activeDrag = null; };
 
             document.getElementById('btn-url-go').onclick = () => {
-                const v = document.getElementById('input-url').value;
-                const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
+                const input = document.getElementById('input-url').value.trim();
+                if (!input) return;
+                const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+                const match = input.match(regex);
+                const id = match ? match[1] : (input.length === 11 ? input : null);
                 if(id) {
                     state.isYoutube = true;
                     document.getElementById('local-video').style.display = 'none';
@@ -648,6 +657,8 @@
                     clearLOPMemory(); 
                     wakeUpUI();
                     document.getElementById('btn-url-add').classList.remove('locked');
+                } else {
+                    alert("INVALID URL OR VIDEO ID");
                 }
             };
 
