@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ZEFRAM VIDEO PLAYER</title>
+    <title>ZEFRAM VIDEO PLAYER - NEO</title>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <style>
@@ -176,8 +176,7 @@
         .list-item-time { color: #fff; font-size: clamp(9px, 2.5vmin, 11px); opacity: 0.9; }
         .list-item-del { color: #444; font-size: clamp(18px, 4.5vmin, 22px); padding: 0 1vw; cursor: pointer; }
         
-        /* シークバーおよびABリピート表示の強化 */
-        .bar-track { width: 100%; height: 16px; background: var(--track-gray); position: relative; cursor: pointer; border-radius: 8px; }
+        .bar-track { width: 100%; height: 16px; background: var(--track-gray); position: relative; cursor: pointer; border-radius: 8px; touch-action: none; }
         .bar-fill { height: 100%; background: #444; width: 0%; position: absolute; border-radius: 8px; pointer-events: none; z-index: 2; }
         
         #ab-range { 
@@ -188,10 +187,10 @@
         
         .knob-ab {
             position: absolute; top: 50%; transform: translate(-50%, -50%);
-            width: 32px; height: 32px; background: #000; border: 2px solid var(--neon-blue);
+            width: 36px; height: 36px; background: #000; border: 2px solid var(--neon-blue);
             color: var(--neon-blue); display: none; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: bold; border-radius: 6px; z-index: 20; cursor: pointer;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+            font-size: 12px; font-weight: bold; border-radius: 6px; z-index: 25; cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.8); touch-action: none;
         }
         
         #now-knob {
@@ -371,7 +370,8 @@
             startT: 0,
             endT: 0,
             playlist: JSON.parse(localStorage.getItem('zefram_playlist') || '[]'),
-            lopPressTimer: null
+            lopPressTimer: null,
+            lopLongPressFlag: false
         };
 
         const getT = () => state.isYoutube ? (state.player?.getCurrentTime?.() || 0) : state.localVid.currentTime;
@@ -566,18 +566,29 @@
 
             lopBtn.onmousedown = lopBtn.ontouchstart = (e) => {
                 if(!state.isInitialized) return;
-                state.lopPressTimer = setTimeout(() => { clearLOPMemory(); state.lopPressTimer = null; }, 1000);
+                state.lopLongPressFlag = false;
+                // ONの時だけ長押しリセットを有効化
+                if(state.isLoop) {
+                    state.lopPressTimer = setTimeout(() => { 
+                        clearLOPMemory(); 
+                        state.lopLongPressFlag = true; 
+                        state.lopPressTimer = null; 
+                    }, 1000);
+                }
             };
 
             lopBtn.onmouseup = lopBtn.ontouchend = (e) => {
-                if(state.lopPressTimer) {
-                    clearTimeout(state.lopPressTimer);
-                    state.lopPressTimer = null;
-                    state.isLoop = !state.isLoop;
-                    if(state.isLoop && state.endT === 0) state.endT = getD();
-                    lopBtn.classList.toggle('active', state.isLoop);
-                    updateRSTStatus();
+                if(state.lopPressTimer) { clearTimeout(state.lopPressTimer); state.lopPressTimer = null; }
+                if(!state.isInitialized || state.lopLongPressFlag) return;
+                
+                // 短押し：即座にON/OFF切り替え
+                state.isLoop = !state.isLoop;
+                // 初めてONにする場合は全範囲セット
+                if(state.isLoop && state.startT === 0 && state.endT === 0) {
+                    state.startT = 0; state.endT = getD();
                 }
+                lopBtn.classList.toggle('active', state.isLoop);
+                updateRSTStatus();
             };
 
             document.getElementById('btn-a').onclick = () => { if(!state.isInitialized) return; state.startT = getT(); if(state.endT === 0) state.endT = getD(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
@@ -612,7 +623,8 @@
                 if(!state.isInitialized) return;
                 const track = document.getElementById(type === 'speed' ? 'speed-track' : 'main-track');
                 const rect = track.getBoundingClientRect();
-                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+                const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+                const x = clientX - rect.left;
                 let p = Math.max(0, Math.min(1, x / rect.width));
 
                 if (type === 'now') {
@@ -632,16 +644,32 @@
                 }
             };
 
+            // スライド感度の向上：イベントの重複を防ぎ、ノブの判定を優先
+            const preventDefault = (e) => { if (e.cancelable) e.preventDefault(); };
+
+            document.getElementById('main-track').addEventListener('touchstart', (e) => { 
+                if (e.target.id === 'knob-a') { state.activeDrag = 'a'; }
+                else if (e.target.id === 'knob-b') { state.activeDrag = 'b'; }
+                else { state.activeDrag = 'now'; handleInput(e, 'now'); }
+                preventDefault(e);
+            }, {passive: false});
+
             document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
-            document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+            
             document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
-            document.getElementById('knob-a').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
-            document.getElementById('knob-b').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
+
+            document.getElementById('speed-track').addEventListener('touchstart', (e) => { 
+                state.activeDrag = 'speed'; handleInput(e, 'speed'); preventDefault(e);
+            }, {passive: false});
+
             document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
-            document.getElementById('speed-track').ontouchstart = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
+
+            window.addEventListener('touchmove', (e) => { 
+                if(state.activeDrag) { handleInput(e, state.activeDrag); preventDefault(e); }
+            }, {passive: false});
+
             window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
-            window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.onmouseup = window.ontouchend = () => { state.activeDrag = null; };
 
             document.getElementById('btn-url-go').onclick = () => {
