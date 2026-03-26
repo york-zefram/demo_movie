@@ -371,7 +371,7 @@
             endT: 0,
             playlist: JSON.parse(localStorage.getItem('zefram_playlist') || '[]'),
             lopPressTimer: null,
-            isLopInterrupted: false
+            isLopHandled: false
         };
 
         const getT = () => state.isYoutube ? (state.player?.getCurrentTime?.() || 0) : state.localVid.currentTime;
@@ -564,31 +564,32 @@
                 updateRSTStatus();
             };
 
-            lopBtn.onmousedown = lopBtn.ontouchstart = (e) => {
+            const handleLOPStart = (e) => {
                 if(!state.isInitialized) return;
-                state.isLopInterrupted = false;
+                state.isLopHandled = false;
 
                 if (!state.isLoop) {
-                    // OFFの時は触れた瞬間に即ON
+                    // OFF -> ON: 触れた瞬間に即実行
                     state.isLoop = true;
                     if (state.startT === 0 && (state.endT === 0 || state.endT === getD())) {
                         state.startT = 0; state.endT = getD();
                     }
                     lopBtn.classList.add('active');
                     updateRSTStatus();
+                    state.isLopHandled = true; // OFFからのONはここで完結
                 } else {
-                    // ONの時は長押しタイマー開始
+                    // ONの状態の時は長押しタイマーを開始
                     state.lopPressTimer = setTimeout(() => {
-                        clearLOPMemory();
-                        state.isLopInterrupted = true; // 長押し成功
+                        clearLOPMemory(); // 1秒経ったのでリセット
+                        state.isLopHandled = true;
                         state.lopPressTimer = null;
                     }, 1000);
                 }
             };
 
-            lopBtn.onmouseup = lopBtn.ontouchend = (e) => {
+            const handleLOPEnd = (e) => {
                 if(state.lopPressTimer) { clearTimeout(state.lopPressTimer); state.lopPressTimer = null; }
-                if(!state.isInitialized || state.isLopInterrupted) return;
+                if(!state.isInitialized || state.isLopHandled) return;
 
                 // ONの時に短く離した場合のみOFFにする
                 if (state.isLoop) {
@@ -597,6 +598,11 @@
                     updateRSTStatus();
                 }
             };
+
+            lopBtn.addEventListener('touchstart', handleLOPStart, {passive: true});
+            lopBtn.addEventListener('touchend', handleLOPEnd, {passive: true});
+            lopBtn.onmousedown = handleLOPStart;
+            lopBtn.onmouseup = handleLOPEnd;
 
             document.getElementById('btn-a').onclick = () => { if(!state.isInitialized) return; state.startT = getT(); if(state.endT === 0) state.endT = getD(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
             document.getElementById('btn-b').onclick = () => { if(!state.isInitialized) return; state.endT = getT(); if(state.startT > state.endT) state.startT = 0; state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
