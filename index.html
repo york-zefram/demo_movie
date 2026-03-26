@@ -180,6 +180,26 @@
         .list-item-time { color: #fff; font-size: clamp(9px, 2.5vmin, 11px); opacity: 0.9; }
         .list-item-del { color: #444; font-size: clamp(18px, 4.5vmin, 22px); padding: 0 1vw; cursor: pointer; }
         
+        /* SETTINGS 2カラムスタイル */
+        .settings-container {
+            display: flex; height: 100%; color: #fff; font-family: sans-serif; text-transform: none;
+        }
+        .settings-left {
+            flex: 0 0 35%; border-right: 1px solid #222; display: flex; flex-direction: column; padding: 2vh 0;
+        }
+        .settings-right {
+            flex: 1; padding: 4vh 5vw; display: flex; flex-direction: column; gap: 15px;
+        }
+        .set-menu-item {
+            padding: 1.5vh 4vw; cursor: pointer; font-size: clamp(12px, 3.5vmin, 15px);
+            border-left: 4px solid transparent; transition: 0.2s;
+        }
+        .set-menu-item.active {
+            background: rgba(0, 243, 255, 0.1); border-left: 4px solid var(--neon-blue); color: var(--neon-blue);
+        }
+        #set-detail-title { font-size: clamp(16px, 4.5vmin, 20px); color: var(--neon-blue); margin-bottom: 10px; font-weight: bold; }
+        #set-detail-desc { font-size: clamp(12px, 3.2vmin, 14px); line-height: 1.6; opacity: 0.9; white-space: pre-wrap; }
+
         .bar-track { width: 100%; height: 16px; background: var(--track-gray); position: relative; cursor: pointer; border-radius: 8px; touch-action: none; }
         .bar-fill { height: 100%; background: #444; width: 0%; position: absolute; border-radius: 8px; pointer-events: none; z-index: 2; }
         
@@ -301,13 +321,27 @@
         <div id="setting-ad-area"></div>
         <div id="setting-header" class="list-header-style">
             <div class="list-top-row">
-                <div class="list-title">SETTING</div>
+                <div class="list-title">SETTINGS</div>
                 <div class="list-close" id="setting-btn-close">CLOSE</div>
             </div>
-            <div class="list-breadcrumb">ROOT / SETTING</div>
+            <div class="list-breadcrumb">ROOT / SETTINGS</div>
         </div>
         <div id="setting-content" class="list-content-style">
+            <div class="settings-container">
+                <div class="settings-left">
+                    <div class="set-menu-item active" onclick="showSetDetail('guide')">ユーザーガイド</div>
+                    <div class="set-menu-item" onclick="showSetDetail('help')">ヘルプ</div>
+                    <div class="set-menu-item" onclick="showSetDetail('lang')">言語設定</div>
+                    <div class="set-menu-item" onclick="showSetDetail('terms')">利用規約</div>
+                    <div class="set-menu-item" onclick="showSetDetail('priv')">プライバシーポリシー</div>
+                    <div class="set-menu-item" onclick="showSetDetail('ver')">バージョン</div>
+                </div>
+                <div class="settings-right">
+                    <div id="set-detail-title">ユーザーガイド</div>
+                    <div id="set-detail-desc">操作方法や機能説明をブラウザで開きます。</div>
+                </div>
             </div>
+        </div>
     </div>
 
     <div id="bottom-container">
@@ -414,6 +448,10 @@
                 if(!el.classList.contains('blank')) el.classList.remove('locked'); 
                 el.classList.remove('breathe'); 
             });
+            // BAGをSETに書き換え
+            const bagBtn = document.getElementById('btn-bag');
+            if(bagBtn) bagBtn.innerText = 'SET';
+
             document.getElementById('btn-play-pause').classList.remove('locked');
             document.getElementById('btn-full').classList.remove('locked');
             updateRSTStatus();
@@ -649,7 +687,7 @@
             document.getElementById('btn-lst').onclick = () => { if(state.playlist.length === 0) return; pausePlayback(); renderPlaylist(); document.getElementById('list-overlay').classList.add('active'); };
             document.getElementById('list-btn-close').onclick = () => { document.getElementById('list-overlay').classList.remove('active'); };
 
-            // BAG (SETTING) イベント追加
+            // SETTING (元BAG) イベント
             document.getElementById('btn-bag').onclick = () => { 
                 if(!state.isInitialized) return;
                 pausePlayback(); 
@@ -752,6 +790,30 @@
                     clearLOPMemory(); wakeUpUI();
                 }
             };
+        }
+
+        // 設定画面の詳細切り替え関数
+        function showSetDetail(type) {
+            const title = document.getElementById('set-detail-title');
+            const desc = document.getElementById('set-detail-desc');
+            const items = document.querySelectorAll('.set-menu-item');
+            
+            items.forEach(i => i.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            const data = {
+                guide: ["ユーザーガイド", "操作方法や機能説明をブラウザで開きます。"],
+                help: ["ヘルプ", "トラブルシューティングやよくある質問を表示します。"],
+                lang: ["言語設定", "アプリ内の表示言語を選択します。\n\n● 日本語\n○ English (US)"],
+                terms: ["利用規約", "本アプリをご利用いただく上での規定事項を確認できます。"],
+                priv: ["プライバシーポリシー", "ユーザーデータの取り扱いに関する方針を記載しています。"],
+                ver: ["バージョン", "ZEFRAM PLAYER NEO\nVersion 4.0.0\n\n(C) 2026 STUDIO ZEFRAM"]
+            };
+
+            if (data[type]) {
+                title.innerText = data[type][0];
+                desc.innerText = data[type][1];
+            }
         }
 
         function switchMode(mode) {
