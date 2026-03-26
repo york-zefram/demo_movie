@@ -18,7 +18,7 @@
             --fs-status-h: 10vh;
             --disabled-color: #333;
             --ad-h: 40px;
-            --track-gray: #222; /* 非アクティブ領域のグレー */
+            --track-gray: #222;
         }
 
         body { 
@@ -36,6 +36,7 @@
 
         #center-area {
             flex: 1; position: relative; display: flex; background: #050505; z-index: 50; overflow: hidden;
+            justify-content: center;
         }
 
         #bottom-container {
@@ -45,7 +46,7 @@
         }
 
         #video-main {
-            flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
+            flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
         }
 
         #video-viewport-wrapper {
@@ -74,6 +75,24 @@
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
             padding: 2vh 0; box-sizing: border-box; z-index: 200;
         }
+
+        #orientation-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 5000;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        #orientation-overlay img { width: 60%; max-width: 300px; height: auto; }
+
+        @media (orientation: portrait) {
+            #orientation-overlay { display: flex; }
+            #top-container, #bottom-container, .side-lane { display: none !important; }
+            #center-area { background: #000; }
+            #video-main { display: none; }
+        }
+
+        #center-area:fullscreen #orientation-overlay { display: none; }
+        #center-area:fullscreen #video-main { display: flex; }
 
         .grid-icon-box {
             width: var(--icon-size); height: var(--icon-size);
@@ -141,7 +160,6 @@
         .list-item-time { color: #fff; font-size: clamp(9px, 2.5vmin, 11px); opacity: 0.9; }
         .list-item-del { color: #444; font-size: clamp(18px, 4.5vmin, 22px); padding: 0 1vw; cursor: pointer; }
         
-        /* 再生バーのスタイリング修正 */
         .bar-track { width: 100%; height: 12px; background: var(--track-gray); position: relative; cursor: pointer; border-radius: 6px; }
         .bar-fill { height: 100%; background: var(--track-gray); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
         #ab-range { height: 100%; background: var(--neon-blue); position: absolute; display: none; z-index: 1; box-shadow: var(--neon-glow); border-radius: 6px; pointer-events: none; }
@@ -151,7 +169,7 @@
             color: var(--neon-blue); display: none; align-items: center; justify-content: center;
             font-size: 10px; border-radius: 4px; z-index: 10; cursor: pointer;
         }
-        #now-knob {
+        #now-knob, #speed-knob {
             position: absolute; top: 50%; transform: translate(-50%, -50%);
             width: 12px; height: 12px; background: #fff; border-radius: 50%;
             box-shadow: 0 0 10px #fff; z-index: 5; pointer-events: none;
@@ -190,6 +208,10 @@
 </head>
 <body>
 
+    <div id="orientation-overlay">
+        <img src="5.webp" alt="ROTATE DEVICE">
+    </div>
+
     <div id="top-container">ZEFRAM VIDEO PLAYER - NEO</div>
 
     <div id="center-area">
@@ -224,7 +246,7 @@
         <div id="fs-status-bar">
             <div class="fs-btn" id="fs-btn-time">00:00 / 00:00</div>
             <div class="fs-sep"></div>
-            <div class="fs-btn" id="fs-btn-speed">1.00X</div>
+            <div class="fs-btn" id="fs-btn-speed">0%</div>
             <div class="fs-sep"></div>
             <div class="fs-btn" id="fs-btn-loop">LOOP: OFF</div>
             <div class="fs-sep"></div>
@@ -267,11 +289,11 @@
             </div>
 
             <div id="panel-speed" class="mode-panel">
-                <div class="speed-labels"><span>0.5X</span><span>1.0X</span><span>1.5X</span></div>
+                <div class="speed-labels"><span>-50%</span><span>0%</span><span>+50%</span></div>
                 <div class="bar-track" id="speed-track">
-                    <div class="bar-fill" id="speed-fill" style="width: 50%; background:var(--neon-blue); opacity:1;"></div>
+                    <div id="speed-knob" style="left: 50%;"></div>
                 </div>
-                <div class="speed-display" id="txt-speed">1.00X</div>
+                <div class="speed-display" id="txt-speed">0%</div>
             </div>
 
             <div id="panel-web" class="mode-panel">
@@ -426,22 +448,32 @@
             btn.innerText = isPlaying ? "Ⅱ" : "▶";
         }
 
+        function formatPercent(rate) {
+            const p = Math.round((rate - 1.0) * 100);
+            return (p >= 0 ? "+" : "") + p + "%";
+        }
+
         function render() {
             if (!state.isInitialized) { requestAnimationFrame(render); return; }
             const now = getT();
             const dur = getD();
             if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) setT(state.startT);
+            
             if (dur > 0) {
                 const p = (now / dur) * 100;
                 if (state.activeDrag !== 'now') {
-                    // 通常再生バー（bar-fill）も背景と同じグレーにする（色味を消す）
                     document.getElementById('main-fill').style.width = p + "%";
                     document.getElementById('now-knob').style.left = p + "%";
                     document.getElementById('txt-cur').innerText = formatTime(now);
                 }
                 document.getElementById('txt-total').innerText = formatTime(dur);
                 document.getElementById('fs-btn-time').innerText = `${formatTime(now)} / ${formatTime(dur)}`;
-                document.getElementById('fs-btn-speed').innerText = state.playbackRate.toFixed(2) + "X";
+                
+                const speedPct = formatPercent(state.playbackRate);
+                const fsSpeed = document.getElementById('fs-btn-speed');
+                fsSpeed.innerText = speedPct;
+                fsSpeed.classList.toggle('dim', Math.abs(state.playbackRate - 1.0) < 0.01);
+
                 const fsLoop = document.getElementById('fs-btn-loop');
                 if (state.isLoop) { fsLoop.innerText = `${formatTime(state.startT)} - ${formatTime(state.endT)}`; fsLoop.classList.remove('dim'); }
                 else { fsLoop.innerText = "LOOP: OFF"; fsLoop.classList.add('dim'); }
@@ -534,8 +566,8 @@
             document.getElementById('btn-rst').onclick = () => {
                 if (!state.isInitialized) return;
                 state.playbackRate = 1.0; setR(1.0);
-                document.getElementById('speed-fill').style.width = "50%";
-                document.getElementById('txt-speed').innerText = "1.00X";
+                document.getElementById('speed-knob').style.left = "50%";
+                document.getElementById('txt-speed').innerText = "0%";
                 state.isMirror = false;
                 document.getElementById('video-viewport-wrapper').style.transform = "none";
                 document.getElementById('btn-mir').classList.remove('active');
@@ -568,27 +600,38 @@
                 const track = document.getElementById(type === 'speed' ? 'speed-track' : 'main-track');
                 const rect = track.getBoundingClientRect();
                 const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                const p = Math.max(0, Math.min(1, x / rect.width));
-                if (type === 'now') setT(p * getD());
+                let p = Math.max(0, Math.min(1, x / rect.width));
+
+                if (type === 'now') {
+                    // シーク操作の修復
+                    const targetTime = p * getD();
+                    setT(targetTime);
+                    document.getElementById('main-fill').style.width = (p * 100) + "%";
+                    document.getElementById('now-knob').style.left = (p * 100) + "%";
+                }
                 else if (type === 'a') { state.startT = p * getD(); updateRSTStatus(); }
                 else if (type === 'b') { state.endT = p * getD(); updateRSTStatus(); }
                 else if (type === 'speed') {
+                    if (p > 0.47 && p < 0.53) p = 0.5;
                     state.playbackRate = 0.5 + p; setR(state.playbackRate);
-                    document.getElementById('speed-fill').style.width = (p * 100) + "%";
-                    document.getElementById('txt-speed').innerText = state.playbackRate.toFixed(2) + "X";
+                    document.getElementById('speed-knob').style.left = (p * 100) + "%";
+                    document.getElementById('txt-speed').innerText = formatPercent(state.playbackRate);
                     document.getElementById('btn-spd').classList.toggle('active', Math.abs(state.playbackRate - 1.0) > 0.01);
                     updateRSTStatus();
                 }
             };
 
-            document.getElementById('main-track').onmousedown = (e) => handleInput(e, 'now');
-            document.getElementById('main-track').ontouchstart = (e) => handleInput(e, 'now');
+            // 現在位置（白点）のドラッグを有効化するための修正
+            document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+            document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
+            
             document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-a').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
             document.getElementById('knob-b').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
-            document.getElementById('speed-track').onmousedown = (e) => handleInput(e, 'speed');
-            document.getElementById('speed-track').ontouchstart = (e) => handleInput(e, 'speed');
+            document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
+            document.getElementById('speed-track').ontouchstart = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
+            
             window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.onmouseup = window.ontouchend = () => { state.activeDrag = null; };
