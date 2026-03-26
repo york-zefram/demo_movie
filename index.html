@@ -85,11 +85,13 @@
         }
         #orientation-overlay img { width: 60%; max-width: 300px; height: auto; }
 
+        /* 全画面時以外の縦画面のみ、オーバーレイを表示して操作を制限する */
         @media (orientation: portrait) {
-            #orientation-overlay { display: flex; }
-            #top-container, #bottom-container, .side-lane { display: none !important; }
-            #center-area { background: #000; }
-            #video-main { display: none; }
+            #center-area:not(:fullscreen) ~ #orientation-overlay { display: flex; }
+            #center-area:not(:fullscreen) ~ #top-container, 
+            #center-area:not(:fullscreen) ~ #bottom-container, 
+            #center-area:not(:fullscreen) .side-lane { display: none !important; }
+            #center-area:not(:fullscreen) #video-main { display: none; }
         }
 
         #center-area:fullscreen #orientation-overlay { display: none; }
@@ -359,6 +361,15 @@
             setTimeout(() => { splash.style.display = "none"; }, 400);
         }
 
+        // 初期化完了時に横画面に固定する
+        function lockOrientation() {
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(err => {
+                    console.log("Orientation lock failed: ", err);
+                });
+            }
+        }
+
         function wakeUpUI() {
             hideSplash();
             state.isInitialized = true;
@@ -368,6 +379,7 @@
             updateRSTStatus();
             updateLSTButtonState();
             switchMode('home');
+            lockOrientation(); // 通常画面では横向きにロック
         }
 
         function updateRSTStatus() {
@@ -706,11 +718,20 @@
             if(!state.isInitialized) return;
             state.lastModeBeforeFull = state.currentMode;
             const el = document.getElementById('center-area');
+            
+            // 全画面時は回転を許可する
+            if (screen.orientation && screen.orientation.unlock) {
+                screen.orientation.unlock();
+            }
+
             if (el.requestFullscreen) el.requestFullscreen();
             else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
         }
 
         function exitFull() {
+            // 全画面から戻った際は横画面に再ロックする
+            lockOrientation();
+
             if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
