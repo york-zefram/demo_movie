@@ -557,7 +557,7 @@
             document.getElementById('btn-mir').onclick = toggleMirror;
             document.getElementById('fs-btn-mir').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
 
-            // LOOPボタン仕様
+            // LOOPボタン高速レスポンス仕様
             const lopBtn = document.getElementById('btn-lop');
             const clearLOPMemory = () => {
                 state.isLoop = false; state.startT = 0; state.endT = getD();
@@ -567,16 +567,21 @@
 
             const handleLOPStart = (e) => {
                 if(!state.isInitialized) return;
+                if(e.cancelable) e.preventDefault(); // スマホの標準遅延を回避
+                
                 state.isLopHandled = false;
+
                 if (!state.isLoop) {
+                    // 触れた瞬間に即時ON
                     state.isLoop = true;
                     if (state.startT === 0 && (state.endT === 0 || state.endT === getD())) {
                         state.startT = 0; state.endT = getD();
                     }
                     lopBtn.classList.add('active');
                     updateRSTStatus();
-                    state.isLopHandled = true;
+                    state.isLopHandled = true; 
                 } else {
+                    // 長押し判定用タイマー
                     state.lopPressTimer = setTimeout(() => {
                         clearLOPMemory();
                         state.isLopHandled = true;
@@ -588,6 +593,7 @@
             const handleLOPEnd = (e) => {
                 if(state.lopPressTimer) { clearTimeout(state.lopPressTimer); state.lopPressTimer = null; }
                 if(!state.isInitialized || state.isLopHandled) return;
+
                 if (state.isLoop) {
                     state.isLoop = false;
                     lopBtn.classList.remove('active');
@@ -595,12 +601,13 @@
                 }
             };
 
-            lopBtn.addEventListener('touchstart', handleLOPStart, {passive: true});
-            lopBtn.addEventListener('touchend', handleLOPEnd, {passive: true});
+            // passive: false にしてブラウザの判定待ちをスキップ
+            lopBtn.addEventListener('touchstart', handleLOPStart, {passive: false});
+            lopBtn.addEventListener('touchend', handleLOPEnd, {passive: false});
             lopBtn.onmousedown = handleLOPStart;
             lopBtn.onmouseup = handleLOPEnd;
 
-            // 全画面ステータスバー・復帰動線
+            // 全画面ステータス復帰動線
             const exitToMode = (mode, e) => {
                 if(e) e.stopPropagation();
                 exitFull();
