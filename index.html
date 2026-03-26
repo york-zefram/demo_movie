@@ -34,7 +34,6 @@
             border-bottom: 1px solid #333; font-size: 11px; letter-spacing: 0.2em;
         }
 
-        /* 修正箇所: position: relative を追加し、子要素の絶対配置の起点にする */
         #center-area {
             flex: 1; position: relative; display: flex; background: #050505; z-index: 50; overflow: hidden;
             justify-content: center;
@@ -46,7 +45,6 @@
             display: flex; align-items: center; border-top: 1px solid #333;
         }
 
-        /* 修正箇所: width: 100% を確保し、サイドバーに左右されないようにする */
         #video-main {
             flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; height: 100%; position: relative;
         }
@@ -72,22 +70,32 @@
         }
         #video-splash img { width: 45%; max-width: 280px; height: auto; }
 
-        /* 修正箇所: 縦画面の際にビデオを中央に保つため、サイドレーンを絶対配置に変更可能にする */
         .side-lane {
             width: var(--lane-w); height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: space-around;
             padding: 2vh 0; box-sizing: border-box; z-index: 200;
         }
 
-        /* デザインを壊さないための縦画面用調整 */
-        @media (orientation: portrait) {
-            .side-lane {
-                position: absolute;
-                top: 0;
-            }
-            #left-lane { left: 0; }
-            #right-lane { right: 0; }
+        /* 回転案内レイヤーのスタイル */
+        #orientation-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 5000;
+            flex-direction: column; align-items: center; justify-content: center;
         }
+        #orientation-overlay img { width: 60%; max-width: 300px; height: auto; }
+
+        /* 縦画面時の挙動定義 */
+        @media (orientation: portrait) {
+            #orientation-overlay { display: flex; }
+            #top-container, #bottom-container, .side-lane { display: none !important; }
+            #center-area { background: #000; }
+            #video-main { display: none; }
+        }
+
+        /* フルスクリーン時は回転案内を隠して動画を優先 */
+        #center-area:fullscreen #orientation-overlay { display: none; }
+        #center-area:fullscreen #video-main { display: flex; }
 
         .grid-icon-box {
             width: var(--icon-size); height: var(--icon-size);
@@ -203,6 +211,10 @@
 </head>
 <body>
 
+    <div id="orientation-overlay">
+        <img src="5.webp" alt="ROTATE DEVICE">
+    </div>
+
     <div id="top-container">ZEFRAM VIDEO PLAYER - NEO</div>
 
     <div id="center-area">
@@ -309,7 +321,6 @@
     </div>
 
     <script>
-        // ロジック部分は元の機能を完全に維持しています
         const state = {
             player: null,
             localVid: null,
