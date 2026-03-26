@@ -557,6 +557,7 @@
             document.getElementById('btn-mir').onclick = toggleMirror;
             document.getElementById('fs-btn-mir').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
 
+            // LOOPボタン仕様
             const lopBtn = document.getElementById('btn-lop');
             const clearLOPMemory = () => {
                 state.isLoop = false; state.startT = 0; state.endT = getD();
@@ -567,20 +568,17 @@
             const handleLOPStart = (e) => {
                 if(!state.isInitialized) return;
                 state.isLopHandled = false;
-
                 if (!state.isLoop) {
-                    // OFF -> ON: 触れた瞬間に即実行
                     state.isLoop = true;
                     if (state.startT === 0 && (state.endT === 0 || state.endT === getD())) {
                         state.startT = 0; state.endT = getD();
                     }
                     lopBtn.classList.add('active');
                     updateRSTStatus();
-                    state.isLopHandled = true; // OFFからのONはここで完結
+                    state.isLopHandled = true;
                 } else {
-                    // ONの状態の時は長押しタイマーを開始
                     state.lopPressTimer = setTimeout(() => {
-                        clearLOPMemory(); // 1秒経ったのでリセット
+                        clearLOPMemory();
                         state.isLopHandled = true;
                         state.lopPressTimer = null;
                     }, 1000);
@@ -590,8 +588,6 @@
             const handleLOPEnd = (e) => {
                 if(state.lopPressTimer) { clearTimeout(state.lopPressTimer); state.lopPressTimer = null; }
                 if(!state.isInitialized || state.isLopHandled) return;
-
-                // ONの時に短く離した場合のみOFFにする
                 if (state.isLoop) {
                     state.isLoop = false;
                     lopBtn.classList.remove('active');
@@ -603,6 +599,18 @@
             lopBtn.addEventListener('touchend', handleLOPEnd, {passive: true});
             lopBtn.onmousedown = handleLOPStart;
             lopBtn.onmouseup = handleLOPEnd;
+
+            // 全画面ステータスバー・復帰動線
+            const exitToMode = (mode, e) => {
+                if(e) e.stopPropagation();
+                exitFull();
+                setTimeout(() => switchMode(mode), 300);
+            };
+
+            document.getElementById('fs-btn-loop').onclick = (e) => exitToMode('home', e);
+            document.getElementById('fs-btn-time').onclick = (e) => exitToMode('home', e);
+            document.getElementById('fs-btn-speed').onclick = (e) => exitToMode('speed', e);
+            document.getElementById('fs-btn-exit').onclick = (e) => exitToMode('home', e);
 
             document.getElementById('btn-a').onclick = () => { if(!state.isInitialized) return; state.startT = getT(); if(state.endT === 0) state.endT = getD(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
             document.getElementById('btn-b').onclick = () => { if(!state.isInitialized) return; state.endT = getT(); if(state.startT > state.endT) state.startT = 0; state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
