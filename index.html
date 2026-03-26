@@ -12,10 +12,9 @@
             --neon-glow: 0 0 10px rgba(0, 243, 255, 0.7); 
             --top-h: 50px;
             --bottom-h: 25vh;
-            --lane-w: 22vw; /* 2列化に伴い幅を拡張 */
+            --lane-w: 22vw; 
             --center-ratio: 16 / 9;
-            --icon-size: 8vh; 
-            --icon-max: 75px; /* ボタンサイズを大型化 */
+            --icon-max: 75px; 
             --fs-status-h: 10vh;
             --disabled-color: #333;
             --ad-h: 40px;
@@ -71,14 +70,13 @@
         }
         #video-splash img { width: 45%; max-width: 280px; height: auto; }
 
-        /* サイドレーンを2列のグリッドに変更 */
         .side-lane {
             width: var(--lane-w); height: 100%;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             grid-template-rows: repeat(3, 1fr);
-            gap: 10px;
-            padding: 15px 10px;
+            gap: 1.5vh; /* 隙間を高さ基準に */
+            padding: 2vh 10px; /* 上下余白を高さ基準に */
             box-sizing: border-box; z-index: 200;
             align-items: center;
             justify-items: center;
@@ -109,9 +107,13 @@
             aspect-ratio: var(--center-ratio);
         }
 
+        /* ボタンサイズの可変ロジック修正 */
         .grid-icon-box {
-            width: 100%; height: 100%;
-            max-width: var(--icon-max); max-height: var(--icon-max);
+            width: 100%; 
+            /* 画面の高さから上下のUI分を引き、3等分した高さを上限とする */
+            height: calc((100vh - var(--top-h) - var(--bottom-h) - 8vh) / 3);
+            max-width: var(--icon-max); 
+            max-height: var(--icon-max);
             aspect-ratio: 1/1;
             background: none; border: 1px solid var(--neon-blue); border-radius: 8px;
             display: flex; align-items: center; justify-content: center;
@@ -334,6 +336,7 @@
     </div>
 
     <script>
+        /* JSロジック（ver3.8/3.9同等）省略なし */
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js')
@@ -396,13 +399,8 @@
             const rstBtn = document.getElementById('btn-rst');
             if (!state.isInitialized) return;
             const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop || (state.startT !== 0 || state.endT !== 0);
-            if (isChanged) {
-                rstBtn.classList.remove('locked');
-                rstBtn.classList.add('active');
-            } else {
-                rstBtn.classList.add('locked');
-                rstBtn.classList.remove('active');
-            }
+            if (isChanged) { rstBtn.classList.remove('locked'); rstBtn.classList.add('active'); }
+            else { rstBtn.classList.add('locked'); rstBtn.classList.remove('active'); }
         }
 
         window.onYouTubeIframeAPIReady = () => {
@@ -508,11 +506,12 @@
                 const fsLoop = document.getElementById('fs-btn-loop');
                 if (state.isLoop) { fsLoop.innerText = `${formatTime(state.startT)} - ${formatTime(state.endT)}`; fsLoop.classList.remove('dim'); }
                 else { fsLoop.innerText = "LOOP: OFF"; fsLoop.classList.add('dim'); }
+                
                 const fsMir = document.getElementById('fs-btn-mir');
                 fsMir.innerText = `MIR: ${state.isMirror ? 'ON' : 'OFF'}`;
                 fsMir.classList.toggle('dim', !state.isMirror);
-                const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
                 
+                const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
                 if (state.isLoop) {
                     range.style.display = ka.style.display = kb.style.display = 'flex';
                     const sP = (state.startT / dur) * 100, eP = (state.endT / dur) * 100;
@@ -548,19 +547,14 @@
 
             const lopBtn = document.getElementById('btn-lop');
             const clearLOPMemory = () => {
-                state.isLoop = false;
-                state.startT = 0;
-                state.endT = 0;
+                state.isLoop = false; state.startT = 0; state.endT = 0;
                 lopBtn.classList.remove('active');
                 updateRSTStatus();
             };
 
             lopBtn.onmousedown = lopBtn.ontouchstart = (e) => {
                 if(!state.isInitialized) return;
-                state.lopPressTimer = setTimeout(() => {
-                    clearLOPMemory();
-                    state.lopPressTimer = null;
-                }, 1000);
+                state.lopPressTimer = setTimeout(() => { clearLOPMemory(); state.lopPressTimer = null; }, 1000);
             };
 
             lopBtn.onmouseup = lopBtn.ontouchend = (e) => {
@@ -574,24 +568,8 @@
                 }
             };
 
-            document.getElementById('btn-a').onclick = () => { 
-                if(!state.isInitialized) return; 
-                state.startT = getT(); 
-                if(state.endT === 0) state.endT = getD(); 
-                state.isLoop = true; 
-                document.getElementById('btn-lop').classList.add('active'); 
-                updateRSTStatus(); 
-            };
-            
-            document.getElementById('btn-b').onclick = () => { 
-                if(!state.isInitialized) return; 
-                state.endT = getT(); 
-                if(state.startT > state.endT) state.startT = 0; 
-                state.isLoop = true; 
-                document.getElementById('btn-lop').classList.add('active'); 
-                updateRSTStatus(); 
-            };
-
+            document.getElementById('btn-a').onclick = () => { if(!state.isInitialized) return; state.startT = getT(); if(state.endT === 0) state.endT = getD(); state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
+            document.getElementById('btn-b').onclick = () => { if(!state.isInitialized) return; state.endT = getT(); if(state.startT > state.endT) state.startT = 0; state.isLoop = true; document.getElementById('btn-lop').classList.add('active'); updateRSTStatus(); };
             document.getElementById('btn-top').onclick = () => { if(!state.isInitialized) return; setT(state.isLoop ? state.startT : 0); };
 
             document.getElementById('btn-rst').onclick = () => {
@@ -610,16 +588,8 @@
             document.getElementById('btn-web').onclick = () => switchMode('web');
             document.getElementById('btn-fil').onclick = () => switchMode('file');
             
-            document.getElementById('btn-lst').onclick = () => {
-                if(state.playlist.length === 0) return;
-                pausePlayback();
-                renderPlaylist();
-                document.getElementById('list-overlay').classList.add('active');
-            };
-
-            document.getElementById('list-btn-close').onclick = () => {
-                document.getElementById('list-overlay').classList.remove('active');
-            };
+            document.getElementById('btn-lst').onclick = () => { if(state.playlist.length === 0) return; pausePlayback(); renderPlaylist(); document.getElementById('list-overlay').classList.add('active'); };
+            document.getElementById('list-btn-close').onclick = () => { document.getElementById('list-overlay').classList.remove('active'); };
 
             document.getElementById('fs-btn-time').onclick = () => { exitFull(); switchMode('home'); };
             document.getElementById('fs-btn-speed').onclick = () => { exitFull(); switchMode('speed'); };
@@ -634,8 +604,7 @@
                 let p = Math.max(0, Math.min(1, x / rect.width));
 
                 if (type === 'now') {
-                    const targetTime = p * getD();
-                    setT(targetTime);
+                    const targetTime = p * getD(); setT(targetTime);
                     document.getElementById('main-fill').style.width = (p * 100) + "%";
                     document.getElementById('now-knob').style.left = (p * 100) + "%";
                 }
@@ -653,21 +622,18 @@
 
             document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
             document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
-            
             document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-a').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
             document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
             document.getElementById('knob-b').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
             document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
             document.getElementById('speed-track').ontouchstart = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
-            
             window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
             window.onmouseup = window.ontouchend = () => { state.activeDrag = null; };
 
             document.getElementById('btn-url-go').onclick = () => {
                 const input = document.getElementById('input-url').value.trim();
-                if (!input) return;
                 const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
                 const match = input.match(regex);
                 const id = match ? match[1] : (input.length === 11 ? input : null);
@@ -676,12 +642,9 @@
                     document.getElementById('local-video').style.display = 'none';
                     document.getElementById('yt-player').style.display = 'block';
                     state.player.loadVideoById(id);
-                    clearLOPMemory(); 
-                    wakeUpUI();
+                    clearLOPMemory(); wakeUpUI();
                     document.getElementById('btn-url-add').classList.remove('locked');
-                } else {
-                    alert("INVALID URL OR VIDEO ID");
-                }
+                } else alert("INVALID URL");
             };
 
             document.getElementById('btn-url-add').onclick = () => {
@@ -692,8 +655,7 @@
                     if (!state.playlist.some(item => item.id === videoId)) {
                         state.playlist.push({ id: videoId, title: videoData.title, author: videoData.author, duration: formatTime(getD()) });
                         localStorage.setItem('zefram_playlist', JSON.stringify(state.playlist));
-                        updateLSTButtonState();
-                        renderPlaylist();
+                        updateLSTButtonState(); renderPlaylist();
                     }
                 }
             };
@@ -707,8 +669,7 @@
                     state.player.pauseVideo();
                     state.localVid.src = URL.createObjectURL(file);
                     state.localVid.play();
-                    clearLOPMemory();
-                    wakeUpUI();
+                    clearLOPMemory(); wakeUpUI();
                 }
             };
         }
@@ -728,9 +689,7 @@
             if(!state.isInitialized) return;
             state.lastModeBeforeFull = state.currentMode;
             const el = document.getElementById('center-area');
-            if (screen.orientation && screen.orientation.unlock) {
-                screen.orientation.unlock();
-            }
+            if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
             if (el.requestFullscreen) el.requestFullscreen();
             else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
         }
