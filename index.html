@@ -91,9 +91,6 @@
             #video-main { display: none; }
         }
 
-        #center-area:fullscreen #orientation-overlay { display: none; }
-        #center-area:fullscreen #video-main { display: flex; }
-
         .grid-icon-box {
             width: var(--icon-size); height: var(--icon-size);
             max-width: var(--icon-max); max-height: var(--icon-max);
@@ -143,7 +140,6 @@
             display: flex; align-items: center; padding: 0.8vh 4vw; border-bottom: 1px solid #111; cursor: pointer; 
             gap: 3vw; position: relative; font-family: sans-serif; text-transform: none;
         }
-        .list-item:hover { background: #0a0a0a; }
         
         .list-thumb {
             width: clamp(65px, 16vmin, 100px); aspect-ratio: 16/9; background: #222; 
@@ -152,13 +148,8 @@
         .list-thumb img { width: 100%; height: 100%; object-fit: cover; }
         
         .list-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1vh; }
-        
         .list-item-title { color: #fff; font-weight: bold; font-size: clamp(11px, 3.2vmin, 13px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .list-item-channel { color: var(--neon-blue); font-size: clamp(9px, 2.5vmin, 10px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; }
-        
-        .list-meta { display: flex; align-items: center; gap: 2vw; flex-shrink: 0; }
-        .list-item-time { color: #fff; font-size: clamp(9px, 2.5vmin, 11px); opacity: 0.9; }
-        .list-item-del { color: #444; font-size: clamp(18px, 4.5vmin, 22px); padding: 0 1vw; cursor: pointer; }
+        .list-item-channel { color: var(--neon-blue); font-size: clamp(9px, 2.5vmin, 10px); opacity: 0.7; }
         
         .bar-track { width: 100%; height: 12px; background: var(--track-gray); position: relative; cursor: pointer; border-radius: 6px; }
         .bar-fill { height: 100%; background: var(--track-gray); width: 0%; position: absolute; border-radius: 6px; pointer-events: none; z-index: 2; }
@@ -171,8 +162,8 @@
         }
         #now-knob, #speed-knob {
             position: absolute; top: 50%; transform: translate(-50%, -50%);
-            width: 12px; height: 12px; background: #fff; border-radius: 50%;
-            box-shadow: 0 0 10px #fff; z-index: 5; pointer-events: none;
+            width: 14px; height: 14px; background: #fff; border-radius: 50%;
+            box-shadow: 0 0 10px #fff; z-index: 15; pointer-events: none;
         }
 
         .speed-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--neon-blue); margin-bottom: 4px; opacity: 0.7; }
@@ -197,7 +188,6 @@
             max-width: calc((100vh - var(--fs-status-h)) * (16 / 9)); 
             max-height: calc(100vh - var(--fs-status-h)); 
         }
-        #center-area:fullscreen .side-lane { display: none; }
 
         .fs-btn { flex: 1; height: 60%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; color: var(--neon-blue); text-align: center; }
         .fs-sep { width: 1px; height: 40%; background: #333; }
@@ -335,43 +325,37 @@
             lopPressTimer: null
         };
 
-        const getT = () => state.isYoutube ? (state.player?.getCurrentTime?.() || 0) : state.localVid.currentTime;
-        const getD = () => state.isYoutube ? (state.player?.getDuration?.() || 0) : state.localVid.duration;
-        const setT = (t) => state.isYoutube ? state.player.seekTo(t, true) : (state.localVid.currentTime = t);
-        const setR = (r) => state.isYoutube ? state.player.setPlaybackRate(r) : (state.localVid.playbackRate = r);
+        const getT = () => state.isYoutube ? (state.player?.getCurrentTime?.() || 0) : (state.localVid?.currentTime || 0);
+        const getD = () => state.isYoutube ? (state.player?.getDuration?.() || 0) : (state.localVid?.duration || 0);
+        const setT = (t) => state.isYoutube ? state.player?.seekTo?.(t, true) : (state.localVid && (state.localVid.currentTime = t));
+        const setR = (r) => state.isYoutube ? state.player?.setPlaybackRate?.(r) : (state.localVid && (state.localVid.playbackRate = r));
 
+        // YouTube API Loading
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
 
         function hideSplash() {
             const splash = document.getElementById('video-splash');
-            splash.style.opacity = "0";
-            setTimeout(() => { splash.style.display = "none"; }, 400);
+            if(splash) {
+                splash.style.opacity = "0";
+                setTimeout(() => { splash.style.display = "none"; }, 400);
+            }
         }
 
         function wakeUpUI() {
+            if(state.isInitialized) return;
             hideSplash();
             state.isInitialized = true;
-            document.querySelectorAll('.grid-icon-box').forEach(el => { el.classList.remove('locked'); el.classList.remove('breathe'); });
+            document.querySelectorAll('.grid-icon-box').forEach(el => { 
+                el.classList.remove('locked'); 
+                el.classList.remove('breathe'); 
+            });
             document.getElementById('btn-play-pause').classList.remove('locked');
             document.getElementById('btn-full').classList.remove('locked');
             updateRSTStatus();
             updateLSTButtonState();
             switchMode('home');
-        }
-
-        function updateRSTStatus() {
-            const rstBtn = document.getElementById('btn-rst');
-            if (!state.isInitialized) return;
-            const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop || (state.startT !== 0 || state.endT !== 0);
-            if (isChanged) {
-                rstBtn.classList.remove('locked');
-                rstBtn.classList.add('active');
-            } else {
-                rstBtn.classList.add('locked');
-                rstBtn.classList.remove('active');
-            }
         }
 
         window.onYouTubeIframeAPIReady = () => {
@@ -380,20 +364,23 @@
                 width: wrapper.clientWidth,
                 height: wrapper.clientHeight,
                 videoId: '',
-                playerVars: { 'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1, 'vq': 'highres' },
+                playerVars: { 
+                    'rel': 0, 'controls': 0, 'modestbranding': 1, 'playsinline': 1, 
+                    'vq': 'highres', 'origin': location.origin 
+                },
                 events: {
-                    'onReady': onPlayerReady,
+                    'onReady': () => { if(!state.isInitialized) wakeUpUI(); },
                     'onStateChange': (e) => { updatePlayIcon(); }
                 }
             });
         };
 
-        function onPlayerReady() {
-            state.localVid = document.getElementById('local-video');
-            initEvents();
-            updateLSTButtonState();
-            renderPlaylist();
-            render();
+        function updateRSTStatus() {
+            const rstBtn = document.getElementById('btn-rst');
+            if (!state.isInitialized) return;
+            const isChanged = (Math.abs(state.playbackRate - 1.0) > 0.01) || state.isMirror || state.isLoop || (state.startT !== 0 || state.endT !== 0);
+            if (isChanged) { rstBtn.classList.remove('locked'); rstBtn.classList.add('active'); }
+            else { rstBtn.classList.add('locked'); rstBtn.classList.remove('active'); }
         }
 
         function updateLSTButtonState() {
@@ -428,7 +415,7 @@
                     </div>
                 `;
                 div.onclick = () => {
-                    state.player.loadVideoById(item.id);
+                    state.player?.loadVideoById(item.id);
                     document.getElementById('list-overlay').classList.remove('active');
                     wakeUpUI();
                 };
@@ -436,15 +423,9 @@
             });
         }
 
-        function pausePlayback() {
-            if(!state.isInitialized) return;
-            if(state.isYoutube) state.player.pauseVideo();
-            else state.localVid.pause();
-        }
-
         function updatePlayIcon() {
             const btn = document.getElementById('btn-play-pause');
-            const isPlaying = state.isYoutube ? (state.player?.getPlayerState?.() === 1) : !state.localVid.paused;
+            const isPlaying = state.isYoutube ? (state.player?.getPlayerState?.() === 1) : (state.localVid && !state.localVid.paused);
             btn.innerText = isPlaying ? "Ⅱ" : "▶";
         }
 
@@ -457,6 +438,8 @@
             if (!state.isInitialized) { requestAnimationFrame(render); return; }
             const now = getT();
             const dur = getD();
+            
+            // ABリピート走行ロジック
             if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) setT(state.startT);
             
             if (dur > 0) {
@@ -468,26 +451,25 @@
                 }
                 document.getElementById('txt-total').innerText = formatTime(dur);
                 document.getElementById('fs-btn-time').innerText = `${formatTime(now)} / ${formatTime(dur)}`;
-                
-                const speedPct = formatPercent(state.playbackRate);
-                const fsSpeed = document.getElementById('fs-btn-speed');
-                fsSpeed.innerText = speedPct;
-                fsSpeed.classList.toggle('dim', Math.abs(state.playbackRate - 1.0) < 0.01);
-
-                const fsLoop = document.getElementById('fs-btn-loop');
-                if (state.isLoop) { fsLoop.innerText = `${formatTime(state.startT)} - ${formatTime(state.endT)}`; fsLoop.classList.remove('dim'); }
-                else { fsLoop.innerText = "LOOP: OFF"; fsLoop.classList.add('dim'); }
-                const fsMir = document.getElementById('fs-btn-mir');
-                fsMir.innerText = `MIR: ${state.isMirror ? 'ON' : 'OFF'}`;
-                fsMir.classList.toggle('dim', !state.isMirror);
-                const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
-                
-                if (state.isLoop) {
-                    range.style.display = ka.style.display = kb.style.display = 'flex';
+            }
+            
+            // ノブと範囲の表示更新
+            const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
+            if (state.isLoop) {
+                range.style.display = ka.style.display = kb.style.display = 'flex';
+                if(dur > 0) {
                     const sP = (state.startT / dur) * 100, eP = (state.endT / dur) * 100;
                     ka.style.left = sP + "%"; kb.style.left = eP + "%"; range.style.left = sP + "%"; range.style.width = (eP - sP) + "%";
-                } else { range.style.display = ka.style.display = kb.style.display = 'none'; }
+                }
+            } else {
+                range.style.display = ka.style.display = kb.style.display = 'none';
             }
+
+            const speedPct = formatPercent(state.playbackRate);
+            document.getElementById('fs-btn-speed').innerText = speedPct;
+            document.getElementById('fs-btn-loop').innerText = state.isLoop ? `${formatTime(state.startT)} - ${formatTime(state.endT)}` : "LOOP: OFF";
+            document.getElementById('fs-btn-mir').innerText = `MIR: ${state.isMirror ? 'ON' : 'OFF'}`;
+            
             updatePlayIcon();
             requestAnimationFrame(render);
         }
@@ -501,8 +483,8 @@
         function initEvents() {
             document.getElementById('btn-play-pause').onclick = () => {
                 if(!state.isInitialized) return;
-                if(state.isYoutube) state.player.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
-                else state.localVid.paused ? state.localVid.play() : state.localVid.pause();
+                if(state.isYoutube) state.player?.getPlayerState() === 1 ? state.player.pauseVideo() : state.player.playVideo();
+                else state.localVid?.paused ? state.localVid.play() : state.localVid?.pause();
             };
 
             const toggleMirror = () => {
@@ -513,54 +495,36 @@
                 updateRSTStatus();
             };
             document.getElementById('btn-mir').onclick = toggleMirror;
-            document.getElementById('fs-btn-mir').onclick = (e) => { e.stopPropagation(); toggleMirror(); };
 
             const lopBtn = document.getElementById('btn-lop');
             const clearLOPMemory = () => {
-                state.isLoop = false;
-                state.startT = 0;
-                state.endT = 0;
-                lopBtn.classList.remove('active');
-                updateRSTStatus();
+                state.isLoop = false; state.startT = 0; state.endT = 0;
+                lopBtn.classList.remove('active'); updateRSTStatus();
             };
 
             lopBtn.onmousedown = lopBtn.ontouchstart = (e) => {
                 if(!state.isInitialized) return;
-                state.lopPressTimer = setTimeout(() => {
-                    clearLOPMemory();
-                    state.lopPressTimer = null;
-                }, 1000);
+                state.lopPressTimer = setTimeout(() => { clearLOPMemory(); state.lopPressTimer = null; }, 1000);
             };
-
             lopBtn.onmouseup = lopBtn.ontouchend = (e) => {
                 if(state.lopPressTimer) {
-                    clearTimeout(state.lopPressTimer);
-                    state.lopPressTimer = null;
+                    clearTimeout(state.lopPressTimer); state.lopPressTimer = null;
                     state.isLoop = !state.isLoop;
                     if(state.isLoop && state.endT === 0) state.endT = getD();
-                    lopBtn.classList.toggle('active', state.isLoop);
-                    updateRSTStatus();
+                    lopBtn.classList.toggle('active', state.isLoop); updateRSTStatus();
                 }
             };
 
             document.getElementById('btn-a').onclick = () => { 
                 if(!state.isInitialized) return; 
-                state.startT = getT(); 
-                if(state.endT === 0) state.endT = getD(); 
-                state.isLoop = true; 
-                document.getElementById('btn-lop').classList.add('active'); 
-                updateRSTStatus(); 
+                state.startT = getT(); if(state.endT === 0) state.endT = getD();
+                state.isLoop = true; lopBtn.classList.add('active'); updateRSTStatus(); 
             };
-            
             document.getElementById('btn-b').onclick = () => { 
                 if(!state.isInitialized) return; 
-                state.endT = getT(); 
-                if(state.startT > state.endT) state.startT = 0; 
-                state.isLoop = true; 
-                document.getElementById('btn-lop').classList.add('active'); 
-                updateRSTStatus(); 
+                state.endT = getT(); if(state.startT > state.endT) state.startT = 0;
+                state.isLoop = true; lopBtn.classList.add('active'); updateRSTStatus(); 
             };
-
             document.getElementById('btn-top').onclick = () => { if(!state.isInitialized) return; setT(state.isLoop ? state.startT : 0); };
 
             document.getElementById('btn-rst').onclick = () => {
@@ -568,140 +532,5 @@
                 state.playbackRate = 1.0; setR(1.0);
                 document.getElementById('speed-knob').style.left = "50%";
                 document.getElementById('txt-speed').innerText = "0%";
-                state.isMirror = false;
-                document.getElementById('video-viewport-wrapper').style.transform = "none";
-                document.getElementById('btn-mir').classList.remove('active');
-                clearLOPMemory();
-            };
-
-            document.getElementById('btn-hom').onclick = () => switchMode('home');
-            document.getElementById('btn-spd').onclick = () => switchMode('speed');
-            document.getElementById('btn-web').onclick = () => switchMode('web');
-            document.getElementById('btn-fil').onclick = () => switchMode('file');
-            
-            document.getElementById('btn-lst').onclick = () => {
-                if(state.playlist.length === 0) return;
-                pausePlayback();
-                renderPlaylist();
-                document.getElementById('list-overlay').classList.add('active');
-            };
-
-            document.getElementById('list-btn-close').onclick = () => {
-                document.getElementById('list-overlay').classList.remove('active');
-            };
-
-            document.getElementById('fs-btn-time').onclick = () => { exitFull(); switchMode('home'); };
-            document.getElementById('fs-btn-speed').onclick = () => { exitFull(); switchMode('speed'); };
-            document.getElementById('fs-btn-loop').onclick = () => { exitFull(); switchMode('home'); };
-            document.getElementById('fs-btn-exit').onclick = () => { exitFull(); switchMode(state.lastModeBeforeFull); };
-
-            const handleInput = (e, type) => {
-                if(!state.isInitialized) return;
-                const track = document.getElementById(type === 'speed' ? 'speed-track' : 'main-track');
-                const rect = track.getBoundingClientRect();
-                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                let p = Math.max(0, Math.min(1, x / rect.width));
-
-                if (type === 'now') {
-                    // シーク操作の修復
-                    const targetTime = p * getD();
-                    setT(targetTime);
-                    document.getElementById('main-fill').style.width = (p * 100) + "%";
-                    document.getElementById('now-knob').style.left = (p * 100) + "%";
-                }
-                else if (type === 'a') { state.startT = p * getD(); updateRSTStatus(); }
-                else if (type === 'b') { state.endT = p * getD(); updateRSTStatus(); }
-                else if (type === 'speed') {
-                    if (p > 0.47 && p < 0.53) p = 0.5;
-                    state.playbackRate = 0.5 + p; setR(state.playbackRate);
-                    document.getElementById('speed-knob').style.left = (p * 100) + "%";
-                    document.getElementById('txt-speed').innerText = formatPercent(state.playbackRate);
-                    document.getElementById('btn-spd').classList.toggle('active', Math.abs(state.playbackRate - 1.0) > 0.01);
-                    updateRSTStatus();
-                }
-            };
-
-            // 現在位置（白点）のドラッグを有効化するための修正
-            document.getElementById('main-track').onmousedown = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
-            document.getElementById('main-track').ontouchstart = (e) => { state.activeDrag = 'now'; handleInput(e, 'now'); };
-            
-            document.getElementById('knob-a').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
-            document.getElementById('knob-a').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'a'; };
-            document.getElementById('knob-b').onmousedown = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
-            document.getElementById('knob-b').ontouchstart = (e) => { e.stopPropagation(); state.activeDrag = 'b'; };
-            document.getElementById('speed-track').onmousedown = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
-            document.getElementById('speed-track').ontouchstart = (e) => { state.activeDrag = 'speed'; handleInput(e, 'speed'); };
-            
-            window.onmousemove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
-            window.ontouchmove = (e) => { if(state.activeDrag) handleInput(e, state.activeDrag); };
-            window.onmouseup = window.ontouchend = () => { state.activeDrag = null; };
-
-            document.getElementById('btn-url-go').onclick = () => {
-                const v = document.getElementById('input-url').value;
-                const id = v.split('v=')[1]?.split('&')[0] || v.split('/').pop();
-                if(id) {
-                    state.isYoutube = true;
-                    document.getElementById('local-video').style.display = 'none';
-                    document.getElementById('yt-player').style.display = 'block';
-                    state.player.loadVideoById(id);
-                    clearLOPMemory(); 
-                    wakeUpUI();
-                    document.getElementById('btn-url-add').classList.remove('locked');
-                }
-            };
-
-            document.getElementById('btn-url-add').onclick = () => {
-                if (!state.isYoutube || !state.player) return;
-                const videoData = state.player.getVideoData();
-                const videoId = videoData.video_id;
-                if (videoId && videoData.title !== "Unknown") {
-                    if (!state.playlist.some(item => item.id === videoId)) {
-                        state.playlist.push({ id: videoId, title: videoData.title, author: videoData.author, duration: formatTime(getD()) });
-                        localStorage.setItem('zefram_playlist', JSON.stringify(state.playlist));
-                        updateLSTButtonState();
-                        renderPlaylist();
-                    }
-                }
-            };
-
-            document.getElementById('file-input').onchange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    state.isYoutube = false;
-                    document.getElementById('yt-player').style.display = 'none';
-                    document.getElementById('local-video').style.display = 'block';
-                    state.player.pauseVideo();
-                    state.localVid.src = URL.createObjectURL(file);
-                    state.localVid.play();
-                    clearLOPMemory();
-                    wakeUpUI();
-                }
-            };
-        }
-
-        function switchMode(mode) {
-            state.currentMode = mode;
-            document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
-            document.getElementById('btn-hom').classList.toggle('active', mode === 'home');
-            document.getElementById('btn-web').classList.toggle('active', mode === 'web');
-            document.getElementById('btn-fil').classList.toggle('active', mode === 'file');
-            document.getElementById('btn-spd').classList.toggle('active', (mode === 'speed' || Math.abs(state.playbackRate - 1.0) > 0.01));
-            const panel = document.getElementById(`panel-${mode === 'home' ? 'home' : mode === 'speed' ? 'speed' : mode}`);
-            if(panel) panel.classList.add('active');
-        }
-
-        function enterFull() {
-            if(!state.isInitialized) return;
-            state.lastModeBeforeFull = state.currentMode;
-            const el = document.getElementById('center-area');
-            if (el.requestFullscreen) el.requestFullscreen();
-            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-        }
-
-        function exitFull() {
-            if (document.exitFullscreen) document.exitFullscreen();
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        }
-    </script>
-</body>
-</html>
+                state.isMirror = false; document.getElementById('video-viewport-wrapper').style.transform = "none";
+                document.getElementById('btn
