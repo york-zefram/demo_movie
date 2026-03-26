@@ -457,7 +457,9 @@
             if (!state.isInitialized) { requestAnimationFrame(render); return; }
             const now = getT();
             const dur = getD();
+            // ver3.3準拠: ループ走行ロジック
             if (state.isLoop && state.endT > state.startT && (now >= state.endT || now < state.startT - 0.1)) setT(state.startT);
+            
             if (dur > 0) {
                 const p = (now / dur) * 100;
                 if (state.activeDrag !== 'now') {
@@ -481,6 +483,7 @@
                 fsMir.classList.toggle('dim', !state.isMirror);
                 const range = document.getElementById('ab-range'), ka = document.getElementById('knob-a'), kb = document.getElementById('knob-b');
                 
+                // ver3.3準拠: ループ時のみ範囲表示
                 if (state.isLoop) {
                     range.style.display = ka.style.display = kb.style.display = 'flex';
                     const sP = (state.startT / dur) * 100, eP = (state.endT / dur) * 100;
@@ -523,6 +526,7 @@
                 updateRSTStatus();
             };
 
+            // ver3.3準拠: LOP長押しリセット
             lopBtn.onmousedown = lopBtn.ontouchstart = (e) => {
                 if(!state.isInitialized) return;
                 state.lopPressTimer = setTimeout(() => {
@@ -542,6 +546,7 @@
                 }
             };
 
+            // ver3.3準拠: A/Bボタンでの即時ループ開始
             document.getElementById('btn-a').onclick = () => { 
                 if(!state.isInitialized) return; 
                 state.startT = getT(); 
@@ -605,7 +610,7 @@
                 else if (type === 'a') { state.startT = p * getD(); updateRSTStatus(); }
                 else if (type === 'b') { state.endT = p * getD(); updateRSTStatus(); }
                 else if (type === 'speed') {
-                    // スナップ機能：中央（50%位置）の前後3%範囲を0%に固定
+                    // 最新仕様: スナップ機能
                     if (p > 0.47 && p < 0.53) p = 0.5;
                     state.playbackRate = 0.5 + p; setR(state.playbackRate);
                     document.getElementById('speed-knob').style.left = (p * 100) + "%";
