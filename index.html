@@ -632,7 +632,7 @@
                         <div class="list-thumb" style="display:flex;align-items:center;justify-content:center;color:#555;font-size:20px;">▶</div>
                         <div class="list-info">
                             <div class="list-item-title">${item.name}</div>
-                            <div class="list-item-channel">LOCAL FILE</div>
+                            <div class="list-item-channel" style="color:#666;">TAP TO SELECT FILE</div>
                         </div>
                         <div class="list-meta">
                             <div class="list-item-time">${item.duration || '00:00'}</div>
@@ -640,7 +640,12 @@
                         </div>
                     `;
                     div.onclick = () => {
+                        // オーバーレイを閉じてからファイル選択ダイアログを開く
                         document.getElementById('list-overlay').classList.remove('active');
+                        const fileInput = document.getElementById('file-input');
+                        // 同じファイルを再選択できるようvalueをクリア
+                        fileInput.value = '';
+                        fileInput.click();
                     };
                 }
                 container.appendChild(div);
